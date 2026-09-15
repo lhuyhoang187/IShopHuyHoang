@@ -1,0 +1,572 @@
+@import "tailwindcss";
+
+:root {
+  --background: #0e0b08;
+  --foreground: #f8fafc;
+  --card-bg: rgba(26, 20, 15, 0.82);
+  --card-border: rgba(226, 183, 116, 0.2);
+  --desert-gold: #e2b774;
+  --desert-gold-light: #fef08a;
+  --cyber-cyan: #38bdf8;
+  --electric-blue: #60a5fa;
+  --hyper-emerald: #10b981;
+  --neon-violet: #a78bfa;
+}
+
+body {
+  background-color: #0e0b08;
+  background-image: 
+    radial-gradient(circle at 50% -10%, rgba(245, 158, 11, 0.28) 0%, transparent 60%),
+    radial-gradient(circle at 90% 25%, rgba(226, 183, 116, 0.2) 0%, transparent 45%),
+    radial-gradient(circle at 10% 60%, rgba(217, 119, 6, 0.15) 0%, transparent 45%),
+    radial-gradient(circle at 75% 85%, rgba(245, 158, 11, 0.15) 0%, transparent 50%);
+  background-attachment: fixed;
+  color: #f8fafc;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+/* Sửa lỗi hiển thị chữ có dấu tiếng Việt trong font serif */
+.font-serif, [class*="font-serif"] {
+  font-family: 'Playfair Display', Georgia, Cambria, 'Times New Roman', serif !important;
+  letter-spacing: 0 !important;
+}
+
+/* 2026 Glassmorphism & Future Dusk Cyber-Luxe Components */
+.glass-panel {
+  background: rgba(24, 18, 13, 0.82);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(226, 183, 116, 0.22);
+  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.55);
+}
+
+.glass-card {
+  background: linear-gradient(135deg, rgba(34, 26, 18, 0.72) 0%, rgba(18, 14, 10, 0.55) 100%);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(226, 183, 116, 0.2);
+  box-shadow: 0 6px 25px rgba(0, 0, 0, 0.45);
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(226, 183, 116, 0.48);
+  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.65), 0 0 30px rgba(226, 183, 116, 0.22);
+}
+
+/* =========================================================================
+   2026 HOT COLOR PALETTES (THEME SYSTEM)
+   Titanium Desert Gold (Mặc định Apple 2026) | Cosmic Cobalt | Mocha | Teal | Cream | Dusk
+   ========================================================================= */
+
+/* 1. TITANIUM DESERT GOLD (KEY APPLE 2026 - Titan Sa Mạc hoàng kim sang trọng bậc nhất) */
+[data-theme="titanium"] body, body.theme-titanium {
+  background-color: #0e0b08 !important;
+  background-image: 
+    radial-gradient(circle at 50% -10%, rgba(245, 158, 11, 0.32) 0%, transparent 60%),
+    radial-gradient(circle at 90% 25%, rgba(226, 183, 116, 0.25) 0%, transparent 45%),
+    radial-gradient(circle at 10% 60%, rgba(217, 119, 6, 0.18) 0%, transparent 45%),
+    radial-gradient(circle at 75% 85%, rgba(245, 158, 11, 0.18) 0%, transparent 50%) !important;
+}
+
+[data-theme="titanium"] .glass-panel, body.theme-titanium .glass-panel {
+  background: rgba(24, 18, 13, 0.85) !important;
+  border-color: rgba(226, 183, 116, 0.28) !important;
+  box-shadow: 0 16px 45px rgba(12, 9, 6, 0.7) !important;
+}
+
+[data-theme="titanium"] .glass-card, body.theme-titanium .glass-card {
+  background: linear-gradient(135deg, rgba(34, 26, 18, 0.78) 0%, rgba(18, 14, 10, 0.6) 100%) !important;
+  border-color: rgba(226, 183, 116, 0.22) !important;
+}
+
+[data-theme="titanium"] header, body.theme-titanium header {
+  background-color: rgba(14, 11, 8, 0.9) !important;
+  border-bottom-color: rgba(226, 183, 116, 0.22) !important;
+}
+
+/* 1. TRANSFORMATIVE TEAL (WGSN KEY COLOR 2026 - Xanh ngọc biển sâu rực rỡ) */
+[data-theme="teal"] body, body.theme-teal {
+  background-color: #0a2e35 !important;
+  background-image: 
+    radial-gradient(circle at 50% -10%, rgba(20, 184, 166, 0.35) 0%, transparent 60%),
+    radial-gradient(circle at 90% 25%, rgba(56, 189, 248, 0.28) 0%, transparent 45%),
+    radial-gradient(circle at 10% 60%, rgba(232, 192, 130, 0.18) 0%, transparent 45%),
+    radial-gradient(circle at 75% 85%, rgba(16, 185, 129, 0.22) 0%, transparent 50%) !important;
+}
+
+[data-theme="teal"] .glass-panel, body.theme-teal .glass-panel {
+  background: rgba(14, 54, 62, 0.85) !important;
+  border-color: rgba(45, 212, 191, 0.25) !important;
+  box-shadow: 0 15px 45px rgba(8, 38, 44, 0.6) !important;
+}
+
+[data-theme="teal"] .glass-card, body.theme-teal .glass-card {
+  background: linear-gradient(135deg, rgba(18, 68, 78, 0.75) 0%, rgba(10, 44, 51, 0.55) 100%) !important;
+  border-color: rgba(45, 212, 191, 0.22) !important;
+}
+
+[data-theme="teal"] header, body.theme-teal header {
+  background-color: rgba(10, 46, 53, 0.92) !important;
+  border-bottom-color: rgba(45, 212, 191, 0.25) !important;
+}
+
+/* 2. COSMIC ROYAL COBALT (Sapphire Vũ Trụ 2026 - Xanh lam hoàng gia nổi bật) */
+[data-theme="cobalt"] body, body.theme-cobalt {
+  background-color: #111c44 !important;
+  background-image: 
+    radial-gradient(circle at 50% -10%, rgba(99, 102, 241, 0.4) 0%, transparent 60%),
+    radial-gradient(circle at 90% 25%, rgba(56, 189, 248, 0.3) 0%, transparent 45%),
+    radial-gradient(circle at 10% 60%, rgba(232, 192, 130, 0.2) 0%, transparent 45%),
+    radial-gradient(circle at 75% 85%, rgba(167, 139, 250, 0.2) 0%, transparent 50%) !important;
+}
+
+[data-theme="cobalt"] .glass-panel, body.theme-cobalt .glass-panel {
+  background: rgba(22, 36, 82, 0.85) !important;
+  border-color: rgba(99, 102, 241, 0.3) !important;
+  box-shadow: 0 15px 45px rgba(10, 16, 42, 0.6) !important;
+}
+
+[data-theme="cobalt"] .glass-card, body.theme-cobalt .glass-card {
+  background: linear-gradient(135deg, rgba(29, 46, 104, 0.75) 0%, rgba(17, 28, 68, 0.55) 100%) !important;
+  border-color: rgba(99, 102, 241, 0.25) !important;
+}
+
+[data-theme="cobalt"] header, body.theme-cobalt header {
+  background-color: rgba(17, 28, 68, 0.92) !important;
+  border-bottom-color: rgba(99, 102, 241, 0.3) !important;
+}
+
+/* 3. MOCHA VELVET (Nâu Cà Phê Velvet 2026 - Sang trọng, ấm cúng) */
+[data-theme="mocha"] body, body.theme-mocha {
+  background-color: #2d1a25 !important;
+  background-image: 
+    radial-gradient(circle at 50% -10%, rgba(244, 63, 94, 0.25) 0%, transparent 60%),
+    radial-gradient(circle at 90% 25%, rgba(245, 158, 11, 0.25) 0%, transparent 45%),
+    radial-gradient(circle at 10% 60%, rgba(232, 192, 130, 0.2) 0%, transparent 45%),
+    radial-gradient(circle at 75% 85%, rgba(251, 113, 133, 0.18) 0%, transparent 50%) !important;
+}
+
+[data-theme="mocha"] .glass-panel, body.theme-mocha .glass-panel {
+  background: rgba(58, 34, 48, 0.85) !important;
+  border-color: rgba(244, 63, 94, 0.28) !important;
+  box-shadow: 0 15px 45px rgba(32, 16, 26, 0.6) !important;
+}
+
+[data-theme="mocha"] .glass-card, body.theme-mocha .glass-card {
+  background: linear-gradient(135deg, rgba(72, 42, 60, 0.75) 0%, rgba(45, 26, 37, 0.55) 100%) !important;
+  border-color: rgba(244, 63, 94, 0.25) !important;
+}
+
+[data-theme="mocha"] header, body.theme-mocha header {
+  background-color: rgba(45, 26, 37, 0.92) !important;
+  border-bottom-color: rgba(244, 63, 94, 0.3) !important;
+}
+
+/* 4. TITANIUM DESERT CREAM (Kem Sa Mạc Ánh Kim - Giao Diện Sáng Siêu Sang 2026) */
+[data-theme="cream"] body, body.theme-cream {
+  background-color: #f6f3ed !important;
+  color: #0f172a !important;
+  background-image: 
+    radial-gradient(circle at 50% -10%, rgba(226, 183, 116, 0.35) 0%, transparent 60%),
+    radial-gradient(circle at 90% 25%, rgba(245, 158, 11, 0.2) 0%, transparent 45%),
+    radial-gradient(circle at 10% 60%, rgba(14, 165, 233, 0.12) 0%, transparent 45%),
+    radial-gradient(circle at 75% 85%, rgba(217, 119, 6, 0.15) 0%, transparent 50%) !important;
+}
+
+[data-theme="cream"] .glass-panel, body.theme-cream .glass-panel {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border-color: rgba(226, 183, 116, 0.4) !important;
+  box-shadow: 0 15px 45px rgba(180, 150, 100, 0.16) !important;
+}
+
+[data-theme="cream"] .glass-card, body.theme-cream .glass-card {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(226, 183, 116, 0.35) !important;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08) !important;
+}
+
+[data-theme="cream"] header, body.theme-cream header {
+  background-color: rgba(246, 243, 237, 0.96) !important;
+  border-bottom-color: rgba(226, 183, 116, 0.35) !important;
+  box-shadow: 0 8px 32px rgba(180, 150, 100, 0.15) !important;
+}
+
+[data-theme="cream"] .text-white, body.theme-cream .text-white {
+  color: #0f172a !important;
+}
+
+[data-theme="cream"] .text-gray-200, 
+[data-theme="cream"] .text-gray-300, 
+body.theme-cream .text-gray-200, 
+body.theme-cream .text-gray-300 {
+  color: #334155 !important;
+}
+
+[data-theme="cream"] .text-gray-400, body.theme-cream .text-gray-400 {
+  color: #64748b !important;
+}
+
+/* 5. FUTURE DUSK (Xanh Đêm Vũ Trụ - Tối Mềm Mại Sáng Hơn) */
+[data-theme="dusk"] body, body.theme-dusk {
+  background-color: #121a33 !important;
+  background-image: 
+    radial-gradient(circle at 50% -10%, rgba(99, 102, 241, 0.28) 0%, transparent 60%),
+    radial-gradient(circle at 90% 25%, rgba(232, 192, 130, 0.2) 0%, transparent 45%),
+    radial-gradient(circle at 10% 60%, rgba(56, 189, 248, 0.15) 0%, transparent 45%) !important;
+}
+
+[data-theme="dusk"] .glass-panel, body.theme-dusk .glass-panel {
+  background: rgba(24, 35, 68, 0.85) !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+}
+
+[data-theme="dusk"] .glass-card, body.theme-dusk .glass-card {
+  background: linear-gradient(135deg, rgba(32, 46, 90, 0.75) 0%, rgba(18, 27, 54, 0.6) 100%) !important;
+  border-color: rgba(148, 163, 184, 0.2) !important;
+}
+
+[data-theme="dusk"] header, body.theme-dusk header {
+  background-color: rgba(18, 27, 54, 0.92) !important;
+}
+
+/* Dynamic Hero Section Theming */
+.hero-theme-section {
+  background: linear-gradient(180deg, rgba(14, 20, 40, 0.92) 0%, rgba(10, 14, 28, 0.96) 100%);
+}
+[data-theme="teal"] .hero-theme-section {
+  background: linear-gradient(180deg, rgba(10, 46, 53, 0.92) 0%, rgba(7, 34, 39, 0.96) 100%) !important;
+}
+[data-theme="cobalt"] .hero-theme-section {
+  background: linear-gradient(180deg, rgba(17, 28, 68, 0.92) 0%, rgba(12, 19, 48, 0.96) 100%) !important;
+}
+[data-theme="mocha"] .hero-theme-section {
+  background: linear-gradient(180deg, rgba(45, 26, 37, 0.92) 0%, rgba(32, 18, 26, 0.96) 100%) !important;
+}
+[data-theme="cream"] .hero-theme-section {
+  background: linear-gradient(180deg, rgba(246, 243, 237, 0.94) 0%, rgba(235, 229, 219, 0.96) 100%) !important;
+  color: #0f172a !important;
+}
+
+.hero-trust-line {
+  background-color: rgba(13, 18, 38, 0.6);
+}
+[data-theme="teal"] .hero-trust-line {
+  background-color: rgba(10, 46, 53, 0.75) !important;
+}
+[data-theme="cobalt"] .hero-trust-line {
+  background-color: rgba(17, 28, 68, 0.75) !important;
+}
+[data-theme="mocha"] .hero-trust-line {
+  background-color: rgba(45, 26, 37, 0.75) !important;
+}
+[data-theme="cream"] .hero-trust-line {
+  background-color: rgba(246, 243, 237, 0.85) !important;
+  color: #334155 !important;
+}
+
+.glass-card-cyber {
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.08) 0%, rgba(99, 102, 241, 0.04) 100%);
+  backdrop-filter: blur(18px);
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-card-cyber:hover {
+  transform: translateY(-3px);
+  border-color: rgba(56, 189, 248, 0.5);
+  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.55), 0 0 30px rgba(56, 189, 248, 0.2);
+}
+
+/* Infinite Marquee Animation for Industry Leaders Logos */
+@keyframes marquee {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 30s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+/* 2026 Glowing Badges & Accents */
+.badge-glow-gold {
+  background: rgba(232, 192, 130, 0.15);
+  color: #fef08a;
+  border: 1px solid rgba(232, 192, 130, 0.35);
+  box-shadow: 0 0 14px rgba(232, 192, 130, 0.25);
+}
+
+.badge-glow-cyan {
+  background: rgba(56, 189, 248, 0.15);
+  color: #7dd3fc;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.25);
+}
+
+.badge-glow-emerald {
+  background: rgba(16, 185, 129, 0.15);
+  color: #6ee7b7;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  box-shadow: 0 0 14px rgba(16, 185, 129, 0.25);
+}
+
+.badge-glow-violet {
+  background: rgba(167, 139, 250, 0.15);
+  color: #c4b5fd;
+  border: 1px solid rgba(167, 139, 250, 0.35);
+  box-shadow: 0 0 14px rgba(167, 139, 250, 0.25);
+}
+
+/* Gradient Text */
+.text-gradient-gold {
+  background: linear-gradient(135deg, #ffffff 0%, #fde047 50%, #e2b774 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-gradient-titanium {
+  background: linear-gradient(135deg, #ffffff 20%, #cbd5e1 60%, #94a3b8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-gradient-cyber {
+  background: linear-gradient(135deg, #67e8f9 0%, #38bdf8 50%, #818cf8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Floating Capsule Bar */
+.capsule-bar {
+  background: rgba(11, 16, 28, 0.85);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.6), 0 0 20px rgba(255, 255, 255, 0.02);
+}
+
+/* Iridescent Button */
+.btn-gold {
+  background: linear-gradient(135deg, #e2b774 0%, #c59b58 100%);
+  color: #06080f;
+  font-weight: 800;
+  box-shadow: 0 4px 20px rgba(226, 183, 116, 0.35);
+  transition: all 0.2s ease;
+}
+
+.btn-gold:hover {
+  background: linear-gradient(135deg, #ebd09c 0%, #d4aa67 100%);
+  box-shadow: 0 6px 28px rgba(226, 183, 116, 0.5);
+  transform: translateY(-1px);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0b0f1e;
+}
+::-webkit-scrollbar-thumb {
+  background: #243054;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #e8c082;
+}
+
+/* 2026 Scroll-Driven Animations & Dynamic Directional Fly-In */
+@keyframes scrollProgressGrow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes scrollFlyFromLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-70px) rotate(-2deg) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) rotate(0deg) scale(1);
+  }
+}
+
+@keyframes scrollFlyFromRight {
+  from {
+    opacity: 0;
+    transform: translateX(70px) rotate(2deg) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) rotate(0deg) scale(1);
+  }
+}
+
+@keyframes scrollZoomIn {
+  from {
+    opacity: 0;
+    transform: scale(0.88) translateY(36px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes scrollFlyFromUp {
+  from {
+    opacity: 0;
+    transform: translateY(45px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Scroll Progress Bar (Top of Screen) */
+#scroll-progress-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3.5px;
+  z-index: 9999;
+  transform-origin: 0 50%;
+  background: linear-gradient(90deg, #e2b774 0%, #06b6d4 40%, #10b981 75%, #8b5cf6 100%);
+  box-shadow: 0 0 15px rgba(226, 183, 116, 0.7), 0 0 25px rgba(6, 182, 212, 0.4);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: scroll()) {
+    #scroll-progress-bar {
+      animation: scrollProgressGrow auto linear;
+      animation-timeline: scroll();
+    }
+  }
+
+  @supports ((animation-timeline: view()) and (animation-range: entry)) {
+    .scroll-reveal, .reveal-fly-up {
+      animation: scrollFlyFromUp auto cubic-bezier(0.16, 1, 0.3, 1) both;
+      animation-timeline: view();
+      animation-range: entry 10% cover 30%;
+    }
+
+    .reveal-fly-left {
+      animation: scrollFlyFromLeft auto cubic-bezier(0.16, 1, 0.3, 1) both;
+      animation-timeline: view();
+      animation-range: entry 10% cover 30%;
+    }
+
+    .reveal-fly-right {
+      animation: scrollFlyFromRight auto cubic-bezier(0.16, 1, 0.3, 1) both;
+      animation-timeline: view();
+      animation-range: entry 10% cover 30%;
+    }
+
+    .reveal-zoom-in {
+      animation: scrollZoomIn auto cubic-bezier(0.16, 1, 0.3, 1) both;
+      animation-timeline: view();
+      animation-range: entry 10% cover 30%;
+    }
+  }
+}
+
+/* Universal Classes Handled by Interactive Observer (Cross-Browser) */
+.reveal-on-scroll {
+  opacity: 0;
+  transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+.reveal-fly-left {
+  opacity: 0;
+  transform: translateX(-70px) rotate(-1.5deg) scale(0.96);
+  transition: opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1), transform 0.85s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+.reveal-fly-right {
+  opacity: 0;
+  transform: translateX(70px) rotate(1.5deg) scale(0.96);
+  transition: opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1), transform 0.85s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+.reveal-zoom-in {
+  opacity: 0;
+  transform: scale(0.88) translateY(32px);
+  transition: opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1), transform 0.85s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+.reveal-fly-up {
+  opacity: 0;
+  transform: translateY(45px);
+  transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+.is-revealed {
+  opacity: 1 !important;
+  transform: translateX(0) translateY(0) rotate(0deg) scale(1) !important;
+}
+
+/* Print Styles for K80 & A5 Thermal Invoices */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    background-image: none !important;
+  }
+  
+  header, footer, nav, .no-print, button, .admin-sidebar, .admin-navbar, .fixed, .ambient-glow {
+    display: none !important;
+  }
+
+  .print-area {
+    display: block !important;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 80mm !important;
+    margin: 0 auto;
+    padding: 2mm !important;
+    color: #000 !important;
+    background: #fff !important;
+    font-family: 'Courier New', Courier, monospace !important;
+    font-size: 12px !important;
+  }
+
+  .print-area-a5 {
+    display: block !important;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 148mm !important;
+    padding: 8mm !important;
+    color: #000 !important;
+    background: #fff !important;
+    font-family: Arial, sans-serif !important;
+  }
+}
