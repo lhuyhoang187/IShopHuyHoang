@@ -29,6 +29,8 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import ThemeSwitcher from '@/components/common/ThemeSwitcher';
+import { IShopStore } from '@/lib/store';
+import { CustomerUser } from '@/lib/types';
 
 interface TestimonialSlide {
   id: number;
@@ -241,15 +243,45 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) return;
     if (mode === 'signup' && !firstName) return;
 
     setIsLoading(true);
 
-    // Simulate backend auth call
-    setTimeout(() => {
+    try {
+      const res = await fetch('/api/auth/customer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: firstName || email.split('@')[0],
+          email: email,
+        }),
+      });
+      const json = await res.json();
+      if (json.success && json.data) {
+        IShopStore.setCustomerUser(json.data);
+      } else {
+        const user: CustomerUser = {
+          id: 'cust-' + Date.now(),
+          name: firstName || email.split('@')[0],
+          email: email,
+          phone: '090' + Math.floor(1000000 + Math.random() * 9000000),
+          points: 100,
+        };
+        IShopStore.setCustomerUser(user);
+      }
+    } catch {
+      const user: CustomerUser = {
+        id: 'cust-' + Date.now(),
+        name: firstName || email.split('@')[0],
+        email: email,
+        phone: '090' + Math.floor(1000000 + Math.random() * 9000000),
+        points: 100,
+      };
+      IShopStore.setCustomerUser(user);
+    } finally {
       setIsLoading(false);
       setSuccessInfo({
         email,
@@ -257,20 +289,54 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
       });
       setShowSuccessModal(true);
       triggerConfetti();
-    }, 1100);
+    }
   };
 
-  const handleSocialLogin = (provider: 'Google' | 'Apple') => {
+  const handleSocialLogin = async (provider: 'Google' | 'Apple') => {
     setSocialLoading(provider);
-    setTimeout(() => {
+    const mockEmail = `vip.${provider.toLowerCase()}@gmail.com`;
+    const mockName = provider === 'Google' ? 'Khách Hàng Google' : 'Khách Hàng Apple';
+
+    try {
+      const res = await fetch('/api/auth/customer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: mockName,
+          email: mockEmail,
+        }),
+      });
+      const json = await res.json();
+      if (json.success && json.data) {
+        IShopStore.setCustomerUser(json.data);
+      } else {
+        const user: CustomerUser = {
+          id: 'cust-' + Date.now(),
+          name: mockName,
+          email: mockEmail,
+          phone: '098' + Math.floor(1000000 + Math.random() * 9000000),
+          points: 100,
+        };
+        IShopStore.setCustomerUser(user);
+      }
+    } catch {
+      const user: CustomerUser = {
+        id: 'cust-' + Date.now(),
+        name: mockName,
+        email: mockEmail,
+        phone: '098' + Math.floor(1000000 + Math.random() * 9000000),
+        points: 100,
+      };
+      IShopStore.setCustomerUser(user);
+    } finally {
       setSocialLoading(null);
       setSuccessInfo({
-        email: `vip.member@${provider.toLowerCase()}.com`,
+        email: mockEmail,
         isNewUser: false,
       });
       setShowSuccessModal(true);
       triggerConfetti();
-    }, 1200);
+    }
   };
 
   const handleForgotPasswordSubmit = (e: React.FormEvent) => {
@@ -346,13 +412,7 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
             <span className="hidden sm:inline">Về Cửa Hàng</span>
           </Link>
 
-          <Link
-            href="/admin"
-            className="hidden md:inline-flex items-center gap-1.5 px-3.5 py-2 sm:py-2.5 rounded-xl bg-gradient-to-r from-emerald-600/90 to-teal-600/90 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs sm:text-sm transition-all shadow-[0_0_20px_rgba(16,185,129,0.25)] hover:scale-105"
-          >
-            <Zap className="w-4 h-4" />
-            <span>Quản Trị POS</span>
-          </Link>
+
         </div>
       </header>
 
@@ -442,7 +502,7 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
               </div>
 
               {/* Form nhập liệu */}
-              <form onSubmit={handleSubmit} className="space-y-4 max-w-md mx-auto">
+              <form onSubmit={handleSubmit} autoComplete="off" className="space-y-4 max-w-md mx-auto">
                 <AnimatePresence initial={false}>
                   {mode === 'signup' && (
                     <motion.div
@@ -462,6 +522,8 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
                         </div>
                         <input
                           type="text"
+                          name="ishop_customer_name"
+                          autoComplete="off"
                           required={mode === 'signup'}
                           value={firstName}
                           onChange={(e) => setFirstName(e.target.value)}
@@ -484,6 +546,9 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
                     </div>
                     <input
                       type="email"
+                      name="ishop_customer_email"
+                      id="ishop_customer_email"
+                      autoComplete="off"
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
@@ -504,6 +569,9 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
                     </div>
                     <input
                       type={showPassword ? 'text' : 'password'}
+                      name="ishop_customer_password"
+                      id="ishop_customer_password"
+                      autoComplete="new-password"
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
@@ -879,23 +947,34 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <button
                   type="button"
                   onClick={() => router.push('/')}
                   className={`w-full py-3 px-4 rounded-xl text-xs font-black flex items-center justify-center gap-2 transition-all hover:scale-105 ${accent.primaryBtn}`}
                 >
                   <ShoppingBag className="w-4 h-4" />
-                  <span>Vào Mua Sắm</span>
+                  <span>Tiếp Tục Mua Sắm</span>
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => router.push('/admin')}
-                  className="w-full py-3 px-4 rounded-xl bg-white/[0.06] hover:bg-white/[0.14] text-white text-xs font-bold flex items-center justify-center gap-2 transition-all border border-white/10 hover:border-white/20"
+                  onClick={() => router.push('/repair')}
+                  className="w-full py-3 px-4 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold flex items-center justify-center gap-2 transition-all hover:scale-105"
                 >
-                  <LayoutDashboard className="w-4 h-4" />
-                  <span>Vào Quản Trị POS</span>
+                  <Smartphone className="w-4 h-4" />
+                  <span>Đặt Lịch iCare 30p</span>
+                </button>
+              </div>
+
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => router.push('/cart')}
+                  className="text-[11px] text-gray-400 hover:text-amber-400 transition-colors underline flex items-center justify-center gap-1 mx-auto"
+                >
+                  <ShoppingBag className="w-3.5 h-3.5" />
+                  <span>Xem giỏ hàng &amp; các đơn hàng của bạn</span>
                 </button>
               </div>
             </motion.div>

@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import {
   ShieldCheck,
   Search,
@@ -20,17 +21,59 @@ import { IShopStore } from '@/lib/store';
 import { PhoneStockItem } from '@/lib/types';
 
 export default function WarrantyPage() {
-  const [imeiInput, setImeiInput] = useState('');
+  return (
+    <Suspense fallback={<div className="text-center py-20 text-gray-400 text-xs">Đang tải trang tra cứu bảo hành...</div>}>
+      <WarrantyContent />
+    </Suspense>
+  );
+}
+
+function WarrantyContent() {
+  const searchParams = useSearchParams();
+  const initialImei = searchParams?.get('imei') || '';
+
+  const [imeiInput, setImeiInput] = useState(initialImei);
   const [result, setResult] = useState<PhoneStockItem | null | undefined>(undefined);
   const [searchedImei, setSearchedImei] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSearch = (imeiToSearch?: string) => {
+  const handleSearch = async (imeiToSearch?: string) => {
     const query = (imeiToSearch || imeiInput).trim();
     if (!query) return;
     setSearchedImei(query);
-    const item = IShopStore.lookupImei(query);
-    setResult(item || null);
+
+    // 1. Try local storage first
+    const localItem = IShopStore.lookupImei(query);
+    if (localItem) {
+      setResult(localItem);
+      return;
+    }
+
+    // 2. Fetch from backend API
+    setIsLoading(true);
+    try {
+      const res = await fetch(`/api/warranty?imei=${encodeURIComponent(query)}`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data) {
+          setResult(json.data);
+          return;
+        }
+      }
+      setResult(null);
+    } catch {
+      setResult(null);
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  useEffect(() => {
+    if (initialImei) {
+      setImeiInput(initialImei);
+      handleSearch(initialImei);
+    }
+  }, [initialImei]);
 
   const sampleImeis = [
     { imei: '358921104999888', label: 'iPhone 16 Pro Max (Đang bảo hành)', status: 'Đã bán' },
@@ -101,10 +144,20 @@ export default function WarrantyPage() {
           </div>
           <button
             type="submit"
-            className="btn-gold w-full sm:w-auto px-8 py-4 rounded-2xl text-sm font-black flex items-center justify-center gap-2 shrink-0"
+            disabled={isLoading}
+            className="btn-gold w-full sm:w-auto px-8 py-4 rounded-2xl text-sm font-black flex items-center justify-center gap-2 shrink-0 disabled:opacity-50"
           >
-            <Search className="w-4 h-4 text-black" />
-            <span>Tra Cứu Ngay</span>
+            {isLoading ? (
+              <>
+                <Clock className="w-4 h-4 text-black animate-spin" />
+                <span>Đang tra cứu...</span>
+              </>
+            ) : (
+              <>
+                <Search className="w-4 h-4 text-black" />
+                <span>Tra Cứu Ngay</span>
+              </>
+            )}
           </button>
         </form>
 

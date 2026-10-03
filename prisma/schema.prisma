@@ -1,0 +1,192 @@
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  password  String
+  name      String
+  role      String   @default("cashier")
+  avatar    String?
+  createdAt DateTime @default(now())
+}
+
+model PhoneProduct {
+  id           String   @id
+  name         String
+  slug         String   @unique
+  brand        String
+  description  String   @db.Text
+  rating       Float    @default(5.0)
+  reviewCount  Int      @default(0)
+  isHot        Boolean  @default(false)
+  isNew        Boolean  @default(false)
+  colors       String   @db.Text
+  capacities   String   @db.Text
+  specs        String   @db.Text
+  warrantyInfo String
+  createdAt    DateTime @default(now())
+}
+
+model PhoneStock {
+  imei                String   @id
+  phoneId             String
+  phoneName           String
+  color               String
+  capacity            String
+  costPrice           Float
+  sellingPrice        Float
+  supplierId          String
+  supplierName        String
+  importDate          String
+  status              String   @default("in_stock")
+  warrantyMonths      Int      @default(12)
+  soldAt              String?
+  soldToCustomerName  String?
+  soldToCustomerPhone String?
+  soldInvoiceId       String?
+  createdAt           DateTime @default(now())
+}
+
+model AccessoryProduct {
+  id                          String   @id
+  name                        String
+  slug                        String   @unique
+  category                    String
+  categoryName                String
+  barcode                     String   @unique
+  brand                       String
+  costPrice                   Float
+  sellingPrice                Float
+  originalPrice               Float
+  stock                       Int      @default(0)
+  minStockAlert               Int      @default(5)
+  imageUrl                    String   @db.Text
+  description                 String   @db.Text
+  specs                       String   @db.Text
+  compatibleWith              String
+  discountWhenBoughtWithPhone Int      @default(15)
+  createdAt                   DateTime @default(now())
+}
+
+model SparePart {
+  id                String   @id
+  name              String
+  category          String
+  categoryName      String
+  barcode           String   @unique
+  compatibleModels  String   @db.Text
+  costPrice         Float
+  retailRepairPrice Float
+  stock             Int      @default(0)
+  unit              String   @default("cái")
+  warrantyMonths    Int      @default(6)
+  createdAt         DateTime @default(now())
+}
+
+model RepairTicket {
+  id                    String   @id
+  ticketCode            String   @unique
+  customerName          String
+  customerPhone         String
+  customerAddress       String?
+  deviceModel           String
+  imeiOrSerial          String
+  unlockPasscode        String
+  appearanceCondition   String
+  accessoriesIncluded   String
+  issueDescription      String   @db.Text
+  technicianNotes       String?  @db.Text
+  status                String   @default("received")
+  statusHistory         String   @db.Text
+  partsUsed             String   @db.Text
+  laborFee              Float    @default(0)
+  totalAmount           Float    @default(0)
+  estimatedDeliveryDate String
+  receivedAt            String
+  deliveredAt           String?
+  technicianId          String?
+  technicianName        String?
+  warrantyPeriod        String
+  createdAt             DateTime @default(now())
+}
+
+model Invoice {
+  id            String   @id
+  invoiceCode   String   @unique
+  customerName  String
+  customerPhone String
+  items         String   @db.Text
+  subtotal      Float
+  discount      Float
+  totalAmount   Float
+  paymentMethod String   @default("cash")
+  cashReceived  Float?
+  cashChange    Float?
+  cashierName   String
+  createdAt     String
+  warrantyNote  String
+}
+
+model CashbookEntry {
+  id            String   @id
+  code          String   @unique
+  date          String
+  type          String
+  category      String
+  categoryLabel String
+  amount        Float
+  paymentMethod String
+  referenceCode String?
+  description   String   @db.Text
+  creator       String
+  createdAt     DateTime @default(now())
+}
+
+model Supplier {
+  id             String   @id
+  name           String
+  phone          String
+  email          String
+  address        String
+  contactPerson  String
+  totalPurchased Float    @default(0)
+  currentDebt    Float    @default(0)
+  createdAt      DateTime @default(now())
+}
+
+model SupplierOrder {
+  id            String   @id
+  orderCode     String   @unique
+  supplierId    String
+  supplierName  String
+  date          String
+  type          String
+  itemsSummary  String   @db.Text
+  totalAmount   Float
+  paidAmount    Float
+  debtAmount    Float
+  status        String
+  notes         String   @db.Text
+  importedImeis String?  @db.Text
+  createdAt     DateTime @default(now())
+}
+
+model Customer {
+  id            String   @id
+  name          String
+  phone         String   @unique
+  email         String?
+  address       String?
+  totalSpent    Float    @default(0)
+  points        Int      @default(0)
+  purchaseCount Int      @default(0)
+  repairCount   Int      @default(0)
+  createdAt     String
+}

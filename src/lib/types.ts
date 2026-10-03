@@ -1,4 +1,21 @@
-export type Role = 'admin' | 'technician' | 'cashier';
+export type Role = 'admin' | 'technician' | 'cashier' | 'pending';
+
+export interface StaffUser {
+  id: string;
+  username: string;
+  name: string;
+  role: Role;
+  avatar?: string;
+  createdAt?: string;
+}
+
+export interface CustomerUser {
+  id: string;
+  name: string;
+  phone: string;
+  email?: string;
+  points?: number;
+}
 
 export interface PhoneSpec {
   screen: string;

@@ -18,10 +18,12 @@ import {
   DollarSign,
   Activity,
   Zap,
+  Download,
 } from 'lucide-react';
 import { IShopStore } from '@/lib/store';
 import { RepairTicket, RepairStatus, SparePartItem } from '@/lib/types';
 import { formatVND } from '@/lib/vietqr';
+import { exportRepairsCsv } from '@/lib/exportUtils';
 
 export default function AdminRepairsPage() {
   const [repairs, setRepairs] = useState<RepairTicket[]>([]);
@@ -58,6 +60,16 @@ export default function AdminRepairsPage() {
   const loadData = () => {
     setRepairs(IShopStore.getRepairs());
     setSpareParts(IShopStore.getSpareParts());
+
+    // Sync live from MySQL Database
+    fetch('/api/repairs')
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+          setRepairs(json.data);
+        }
+      })
+      .catch((err) => console.warn('Repairs API notice:', err));
   };
 
   useEffect(() => {
@@ -67,10 +79,34 @@ export default function AdminRepairsPage() {
     return () => window.removeEventListener('ishop_data_changed', listener);
   }, []);
 
-  const handleCreateTicket = (e: React.FormEvent) => {
+  const handleCreateTicket = async (e: React.FormEvent) => {
     e.preventDefault();
     const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
 
+    // 1. Post to live MySQL Database
+    try {
+      await fetch('/api/repairs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerName: intakeForm.customerName,
+          customerPhone: intakeForm.customerPhone,
+          customerAddress: intakeForm.customerAddress,
+          deviceModel: intakeForm.deviceModel,
+          imeiOrSerial: intakeForm.imeiOrSerial || 'Chưa rõ',
+          unlockPasscode: intakeForm.unlockPasscode || 'Không có',
+          appearanceCondition: intakeForm.appearanceCondition,
+          accessoriesIncluded: intakeForm.accessoriesIncluded,
+          issueDescription: intakeForm.issueDescription,
+          laborFee: Number(intakeForm.laborFee) || 0,
+          estimatedDeliveryDate: intakeForm.estimatedDeliveryDate,
+        }),
+      });
+    } catch (err) {
+      console.warn('API repair ticket notice:', err);
+    }
+
+    // 2. Also save to client store for immediate receipt printing
     const created = IShopStore.createRepairTicket({
       customerName: intakeForm.customerName,
       customerPhone: intakeForm.customerPhone,
@@ -91,6 +127,7 @@ export default function AdminRepairsPage() {
 
     setIsCreateModalOpen(false);
     setPrintTicket(created);
+    loadData();
   };
 
   const handleUpdateStep = (newStatus: RepairStatus) => {
@@ -153,13 +190,23 @@ export default function AdminRepairsPage() {
           </p>
         </div>
 
-        <button
-          onClick={() => setIsCreateModalOpen(true)}
-          className="btn-gold px-5 py-3 rounded-2xl text-xs font-black flex items-center gap-2"
-        >
-          <Plus className="w-4 h-4 text-black" />
-          <span>Lập Biên Nhận Máy Mới (30 Giây)</span>
-        </button>
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={() => exportRepairsCsv(filteredRepairs)}
+            className="px-4 py-3 rounded-2xl text-xs font-bold bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.1] text-gray-200 hover:text-white flex items-center gap-2 transition-all shadow-md"
+            title="Xuất danh sách phiếu sửa chữa ra file Excel CSV"
+          >
+            <Download className="w-4 h-4 text-emerald-400" />
+            <span>Xuất Excel</span>
+          </button>
+          <button
+            onClick={() => setIsCreateModalOpen(true)}
+            className="btn-gold px-5 py-3 rounded-2xl text-xs font-black flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4 text-black" />
+            <span>Lập Biên Nhận Máy Mới (30 Giây)</span>
+          </button>
+        </div>
       </div>
 
       {/* Filter and Search Bar */}

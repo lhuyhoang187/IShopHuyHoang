@@ -11,10 +11,12 @@ import {
   ExternalLink,
   ShieldCheck,
   CheckCircle2,
+  Download,
 } from 'lucide-react';
 import { IShopStore } from '@/lib/store';
 import { PhoneStockItem, Role } from '@/lib/types';
 import { formatVND } from '@/lib/vietqr';
+import { exportPhoneStockCsv } from '@/lib/exportUtils';
 
 export default function InventoryPhonesPage() {
   const [stock, setStock] = useState<PhoneStockItem[]>([]);
@@ -25,6 +27,16 @@ export default function InventoryPhonesPage() {
   const loadData = () => {
     setStock(IShopStore.getPhoneStock());
     setRole(IShopStore.getRole());
+
+    // Sync live from MySQL Database
+    fetch('/api/inventory/phones')
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+          setStock(json.data);
+        }
+      })
+      .catch((err) => console.warn('Inventory sync notice:', err));
   };
 
   useEffect(() => {
@@ -69,13 +81,23 @@ export default function InventoryPhonesPage() {
           </p>
         </div>
 
-        <Link
-          href="/admin/restock"
-          className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg shadow-blue-600/20 flex items-center gap-2 transition-transform hover:scale-105"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Nhập Lô IMEI Từ Nhà Cung Cấp</span>
-        </Link>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => exportPhoneStockCsv(filtered)}
+            className="px-3.5 py-2.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.1] text-gray-200 hover:text-white font-bold text-xs flex items-center gap-2 transition-all shadow-md"
+            title="Xuất danh sách tồn kho IMEI ra file Excel CSV"
+          >
+            <Download className="w-4 h-4 text-emerald-400" />
+            <span>Xuất Excel</span>
+          </button>
+          <Link
+            href="/admin/restock"
+            className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg shadow-blue-600/20 flex items-center gap-2 transition-transform hover:scale-105"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Nhập Lô IMEI Từ Nhà Cung Cấp</span>
+          </Link>
+        </div>
       </div>
 
       {/* Subnav 3 inventory groups */}

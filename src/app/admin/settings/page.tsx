@@ -11,6 +11,12 @@ import {
   Lock,
   Eye,
   Store,
+  Zap,
+  Code,
+  Send,
+  Terminal,
+  Radio,
+  Loader2,
 } from 'lucide-react';
 import { IShopStore } from '@/lib/store';
 import { Role } from '@/lib/types';
@@ -26,6 +32,36 @@ export default function AdminSettingsPage() {
     returnPolicy: 'Bảo hành 12 tháng máy mới / 1 đổi 1 trong 30 ngày đầu.',
     receiptFooter: 'Cảm ơn quý khách đã tin tưởng và ủng hộ iShop Huy Hoàng!',
   });
+
+  // Webhook Simulator State
+  const [testAmount, setTestAmount] = useState('34990000');
+  const [testContent, setTestContent] = useState('IShop HD-2608-001');
+  const [webhookResult, setWebhookResult] = useState<any>(null);
+  const [isSendingWebhook, setIsSendingWebhook] = useState(false);
+
+  const handleTestWebhook = async () => {
+    setIsSendingWebhook(true);
+    setWebhookResult(null);
+    try {
+      const res = await fetch('/api/webhook/vietqr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          gateway: 'MBBank Napas 247',
+          transactionDate: new Date().toISOString(),
+          transferAmount: Number(testAmount),
+          content: testContent,
+          referenceCode: 'TEST-' + Date.now(),
+        }),
+      });
+      const data = await res.json();
+      setWebhookResult(data);
+    } catch (err: any) {
+      setWebhookResult({ error: err.message || 'Lỗi kết nối' });
+    } finally {
+      setIsSendingWebhook(false);
+    }
+  };
 
   useEffect(() => {
     setCurrentRole(IShopStore.getRole());
@@ -273,6 +309,140 @@ export default function AdminSettingsPage() {
           </button>
         </div>
       </form>
+
+      {/* 2026 Developer & Webhook Integration Playground */}
+      <div className="glass-panel p-6 rounded-3xl border border-white/10 space-y-5 shadow-2xl">
+        <div className="flex items-center justify-between pb-3 border-b border-white/10">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 flex items-center justify-center">
+              <Code className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-white flex items-center gap-2">
+                <span>Cổng API & Webhook Ngân Hàng Tự Động (Casso / SePay / Napas 247)</span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] bg-cyan-500/20 text-cyan-300 font-mono font-bold">
+                  v2.0 RESTful
+                </span>
+              </h2>
+              <p className="text-xs text-gray-400">
+                Tích hợp tự động gạch nợ hóa đơn và tiếp nhận dữ liệu thời gian thực từ các hệ thống bên ngoài.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* API Endpoints Catalog */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+          <div className="p-3 rounded-2xl bg-white/[0.03] border border-white/5 space-y-1">
+            <div className="flex items-center justify-between font-mono">
+              <span className="font-bold text-emerald-400">POST /api/webhook/vietqr</span>
+              <span className="text-[10px] text-gray-400">Napas 247</span>
+            </div>
+            <p className="text-gray-400 text-[11px]">
+              Tiếp nhận webhook biến động số dư, tự động khớp mã đơn và ghi phiếu thu vào sổ quỹ.
+            </p>
+          </div>
+
+          <div className="p-3 rounded-2xl bg-white/[0.03] border border-white/5 space-y-1">
+            <div className="flex items-center justify-between font-mono">
+              <span className="font-bold text-cyan-400">GET /api/warranty?imei=...</span>
+              <span className="text-[10px] text-gray-400">Public API</span>
+            </div>
+            <p className="text-gray-400 text-[11px]">
+              Tra cứu bảo hành điện tử theo 15 số IMEI, tính số ngày còn lại và ngày hết hạn.
+            </p>
+          </div>
+
+          <div className="p-3 rounded-2xl bg-white/[0.03] border border-white/5 space-y-1">
+            <div className="flex items-center justify-between font-mono">
+              <span className="font-bold text-amber-400">GET/POST /api/orders</span>
+              <span className="text-[10px] text-gray-400">Orders API</span>
+            </div>
+            <p className="text-gray-400 text-[11px]">
+              Tạo đơn hàng mới từ web/app, kiểm tra tồn kho và sinh mã hóa đơn HD-xxxx.
+            </p>
+          </div>
+
+          <div className="p-3 rounded-2xl bg-white/[0.03] border border-white/5 space-y-1">
+            <div className="flex items-center justify-between font-mono">
+              <span className="font-bold text-purple-400">GET/POST /api/repairs</span>
+              <span className="text-[10px] text-gray-400">iCare Service</span>
+            </div>
+            <p className="text-gray-400 text-[11px]">
+              Tiếp nhận thiết bị sửa chữa và tra cứu tiến độ pipeline 6 bước trực tiếp.
+            </p>
+          </div>
+        </div>
+
+        {/* Live Webhook Test Console */}
+        <div className="p-4 rounded-2xl bg-[#090d18] border border-cyan-500/30 space-y-3">
+          <div className="flex items-center justify-between text-xs">
+            <div className="flex items-center gap-2 font-bold text-cyan-300">
+              <Terminal className="w-4 h-4" />
+              <span>Bàn Thử Nghiệm Webhook Ngân Hàng (Webhook Simulator)</span>
+            </div>
+            <span className="text-[11px] text-gray-400">Gửi test tới /api/webhook/vietqr</span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <div>
+              <label className="text-gray-400 block mb-1">Số tiền khách chuyển (VNĐ):</label>
+              <input
+                type="number"
+                value={testAmount}
+                onChange={(e) => setTestAmount(e.target.value)}
+                className="w-full p-2.5 bg-white/5 border border-white/10 rounded-xl text-white font-mono focus:outline-none focus:border-cyan-400"
+              />
+            </div>
+            <div>
+              <label className="text-gray-400 block mb-1">Nội dung chuyển khoản (có chứa mã đơn):</label>
+              <input
+                type="text"
+                value={testContent}
+                onChange={(e) => setTestContent(e.target.value)}
+                className="w-full p-2.5 bg-white/5 border border-white/10 rounded-xl text-white font-mono focus:outline-none focus:border-cyan-400"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between pt-1">
+            <button
+              type="button"
+              onClick={handleTestWebhook}
+              disabled={isSendingWebhook}
+              className="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs flex items-center gap-2 transition-all shadow-lg"
+            >
+              {isSendingWebhook ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Đang bắn Webhook...</span>
+                </>
+              ) : (
+                <>
+                  <Send className="w-3.5 h-3.5" />
+                  <span>Bắn Webhook Giả Lập Ngân Hàng</span>
+                </>
+              )}
+            </button>
+            <span className="text-[11px] text-gray-400 italic">
+              Tự động cộng tiền vào Sổ Quỹ Thu - Chi nếu thành công
+            </span>
+          </div>
+
+          {/* Webhook JSON Response Result */}
+          {webhookResult && (
+            <div className="mt-3 p-3 rounded-xl bg-black/60 border border-white/10 font-mono text-xs overflow-x-auto text-left">
+              <div className="text-[10px] text-gray-400 mb-1 flex items-center gap-1.5">
+                <Radio className="w-3 h-3 text-emerald-400 animate-pulse" />
+                <span>Phản hồi từ máy chủ (Server Response):</span>
+              </div>
+              <pre className="text-emerald-400 text-[11px]">
+                {JSON.stringify(webhookResult, null, 2)}
+              </pre>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

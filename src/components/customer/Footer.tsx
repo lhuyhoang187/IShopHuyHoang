@@ -159,13 +159,9 @@ export default function Footer() {
                   Bảng giá thay pin, ép kính, màn hình
                 </Link>
               </li>
-              <li className="pt-2">
-                <Link
-                  href="/admin"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-bold hover:bg-emerald-500/25 transition-all shadow-sm"
-                >
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                  Hệ Thống Quản Trị & POS
+              <li>
+                <Link href="/about" className="hover:text-cyan-300 transition-colors">
+                  Giới thiệu hệ sinh thái Apple & Showroom
                 </Link>
               </li>
             </ul>
@@ -198,10 +194,20 @@ export default function Footer() {
         </div>
       </div>
 
-      {/* Bottom Bar: Slogan thương hiệu */}
-      <div className="bg-[#020306] border-t border-white/[0.04] py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-center items-center text-xs sm:text-sm text-gray-400 text-center font-medium">
+      {/* Bottom Bar: Slogan thương hiệu & Liên kết nội bộ kín đáo */}
+      <div className="bg-[#020306] border-t border-white/[0.04] py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-3 text-xs text-gray-400 font-medium">
           <span>© 2026 <span className="text-white font-bold">iShop Huy Hoàng</span> - Đỉnh Cao Công Nghệ &amp; Dịch Vụ Chuyên Nghiệp</span>
+          <div className="flex items-center gap-3 text-[11px] text-gray-400">
+            <span>|</span>
+            <Link
+              href="/admin"
+              className="text-gray-400 hover:text-amber-400 transition-colors"
+              title="Dành riêng cho nhân viên và ban quản trị"
+            >
+              Cổng Nội Bộ Nhân Sự
+            </Link>
+          </div>
         </div>
       </div>
     </footer>

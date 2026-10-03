@@ -18,8 +18,12 @@ import {
   Zap,
   Building2,
   User,
+  LogOut,
+  UserCheck,
+  ChevronDown,
 } from 'lucide-react';
 import { IShopStore } from '@/lib/store';
+import { CustomerUser } from '@/lib/types';
 import SmartSearchModal from './SmartSearchModal';
 import ThemeSwitcher from '@/components/common/ThemeSwitcher';
 
@@ -29,12 +33,16 @@ export default function Header() {
   const [compareCount, setCompareCount] = useState(0);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [customerUser, setCustomerUser] = useState<CustomerUser | null>(null);
+  const [isCustomerMenuOpen, setIsCustomerMenuOpen] = useState(false);
+  const [isLoginMenuOpen, setIsLoginMenuOpen] = useState(false);
 
   const updateCounts = () => {
     const cart = IShopStore.getCart();
     const count = cart.reduce((sum, item) => sum + item.quantity, 0);
     setCartCount(count);
     setCompareCount(IShopStore.getComparisonList().length);
+    setCustomerUser(IShopStore.getCustomerUser());
   };
 
   useEffect(() => {
@@ -42,6 +50,20 @@ export default function Header() {
     const listener = () => updateCounts();
     window.addEventListener('ishop_data_changed', listener);
     return () => window.removeEventListener('ishop_data_changed', listener);
+  }, []);
+
+
+  // Close menus when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.auth-menu-container')) {
+        setIsLoginMenuOpen(false);
+        setIsCustomerMenuOpen(false);
+      }
+    };
+    window.addEventListener('click', handleClickOutside);
+    return () => window.removeEventListener('click', handleClickOutside);
   }, []);
 
   // 7 Danh mục cốt lõi của cửa hàng - Vừa vặn 100% trên một hàng, không bao giờ phải cuộn
@@ -164,26 +186,143 @@ export default function Header() {
                   )}
                 </Link>
 
-                {/* Đăng Nhập */}
-                <Link
-                  href="/login"
-                  className="hidden sm:flex items-center gap-1.5 px-3 py-2.5 rounded-2xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 text-white font-bold text-xs sm:text-sm transition-all shrink-0"
-                  title="Đăng nhập tài khoản"
-                >
-                  <User className="w-4 h-4 text-cyan-400 shrink-0" />
-                  <span className="hidden xl:inline">Đăng Nhập</span>
-                </Link>
+                {/* Trạng Thái Khách Hàng / Đăng Nhập */}
+                {customerUser ? (
+                  <div className="relative auth-menu-container hidden sm:block shrink-0">
+                    <button
+                      onClick={() => setIsCustomerMenuOpen(!isCustomerMenuOpen)}
+                      className="flex items-center gap-2 px-3 py-2 rounded-2xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-400/40 text-amber-300 font-bold text-xs sm:text-sm transition-all"
+                      title="Thông tin thành viên"
+                    >
+                      <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-amber-400 to-amber-600 text-black flex items-center justify-center font-black text-xs shadow-sm">
+                        {customerUser.name.charAt(0).toUpperCase()}
+                      </div>
+                      <span className="max-w-[110px] truncate">{customerUser.name}</span>
+                      <ChevronDown className="w-3.5 h-3.5 opacity-70" />
+                    </button>
 
-                {/* Quản Trị Cửa Hàng & POS */}
-                <Link
-                  href="/admin"
-                  className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-600/90 to-teal-600/90 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs sm:text-sm transition-all shadow-[0_0_20px_rgba(16,185,129,0.25)] hover:scale-105 shrink-0"
-                  title="Truy cập hệ thống POS bán hàng & kỹ thuật iCare"
-                >
-                  <Store className="w-4 h-4 shrink-0" />
-                  <span className="hidden sm:inline">Quản Trị POS</span>
-                  <span className="sm:hidden">POS</span>
-                </Link>
+                    {/* Popover thông tin khách hàng */}
+                    {isCustomerMenuOpen && (
+                      <div className="absolute right-0 mt-2 w-60 rounded-2xl bg-[#140e0a]/98 border border-amber-500/30 p-3 shadow-2xl backdrop-blur-2xl z-50 space-y-2 text-xs animate-in fade-in zoom-in-95">
+                        <div className="p-3 rounded-xl bg-white/[0.04] border border-white/10 space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-white text-sm truncate">{customerUser.name}</span>
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                              VIP
+                            </span>
+                          </div>
+                          <p className="text-gray-400 text-[11px] truncate">{customerUser.phone || customerUser.email}</p>
+                          <p className="text-amber-400 text-[11px] font-medium">Điểm tích lũy: {customerUser.points || 100} pts</p>
+                        </div>
+
+                        <div className="space-y-1">
+                          <Link
+                            href="/repair/tracking"
+                            onClick={() => setIsCustomerMenuOpen(false)}
+                            className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+                          >
+                            <Wrench className="w-4 h-4 text-amber-400" />
+                            <span>Theo dõi sửa máy iCare</span>
+                          </Link>
+                          <Link
+                            href="/cart"
+                            onClick={() => setIsCustomerMenuOpen(false)}
+                            className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+                          >
+                            <ShoppingCart className="w-4 h-4 text-amber-400" />
+                            <span>Giỏ hàng & Đơn mua ({cartCount})</span>
+                          </Link>
+                          <Link
+                            href="/admin"
+                            onClick={() => setIsCustomerMenuOpen(false)}
+                            className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 transition-colors font-medium border-t border-white/5 pt-2"
+                          >
+                            <Store className="w-4 h-4 text-emerald-400" />
+                            <span>Cổng Đăng Nhập Cho Shop (POS)</span>
+                          </Link>
+                        </div>
+
+                        <div className="pt-1 border-t border-white/10">
+                          <button
+                            onClick={() => {
+                              IShopStore.logoutCustomer();
+                              setCustomerUser(null);
+                              setIsCustomerMenuOpen(false);
+                            }}
+                            className="w-full flex items-center gap-2 px-2.5 py-2 rounded-xl text-rose-300 hover:text-rose-200 hover:bg-rose-500/10 font-bold transition-colors text-left"
+                          >
+                            <LogOut className="w-4 h-4" />
+                            <span>Đăng xuất tài khoản</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="relative auth-menu-container hidden sm:block shrink-0">
+                    <button
+                      onClick={() => setIsLoginMenuOpen(!isLoginMenuOpen)}
+                      className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 hover:border-amber-400/40 text-white font-bold text-xs sm:text-sm transition-all shadow-sm"
+                      title="Đăng nhập tài khoản"
+                    >
+                      <User className="w-4 h-4 text-cyan-400 shrink-0" />
+                      <span>Đăng Nhập</span>
+                      <ChevronDown className="w-3.5 h-3.5 opacity-70" />
+                    </button>
+
+                    {/* Popover Điều Hướng Đăng Nhập: Khách Hàng hoặc Shop */}
+                    {isLoginMenuOpen && (
+                      <div className="absolute right-0 mt-2 w-72 rounded-3xl bg-[#140e0a]/98 border border-amber-500/35 p-3.5 shadow-2xl backdrop-blur-2xl z-50 space-y-2 text-xs animate-in fade-in zoom-in-95">
+                        <div className="px-2 py-1 text-[10px] font-black uppercase text-gray-400 tracking-wider">
+                          Chọn Cổng Đăng Nhập:
+                        </div>
+
+                        {/* 1. Khách Hàng */}
+                        <Link
+                          href="/login"
+                          onClick={() => setIsLoginMenuOpen(false)}
+                          className="flex items-start gap-3 p-3 rounded-2xl bg-white/[0.04] hover:bg-amber-500/15 border border-white/10 hover:border-amber-400/40 text-left transition-all group"
+                        >
+                          <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-300 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                            <User className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <span className="font-bold text-white text-xs block group-hover:text-amber-300">
+                              Khách Hàng Hội Viên
+                            </span>
+                            <span className="text-[11px] text-gray-400 leading-tight block mt-0.5">
+                              Tích điểm VIP, xem đơn mua &amp; bảo hành
+                            </span>
+                          </div>
+                        </Link>
+
+                        {/* 2. Cửa Hàng / Shop Staff */}
+                        <Link
+                          href="/admin"
+                          onClick={() => setIsLoginMenuOpen(false)}
+                          className="flex items-start gap-3 p-3 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-left transition-all group"
+                        >
+                          <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                            <Store className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <span className="font-bold text-emerald-300 text-xs flex items-center gap-1.5">
+                              <span>Đăng Nhập Cho Shop</span>
+                              <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-emerald-400 text-black">
+                                POS
+                              </span>
+                            </span>
+                            <span className="text-[11px] text-gray-400 leading-tight block mt-0.5">
+                              Cổng Quản Trị, Thu Ngân POS &amp; Kỹ Thuật iCare
+                            </span>
+                          </div>
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+
 
                 {/* Nút Mở Menu Trên Mobile */}
                 <button
@@ -312,25 +451,67 @@ export default function Header() {
                 <span>Hotline: 0988.888.999 (Tư Vấn Miễn Phí 24/7)</span>
               </a>
 
-              <div className="grid grid-cols-2 gap-2">
-                <Link
-                  href="/login"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-white/[0.06] border border-white/10 text-gray-200 text-xs font-bold"
-                >
-                  <User className="w-4 h-4 text-cyan-400" />
-                  <span>Đăng Nhập</span>
-                </Link>
+              {customerUser ? (
+                <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-full bg-amber-400 text-black font-bold flex items-center justify-center text-xs">
+                        {customerUser.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-white leading-none">{customerUser.name}</p>
+                        <p className="text-[10px] text-gray-400 mt-0.5">{customerUser.phone || customerUser.email}</p>
+                      </div>
+                    </div>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                      VIP
+                    </span>
+                  </div>
 
-                <Link
-                  href="/admin"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-300 text-xs font-bold"
-                >
-                  <Store className="w-4 h-4 text-emerald-400" />
-                  <span>Quản Trị POS</span>
-                </Link>
-              </div>
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <Link
+                      href="/repair/tracking"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center justify-center gap-1.5 p-2 rounded-xl bg-white/[0.06] border border-white/10 text-gray-200 text-xs font-bold"
+                    >
+                      <Wrench className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Đơn Của Tôi</span>
+                    </Link>
+
+                    <button
+                      onClick={() => {
+                        IShopStore.logoutCustomer();
+                        setCustomerUser(null);
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className="flex items-center justify-center gap-1.5 p-2 rounded-xl bg-rose-500/20 border border-rose-500/30 text-rose-300 text-xs font-bold"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      <span>Đăng Xuất</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Link
+                    href="/login"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-black text-xs font-black shadow-lg"
+                  >
+                    <User className="w-4 h-4 text-black" />
+                    <span>Đăng Nhập Khách Hàng (Tích Điểm VIP)</span>
+                  </Link>
+
+                  <Link
+                    href="/admin"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-bold transition-colors"
+                  >
+                    <Store className="w-4 h-4 text-emerald-400" />
+                    <span>Đăng Nhập Cho Shop (POS &amp; Quản Trị)</span>
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
         )}

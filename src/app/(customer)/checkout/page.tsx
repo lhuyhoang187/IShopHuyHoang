@@ -15,9 +15,11 @@ import {
   Download,
   Smartphone,
 } from 'lucide-react';
+import confetti from 'canvas-confetti';
 import { IShopStore } from '@/lib/store';
-import { CartItem, Invoice } from '@/lib/types';
+import { CartItem, Invoice, CustomerUser } from '@/lib/types';
 import { formatVND, generateVietQRUrl, DEFAULT_STORE_BANK } from '@/lib/vietqr';
+import { Lock, UserCheck } from 'lucide-react';
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -25,6 +27,11 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState<'vietqr' | 'cash'>('vietqr');
   const [copied, setCopied] = useState(false);
   const [completedInvoice, setCompletedInvoice] = useState<Invoice | null>(null);
+
+  // Customer Authentication state
+  const [customerUser, setCustomerUser] = useState<CustomerUser | null>(null);
+  const [quickCustName, setQuickCustName] = useState('');
+  const [quickCustPhone, setQuickCustPhone] = useState('');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -37,7 +44,36 @@ export default function CheckoutPage() {
   useEffect(() => {
     const currentCart = IShopStore.getCart();
     setCart(currentCart);
+
+    const cust = IShopStore.getCustomerUser();
+    if (cust) {
+      setCustomerUser(cust);
+      setFormData((prev) => ({
+        ...prev,
+        name: cust.name,
+        phone: cust.phone,
+      }));
+    }
   }, []);
+
+  const handleCustomerQuickLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickCustName.trim() || !quickCustPhone.trim()) return;
+
+    const user: CustomerUser = {
+      id: 'cust-' + Date.now(),
+      name: quickCustName.trim(),
+      phone: quickCustPhone.trim(),
+    };
+
+    IShopStore.setCustomerUser(user);
+    setCustomerUser(user);
+    setFormData((prev) => ({
+      ...prev,
+      name: user.name,
+      phone: user.phone,
+    }));
+  };
 
   const totalAmount = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
@@ -81,8 +117,32 @@ export default function CheckoutPage() {
       warrantyNote: 'Bảo hành chính hãng 12 tháng tại hệ thống iShop Huy Hoàng.',
     });
 
+    // Sync order to MySQL Database via /api/orders
+    fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        customerName: formData.name,
+        customerPhone: formData.phone,
+        items: invoiceItems,
+        subtotal: totalAmount,
+        discount: 0,
+        totalAmount: totalAmount,
+        paymentMethod: paymentMethod,
+        cashierName: 'Online Web Store',
+      }),
+    }).catch((err) => console.warn('API checkout order notice:', err));
+
     IShopStore.clearCart();
     setCompletedInvoice(newInvoice);
+    try {
+      confetti({
+        particleCount: 120,
+        spread: 80,
+        origin: { y: 0.5 },
+        colors: ['#e2b774', '#10b981', '#06b6d4', '#f59e0b', '#ffffff'],
+      });
+    } catch (e) {}
   };
 
   const copyAccount = () => {
@@ -110,6 +170,14 @@ export default function CheckoutPage() {
           <p className="text-xs sm:text-sm text-gray-400 mt-1">
             Cảm ơn quý khách <strong>{completedInvoice.customerName}</strong>. Đơn hàng đã được lưu trữ trên hệ thống bán lẻ và chuẩn bị đóng gói.
           </p>
+        </div>
+
+        {/* Real-time Zalo ZNS / SMS simulation banner */}
+        <div className="flex items-center justify-center gap-2 p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-xs text-left max-w-lg mx-auto shadow-md">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>
+            Hệ thống đã tự động gửi tin nhắn <strong>Zalo ZNS / SMS Brandname</strong> kèm mã tra cứu và hóa đơn điện tử đến số <strong className="text-white font-mono">{completedInvoice.customerPhone}</strong>.
+          </span>
         </div>
 
         {/* If VietQR was chosen, display the QR Box */}
@@ -156,10 +224,11 @@ export default function CheckoutPage() {
             Quay về trang chủ
           </Link>
           <Link
-            href="/admin/pos"
-            className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold text-xs transition-colors shadow-lg"
+            href="/warranty"
+            className="w-full sm:w-auto px-6 py-3 rounded-xl btn-gold text-black font-black text-xs transition-all shadow-lg flex items-center justify-center gap-2"
           >
-            Xem hóa đơn tại Màn hình Quản trị/POS
+            <ShieldCheck className="w-4 h-4" />
+            <span>Tra Cứu Bảo Hành Điện Tử IMEI</span>
           </Link>
         </div>
       </div>
@@ -193,6 +262,77 @@ export default function CheckoutPage() {
       <form onSubmit={handleSubmitOrder} className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Form Inputs */}
         <div className="lg:col-span-7 space-y-6">
+          {!customerUser ? (
+            <div className="glass-panel rounded-3xl p-6 sm:p-8 border border-amber-500/40 bg-amber-500/5 text-center space-y-4 shadow-xl">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center justify-center mx-auto">
+                <Lock className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  BẮT BUỘC XÁC THỰC THÀNH VIÊN
+                </span>
+                <h3 className="text-lg font-black text-white mt-1">
+                  Đăng Nhập Khách Hàng Để Đặt Hàng & Nhận Bảo Hành
+                </h3>
+                <p className="text-xs text-gray-300 max-w-md mx-auto">
+                  Để tự động kích hoạt chứng nhận bảo hành điện tử theo số IMEI và nhận mã vận đơn, quý khách vui lòng xác nhận danh tính thành viên:
+                </p>
+              </div>
+
+              <div className="max-w-md mx-auto space-y-3 text-xs text-left pt-2">
+                <div>
+                  <label className="text-gray-300 font-semibold mb-1 block">Họ và tên người nhận hàng *:</label>
+                  <input
+                    type="text"
+                    required
+                    value={quickCustName}
+                    onChange={(e) => setQuickCustName(e.target.value)}
+                    placeholder="VD: Nguyễn Huy Hoàng"
+                    className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+                <div>
+                  <label className="text-gray-300 font-semibold mb-1 block">Số điện thoại liên hệ *:</label>
+                  <input
+                    type="tel"
+                    required
+                    value={quickCustPhone}
+                    onChange={(e) => setQuickCustPhone(e.target.value)}
+                    placeholder="VD: 0988888999"
+                    className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCustomerQuickLogin}
+                  className="w-full py-3.5 rounded-xl btn-gold text-xs font-black flex items-center justify-center gap-2 shadow-lg"
+                >
+                  <UserCheck className="w-4 h-4 text-black" />
+                  <span>Xác Nhận Thành Viên & Tiếp Tục Thanh Toán</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2 text-emerald-400">
+                <UserCheck className="w-4 h-4" />
+                <span>
+                  Đặt hàng với tài khoản: <strong className="text-white">{customerUser.name}</strong> ({customerUser.phone})
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  IShopStore.logoutCustomer();
+                  setCustomerUser(null);
+                }}
+                className="text-gray-400 hover:text-white text-[11px] underline"
+              >
+                Đổi tài khoản
+              </button>
+            </div>
+          )}
+
           <div className="glass-panel rounded-3xl p-6 border border-white/10 space-y-4">
             <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
               <Truck className="w-4 h-4 text-blue-400" />

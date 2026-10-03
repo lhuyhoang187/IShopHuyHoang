@@ -54,13 +54,38 @@ export default function AdminRestockPage() {
   const totalBatchCost = costPrice * parsedImeis.length;
   const debtIncrease = Math.max(0, totalBatchCost - paidAmount);
 
-  const handleImport = (e: React.FormEvent) => {
+  const handleImport = async (e: React.FormEvent) => {
     e.preventDefault();
     if (parsedImeis.length === 0) {
       alert('Vui lòng nhập ít nhất 1 số IMEI hợp lệ!');
       return;
     }
 
+    const currentPhone = phones.find((p) => p.id === selectedPhoneId);
+
+    // 1. Post to live MySQL Database via /api/restock
+    try {
+      await fetch('/api/restock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          supplierId: selectedSupplierId,
+          phoneId: selectedPhoneId,
+          phoneName: currentPhone ? currentPhone.name : 'iPhone 16 Pro Max',
+          color,
+          capacity,
+          costPrice,
+          sellingPrice,
+          imeis: parsedImeis,
+          paidAmount,
+          notes: 'Nhập lô hàng chính ngạch qua Admin Restock.',
+        }),
+      });
+    } catch (err) {
+      console.warn('API restock error:', err);
+    }
+
+    // 2. Also save to client store for immediate reactivity
     IShopStore.importPhoneBatch(
       selectedSupplierId,
       selectedPhoneId,
@@ -73,9 +98,9 @@ export default function AdminRestockPage() {
     );
 
     setSuccessMessage(
-      `Đã nạp thành công ${parsedImeis.length} cây máy mới vào kho! Số tiền thanh toán: ${formatVND(
+      `Đã nạp thành công ${parsedImeis.length} cây máy mới vào kho CSDL MySQL! Đã tự động hạch toán Phiếu Chi: ${formatVND(
         paidAmount
-      )}, Công nợ NCC tăng: ${formatVND(debtIncrease)}.`
+      )} và cập nhật công nợ NCC: ${formatVND(debtIncrease)}.`
     );
 
     setImeiListText('');

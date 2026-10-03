@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
-import { X, Check, Copy, Download, ShieldCheck, Smartphone } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Check, Copy, Download, ShieldCheck, Smartphone, Zap, Radio, Loader2 } from 'lucide-react';
+import confetti from 'canvas-confetti';
 import { generateVietQRUrl, DEFAULT_STORE_BANK, formatVND } from '@/lib/vietqr';
 
 interface Props {
@@ -21,6 +22,14 @@ export default function VietQRModal({
 }: Props) {
   const [copied, setCopied] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
+  const [isSimulating, setIsSimulating] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setConfirmed(false);
+      setIsSimulating(false);
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -32,11 +41,34 @@ export default function VietQRModal({
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const fireConfetti = () => {
+    confetti({
+      particleCount: 100,
+      spread: 70,
+      origin: { y: 0.6 },
+      colors: ['#e2b774', '#10b981', '#06b6d4', '#f59e0b', '#ffffff'],
+    });
+  };
+
   const handleConfirmPaid = () => {
     setConfirmed(true);
+    fireConfetti();
     setTimeout(() => {
       if (onPaymentSuccess) onPaymentSuccess();
       onClose();
+    }, 1500);
+  };
+
+  const handleSimulateWebhook = () => {
+    setIsSimulating(true);
+    setTimeout(() => {
+      setIsSimulating(false);
+      setConfirmed(true);
+      fireConfetti();
+      setTimeout(() => {
+        if (onPaymentSuccess) onPaymentSuccess();
+        onClose();
+      }, 1500);
     }, 1200);
   };
 
@@ -61,12 +93,18 @@ export default function VietQRModal({
         </div>
 
         <h3 className="text-xl font-bold text-white mb-1">Thanh Toán Chuyển Khoản</h3>
-        <p className="text-xs text-gray-400 mb-4">
+        <p className="text-xs text-gray-400 mb-3">
           Quét mã bằng ứng dụng bất kỳ ngân hàng nào để thanh toán chuẩn xác
         </p>
 
+        {/* Real-time Webhook Radar Indicator */}
+        <div className="flex items-center justify-center gap-2 px-3 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 text-[11px] font-medium mb-3">
+          <Radio className="w-3.5 h-3.5 animate-pulse text-cyan-400" />
+          <span>Hệ thống đang chờ tín hiệu biến động số dư 24/7...</span>
+        </div>
+
         {/* QR Code Container */}
-        <div className="relative mx-auto w-64 h-64 bg-white p-3 rounded-2xl shadow-lg border-2 border-blue-500/40 flex items-center justify-center mb-4">
+        <div className="relative mx-auto w-60 h-60 bg-white p-3 rounded-2xl shadow-lg border-2 border-blue-500/40 flex items-center justify-center mb-3">
           <img
             src={qrUrl}
             alt="VietQR Napas 247"
@@ -75,7 +113,7 @@ export default function VietQRModal({
         </div>
 
         {/* Amount & Bank Info Details */}
-        <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-3.5 mb-4 text-left space-y-2 text-xs">
+        <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-3.5 mb-3 text-left space-y-2 text-xs">
           <div className="flex justify-between items-center">
             <span className="text-gray-400">Số tiền cần thanh toán:</span>
             <span className="text-base font-bold text-amber-400">{formatVND(amount)}</span>
@@ -107,11 +145,11 @@ export default function VietQRModal({
           </div>
         </div>
 
-        {/* Action buttons */}
+        {/* Action buttons & Simulator */}
         <div className="space-y-2">
           <button
             onClick={handleConfirmPaid}
-            disabled={confirmed}
+            disabled={confirmed || isSimulating}
             className={`w-full py-3 px-4 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all ${
               confirmed
                 ? 'bg-emerald-600 text-white'
@@ -120,7 +158,7 @@ export default function VietQRModal({
           >
             {confirmed ? (
               <>
-                <Check className="w-4 h-4" /> Đã ghi nhận thanh toán!
+                <Check className="w-4 h-4" /> Đã xác nhận thành công!
               </>
             ) : (
               <>
@@ -128,6 +166,27 @@ export default function VietQRModal({
               </>
             )}
           </button>
+
+          {/* Webhook Fast Test Simulator */}
+          <button
+            onClick={handleSimulateWebhook}
+            disabled={confirmed || isSimulating}
+            className="w-full py-2 px-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all"
+            title="Mô phỏng Webhook ngân hàng bắn callback tiền về tài khoản tức thì"
+          >
+            {isSimulating ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <span>Đang xử lý Webhook Napas 247...</span>
+              </>
+            ) : (
+              <>
+                <Zap className="w-3.5 h-3.5 text-amber-300" />
+                <span>Demo: Giả Lập Ngân Hàng Báo &quot;Có&quot; (Webhook 0s)</span>
+              </>
+            )}
+          </button>
+
           <a
             href={qrUrl}
             download={`VietQR_${orderCode}.png`}

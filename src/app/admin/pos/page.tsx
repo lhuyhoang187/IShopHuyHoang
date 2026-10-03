@@ -49,6 +49,16 @@ export default function POSPage() {
     setRole(IShopStore.getRole());
     setAvailablePhones(IShopStore.getAvailablePhones());
     setAccessories(IShopStore.getAccessories());
+
+    // Sync live in-stock phones from MySQL
+    fetch('/api/inventory/phones?status=in_stock')
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && Array.isArray(json.data)) {
+          setAvailablePhones(json.data);
+        }
+      })
+      .catch((err) => console.warn('POS stock sync notice:', err));
   };
 
   useEffect(() => {
@@ -140,7 +150,7 @@ export default function POSPage() {
   const changeAmount = Math.max(0, cashGiven - totalAmount);
 
   // Process payment & create invoice
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (posItems.length === 0) {
       alert('Vui lòng chọn sản phẩm trước khi thanh toán!');
       return;
@@ -149,6 +159,29 @@ export default function POSPage() {
     const cashierName =
       role === 'admin' ? 'Chủ shop Huy Hoàng' : role === 'cashier' ? 'Thu ngân quầy' : 'KTV quầy';
 
+    // 1. Post to live MySQL Database
+    try {
+      await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerName: customerName.trim() || 'Khách Mua Tại Quầy',
+          customerPhone: customerPhone.trim() || '0900000000',
+          items: posItems,
+          subtotal,
+          discount: discountAmount,
+          totalAmount,
+          paymentMethod,
+          cashReceived: paymentMethod === 'cash' ? cashGiven : undefined,
+          cashChange: paymentMethod === 'cash' ? changeAmount : undefined,
+          cashierName,
+        }),
+      });
+    } catch (err) {
+      console.warn('API order checkout notice:', err);
+    }
+
+    // 2. Also save to client store for immediate reactivity and printing
     const invoice = IShopStore.createInvoice({
       customerName: customerName.trim() || 'Khách Mua Tại Quầy',
       customerPhone: customerPhone.trim() || '0900000000',
@@ -167,6 +200,7 @@ export default function POSPage() {
     setPosItems([]);
     setDiscountAmount(0);
     setCashGiven(0);
+    loadStock();
   };
 
   const handlePrint = () => {

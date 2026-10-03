@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import {
   Wallet,
   ArrowDownRight,
@@ -13,10 +14,14 @@ import {
   Store,
   ShieldAlert,
   X,
+  Download,
+  Lock,
+  ArrowRight,
 } from 'lucide-react';
 import { IShopStore } from '@/lib/store';
 import { CashbookEntry, Role, Invoice, RepairTicket } from '@/lib/types';
 import { formatVND } from '@/lib/vietqr';
+import { exportCashbookCsv } from '@/lib/exportUtils';
 
 export default function AdminCashbookPage() {
   const [entries, setEntries] = useState<CashbookEntry[]>([]);
@@ -41,6 +46,16 @@ export default function AdminCashbookPage() {
     setRole(IShopStore.getRole());
     setInvoices(IShopStore.getInvoices());
     setRepairs(IShopStore.getRepairs());
+
+    // Sync from MySQL database
+    fetch('/api/cashbook')
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+          setEntries(json.data);
+        }
+      })
+      .catch((err) => console.warn('Cashbook API notice:', err));
   };
 
   useEffect(() => {
@@ -100,27 +115,50 @@ export default function AdminCashbookPage() {
     .reduce((sum, e) => sum + e.amount, 0);
   const netCashFlow = totalReceipts - totalPayments;
 
-  const handleAddEntry = (e: React.FormEvent) => {
+  const handleAddEntry = async (e: React.FormEvent) => {
     e.preventDefault();
     if (amount <= 0 || !description.trim()) return;
 
+    const label =
+      category === 'rent_utilities'
+        ? 'Tiền thuê & Tiện ích'
+        : category === 'salary'
+        ? 'Lương nhân viên'
+        : categoryLabel;
+
+    // 1. Post to live MySQL Database
+    try {
+      await fetch('/api/cashbook', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: entryType,
+          category,
+          categoryLabel: label,
+          amount,
+          paymentMethod,
+          description,
+          creator: role === 'admin' ? 'Lê Huy Hoàng (Chủ Shop)' : 'Kế toán',
+        }),
+      });
+    } catch (err) {
+      console.warn('API cashbook error:', err);
+    }
+
+    // 2. Also save to client store for immediate reactivity
     IShopStore.addCashbookEntry({
       type: entryType,
       category: category as any,
-      categoryLabel:
-        category === 'rent_utilities'
-          ? 'Tiền thuê & Tiện ích'
-          : category === 'salary'
-          ? 'Lương nhân viên'
-          : categoryLabel,
+      categoryLabel: label,
       amount,
       paymentMethod,
       description,
-      creator: role === 'admin' ? 'Chủ shop Huy Hoàng' : 'Kế toán',
+      creator: role === 'admin' ? 'Lê Huy Hoàng (Chủ Shop)' : 'Kế toán',
     });
 
     setIsAddModalOpen(false);
     setDescription('');
+    loadData();
   };
 
   const filtered = entries
@@ -131,6 +169,83 @@ export default function AdminCashbookPage() {
         e.description.toLowerCase().includes(search.toLowerCase()) ||
         (e.referenceCode && e.referenceCode.toLowerCase().includes(search.toLowerCase()))
     );
+
+  if (role !== 'admin') {
+    return (
+      <div className="max-w-2xl mx-auto py-16 px-4 text-center space-y-6 animate-in fade-in duration-300">
+        <div className="w-20 h-20 rounded-3xl bg-rose-500/10 border border-rose-500/30 text-rose-400 mx-auto flex items-center justify-center shadow-[0_0_30px_rgba(244,63,94,0.2)]">
+          <ShieldAlert className="w-10 h-10" />
+        </div>
+
+        <div className="space-y-2">
+          <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-rose-500/20 text-rose-300 border border-rose-500/30">
+            TRUY CẬP BỊ GIỚI HẠN (RBAC SECURITY)
+          </span>
+          <h1 className="text-2xl sm:text-3xl font-black text-white">
+            Chỉ Chủ Cửa Hàng Mới Được Xem Sổ Thu Chi
+          </h1>
+          <p className="text-sm text-gray-400 max-w-lg mx-auto leading-relaxed">
+            Phân hệ <strong>Sổ Quỹ Thu - Chi</strong> và <strong>Báo Cáo Lợi Nhuận Gộp</strong> chứa dữ liệu tài chính mật của doanh nghiệp. Bạn đang đăng nhập với vai trò{' '}
+            <strong className="text-amber-400 uppercase font-mono">
+              {role === 'cashier' ? 'Thu Ngân (Cashier)' : 'Kỹ Thuật Viên (Technician)'}
+            </strong>.
+          </p>
+        </div>
+
+        <div className="p-5 rounded-3xl bg-white/[0.03] border border-white/10 max-w-md mx-auto text-xs text-left text-gray-300 space-y-2.5 shadow-xl">
+          <div className="flex items-center gap-2 font-bold text-white">
+            <Lock className="w-4 h-4 text-amber-400" />
+            <span>Chính sách phân quyền bảo mật iShop 2026:</span>
+          </div>
+          <p className="text-gray-400 leading-relaxed text-[11px]">
+            • <strong className="text-cyan-300">Thu ngân:</strong> Bán hàng tại quầy POS, tạo phiếu thu bán hàng, bảo mật ẩn hoàn toàn giá vốn, sổ quỹ và lợi nhuận gộp.
+            <br />
+            • <strong className="text-purple-300">Kỹ thuật viên:</strong> Tiếp nhận sửa chữa và xuất kho linh kiện thay thế.
+            <br />
+            • <strong className="text-amber-300">Chủ cửa hàng (Admin):</strong> Toàn quyền đối soát dòng tiền thu - chi, giá vốn nhập hàng và lợi nhuận ròng.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+          {role === 'cashier' ? (
+            <Link
+              href="/admin/pos"
+              className="btn-gold px-5 py-3 rounded-2xl text-xs font-black flex items-center gap-2 shadow-lg"
+            >
+              <span>Vào Bàn Bán Hàng (POS)</span>
+              <ArrowRight className="w-4 h-4 text-black" />
+            </Link>
+          ) : (
+            <Link
+              href="/admin/repairs"
+              className="btn-gold px-5 py-3 rounded-2xl text-xs font-black flex items-center gap-2 shadow-lg"
+            >
+              <span>Vào Bàn Sửa Chữa (iCare)</span>
+              <ArrowRight className="w-4 h-4 text-black" />
+            </Link>
+          )}
+
+          <Link
+            href="/admin"
+            className="px-5 py-3 rounded-2xl bg-white/[0.05] hover:bg-white/[0.1] text-gray-300 hover:text-white border border-white/10 text-xs font-bold transition-all"
+          >
+            Quay Về Cockpit
+          </Link>
+
+          <button
+            onClick={() => {
+              IShopStore.setRole('admin');
+              setRole('admin');
+            }}
+            className="px-4 py-3 rounded-2xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold transition-all"
+            title="Dành cho kiểm thử hệ thống"
+          >
+            Chuyển Sang Quyền Chủ Shop (Admin)
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -311,6 +426,15 @@ export default function AdminCashbookPage() {
             }`}
           >
             Phiếu Chi (-)
+          </button>
+
+          <button
+            onClick={() => exportCashbookCsv(filtered)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 transition-all shadow-sm ml-auto"
+            title="Xuất danh sách sổ quỹ ra file Excel CSV chuẩn tiếng Việt"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Xuất Excel</span>
           </button>
         </div>
       </div>

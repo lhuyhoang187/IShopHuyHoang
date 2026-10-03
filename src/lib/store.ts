@@ -13,6 +13,8 @@ import {
   Invoice,
   CartItem,
   Role,
+  StaffUser,
+  CustomerUser,
 } from './types';
 import {
   initialPhones,
@@ -61,10 +63,37 @@ export interface RecentItem {
 export const IShopStore = {
   // Roles
   getRole(): Role {
+    const staff = this.getStaffUser();
+    if (staff) return staff.role;
     return getStorage<Role>('current_role', 'admin');
   },
   setRole(role: Role) {
     setStorage('current_role', role);
+  },
+
+  // Staff Authentication
+  getStaffUser(): StaffUser | null {
+    return getStorage<StaffUser | null>('staff_user', null);
+  },
+  setStaffUser(user: StaffUser | null) {
+    setStorage('staff_user', user);
+    if (user) {
+      setStorage('current_role', user.role);
+    }
+  },
+  logoutStaff() {
+    setStorage('staff_user', null);
+  },
+
+  // Customer Authentication
+  getCustomerUser(): CustomerUser | null {
+    return getStorage<CustomerUser | null>('customer_user', null);
+  },
+  setCustomerUser(user: CustomerUser | null) {
+    setStorage('customer_user', user);
+  },
+  logoutCustomer() {
+    setStorage('customer_user', null);
   },
 
   // Phones catalog

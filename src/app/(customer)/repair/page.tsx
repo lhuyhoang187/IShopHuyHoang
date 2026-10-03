@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Wrench,
@@ -13,10 +13,21 @@ import {
   Smartphone,
 } from 'lucide-react';
 import { formatVND } from '@/lib/vietqr';
+import confetti from 'canvas-confetti';
+import { IShopStore } from '@/lib/store';
+import { CustomerUser } from '@/lib/types';
+import { Lock, UserCheck, Shield } from 'lucide-react';
 
 export default function RepairPriceListPage() {
   const [activeTab, setActiveTab] = useState<'iphone' | 'samsung'>('iphone');
   const [bookingSuccess, setBookingSuccess] = useState(false);
+  const [createdTicketCode, setCreatedTicketCode] = useState<string>('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Customer Authentication state
+  const [customerUser, setCustomerUser] = useState<CustomerUser | null>(null);
+  const [quickLoginName, setQuickLoginName] = useState('');
+  const [quickLoginPhone, setQuickLoginPhone] = useState('');
 
   const [bookingForm, setBookingForm] = useState({
     name: '',
@@ -27,6 +38,42 @@ export default function RepairPriceListPage() {
     time: '10:00',
     notes: '',
   });
+
+  useEffect(() => {
+    const cust = IShopStore.getCustomerUser();
+    if (cust) {
+      setCustomerUser(cust);
+      setBookingForm((prev) => ({
+        ...prev,
+        name: cust.name,
+        phone: cust.phone,
+      }));
+    }
+  }, []);
+
+  const handleCustomerQuickLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickLoginName.trim() || !quickLoginPhone.trim()) return;
+
+    const user: CustomerUser = {
+      id: 'cust-' + Date.now(),
+      name: quickLoginName.trim(),
+      phone: quickLoginPhone.trim(),
+    };
+
+    IShopStore.setCustomerUser(user);
+    setCustomerUser(user);
+    setBookingForm((prev) => ({
+      ...prev,
+      name: user.name,
+      phone: user.phone,
+    }));
+  };
+
+  const handleLogoutCustomer = () => {
+    IShopStore.logoutCustomer();
+    setCustomerUser(null);
+  };
 
   const iphonePrices = [
     { service: 'Thay Pin Pisen Chính Hãng (Hiển thị 100% dung lượng)', models: 'iPhone 11 / 12 / 13 Series', price: 650000, warranty: '12 Tháng' },
@@ -44,9 +91,62 @@ export default function RepairPriceListPage() {
     { service: 'Thay Cụm Chân Sạc Nhanh 45W & Cáp Bo Phụ', models: 'Galaxy S24 Ultra', price: 550000, warranty: '06 Tháng' },
   ];
 
-  const handleBooking = (e: React.FormEvent) => {
+  const handleBooking = async (e: React.FormEvent) => {
     e.preventDefault();
-    setBookingSuccess(true);
+    setIsSubmitting(true);
+
+    try {
+      // 1. Create client-side repair ticket in IShopStore
+      const ticket = IShopStore.createRepairTicket({
+        customerName: bookingForm.name,
+        customerPhone: bookingForm.phone,
+        customerAddress: 'Đặt hẹn online qua website iShop',
+        deviceModel: bookingForm.model,
+        imeiOrSerial: 'OL-' + Math.floor(100000 + Math.random() * 900000),
+        unlockPasscode: 'Chưa cung cấp',
+        appearanceCondition: 'Máy gửi hẹn tiếp nhận online',
+        accessoriesIncluded: 'Khách mang máy trực tiếp đến shop',
+        issueDescription: `${bookingForm.service} (Ghi chú: ${bookingForm.notes || 'Không'})`,
+        laborFee: 150000,
+        estimatedDeliveryDate: `${bookingForm.date} ${bookingForm.time}:00`,
+        technicianName: 'Trần Trọng Nghĩa',
+        warrantyPeriod: 'Bảo hành chính hãng 12 tháng',
+        status: 'received',
+        receivedAt: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      });
+
+      setCreatedTicketCode(ticket.ticketCode);
+
+      // 2. Sync with Server API asynchronously
+      fetch('/api/repairs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerName: bookingForm.name,
+          customerPhone: bookingForm.phone,
+          customerAddress: 'Đặt online qua website',
+          deviceModel: bookingForm.model,
+          imeiOrSerial: ticket.imeiOrSerial,
+          unlockPasscode: 'Chưa cung cấp',
+          issueDescription: `${bookingForm.service}. Hẹn: ${bookingForm.date} lúc ${bookingForm.time}. Ghi chú: ${bookingForm.notes || 'Không'}`,
+          laborFee: 150000,
+        }),
+      }).catch((err) => console.warn('API sync background notice:', err));
+
+      // 3. Trigger confetti celebration
+      confetti({
+        particleCount: 90,
+        spread: 80,
+        origin: { y: 0.6 },
+        colors: ['#e2b774', '#10b981', '#3b82f6', '#f59e0b'],
+      });
+
+      setBookingSuccess(true);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -170,21 +270,123 @@ export default function RepairPriceListPage() {
           </div>
 
           {bookingSuccess ? (
-            <div className="p-6 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-center space-y-3 animate-in fade-in">
-              <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto" />
-              <h3 className="text-lg font-bold text-white">Đặt Lịch Hẹn Thành Công!</h3>
-              <p className="text-xs text-gray-300">
-                iShop Huy Hoàng đã ghi nhận lịch hẹn của bạn ({bookingForm.name} - {bookingForm.phone}) cho máy {bookingForm.model}. Nhân viên kỹ thuật sẽ gọi xác nhận trong 10 phút.
-              </p>
-              <button
-                onClick={() => setBookingSuccess(false)}
-                className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold"
-              >
-                Đặt thêm lịch hẹn khác
-              </button>
+            <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-b from-emerald-500/15 to-transparent border border-emerald-500/30 text-center space-y-5 animate-in fade-in zoom-in-95">
+              <div className="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center mx-auto shadow-[0_0_30px_rgba(16,185,129,0.3)]">
+                <CheckCircle2 className="w-9 h-9" />
+              </div>
+
+              <div>
+                <h3 className="text-xl sm:text-2xl font-black text-white">Đặt Lịch Hẹn Thành Công!</h3>
+                <p className="text-xs text-gray-300 mt-1 max-w-md mx-auto">
+                  iShop Huy Hoàng đã ghi nhận lịch hẹn và cấp mã phiếu biên nhận điện tử cho máy của quý khách.
+                </p>
+              </div>
+
+              {/* Ticket Card Preview */}
+              <div className="max-w-md mx-auto p-4 rounded-2xl bg-[#0a0f1d] border border-amber-500/30 text-left space-y-3 font-mono text-xs shadow-xl">
+                <div className="flex items-center justify-between pb-2 border-b border-white/10">
+                  <span className="text-[10px] text-gray-400 uppercase tracking-wider">Mã Phiếu Tiếp Nhận</span>
+                  <span className="text-sm font-bold text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded border border-amber-500/30">
+                    {createdTicketCode}
+                  </span>
+                </div>
+                <div className="space-y-1 text-gray-300">
+                  <p><span className="text-gray-500">Khách hàng:</span> <strong className="text-white">{bookingForm.name}</strong> ({bookingForm.phone})</p>
+                  <p><span className="text-gray-500">Thiết bị:</span> <strong className="text-cyan-400">{bookingForm.model}</strong></p>
+                  <p><span className="text-gray-500">Dịch vụ:</span> {bookingForm.service}</p>
+                  <p><span className="text-gray-500">Khung giờ hẹn:</span> <strong className="text-amber-300">{bookingForm.time} • Ngày {bookingForm.date}</strong></p>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+                <Link
+                  href={`/repair/tracking?code=${encodeURIComponent(createdTicketCode)}`}
+                  className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition-transform hover:scale-105"
+                >
+                  <Wrench className="w-4 h-4" />
+                  <span>Xem Tiến Độ Sửa Chữa (Real-time)</span>
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+
+                <button
+                  type="button"
+                  onClick={() => setBookingSuccess(false)}
+                  className="w-full sm:w-auto px-5 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white text-xs font-semibold border border-white/10 transition-colors"
+                >
+                  Đặt thêm lịch khác
+                </button>
+              </div>
+            </div>
+          ) : !customerUser ? (
+            <div className="p-6 sm:p-8 rounded-3xl bg-amber-500/10 border border-amber-500/30 text-center space-y-5 animate-in fade-in">
+              <div className="w-14 h-14 rounded-2xl bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center justify-center mx-auto shadow-lg">
+                <Lock className="w-7 h-7" />
+              </div>
+              <div className="space-y-1">
+                <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  YÊU CẦU XÁC THỰC TÀI KHOẢN KHÁCH HÀNG
+                </span>
+                <h3 className="text-xl font-black text-white mt-2">
+                  Xác Thực Để Kích Hoạt Phiếu Sửa Chữa iCare
+                </h3>
+                <p className="text-xs text-gray-300 max-w-md mx-auto">
+                  Để tự động cấp mã theo dõi thời gian thực và kích hoạt gói bảo hành điện tử chính chủ, quý khách vui lòng xác nhận danh tính thành viên:
+                </p>
+              </div>
+
+              {/* Quick Customer Login Form */}
+              <form onSubmit={handleCustomerQuickLogin} className="max-w-md mx-auto space-y-3 text-xs text-left">
+                <div>
+                  <label className="text-gray-300 font-semibold mb-1 block">Họ và tên của bạn *:</label>
+                  <input
+                    type="text"
+                    required
+                    value={quickLoginName}
+                    onChange={(e) => setQuickLoginName(e.target.value)}
+                    placeholder="VD: Nguyễn Văn Nam"
+                    className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+                <div>
+                  <label className="text-gray-300 font-semibold mb-1 block">Số điện thoại liên hệ *:</label>
+                  <input
+                    type="tel"
+                    required
+                    value={quickLoginPhone}
+                    onChange={(e) => setQuickLoginPhone(e.target.value)}
+                    placeholder="VD: 0909123456"
+                    className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="w-full py-3.5 rounded-xl btn-gold text-xs font-black flex items-center justify-center gap-2 shadow-lg"
+                >
+                  <UserCheck className="w-4 h-4 text-black" />
+                  <span>Xác Nhận & Tiếp Tục Đặt Hẹn Lấy Ngay</span>
+                </button>
+              </form>
             </div>
           ) : (
-            <form onSubmit={handleBooking} className="space-y-4 text-xs">
+            <div className="space-y-4">
+              {/* Authenticated Customer Banner */}
+              <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2 text-emerald-400">
+                  <UserCheck className="w-4 h-4" />
+                  <span>
+                    Khách hàng: <strong className="text-white">{customerUser.name}</strong> ({customerUser.phone})
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleLogoutCustomer}
+                  className="text-gray-400 hover:text-white text-[11px] underline"
+                >
+                  Đổi tài khoản
+                </button>
+              </div>
+
+              <form onSubmit={handleBooking} className="space-y-4 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-gray-300 font-semibold mb-1 block">Họ và tên của bạn:</label>
@@ -281,6 +483,7 @@ export default function RepairPriceListPage() {
                 <span>Xác Nhận Đặt Lịch Sửa Chữa</span>
               </button>
             </form>
+            </div>
           )}
         </div>
       </div>

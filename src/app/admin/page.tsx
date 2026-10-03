@@ -19,10 +19,12 @@ import {
   DollarSign,
   Activity,
   ChevronRight,
+  Download,
 } from 'lucide-react';
 import { IShopStore } from '@/lib/store';
 import { Role, Invoice, RepairTicket, PhoneStockItem, AccessoryProduct } from '@/lib/types';
 import { formatVND } from '@/lib/vietqr';
+import { exportInvoicesCsv, exportRepairsCsv } from '@/lib/exportUtils';
 
 export default function AdminDashboardPage() {
   const [role, setRole] = useState<Role>('admin');
@@ -315,9 +317,19 @@ export default function AdminDashboardPage() {
               <ShoppingCart className="w-4 h-4 text-emerald-400" />
               <span>Hóa Đơn Bán Hàng Gần Nhất</span>
             </h3>
-            <Link href="/admin/pos" className="text-xs text-cyan-400 font-bold hover:underline">
-              Vào POS ↗
-            </Link>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => exportInvoicesCsv(invoices)}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-[11px] text-gray-300 hover:text-white border border-white/[0.08] transition-colors"
+                title="Xuất Excel danh sách hóa đơn"
+              >
+                <Download className="w-3 h-3 text-emerald-400" />
+                <span>Xuất Excel</span>
+              </button>
+              <Link href="/admin/pos" className="text-xs text-cyan-400 font-bold hover:underline">
+                Vào POS ↗
+              </Link>
+            </div>
           </div>
 
           <div className="space-y-2.5">
@@ -350,9 +362,19 @@ export default function AdminDashboardPage() {
               <Wrench className="w-4 h-4 text-amber-400" />
               <span>Tiến Độ Phiếu Sửa Chữa Tại Quầy</span>
             </h3>
-            <Link href="/admin/repairs" className="text-xs text-amber-400 font-bold hover:underline">
-              Xử lý phiếu ↗
-            </Link>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => exportRepairsCsv(repairs)}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-[11px] text-gray-300 hover:text-white border border-white/[0.08] transition-colors"
+                title="Xuất Excel danh sách phiếu sửa"
+              >
+                <Download className="w-3 h-3 text-amber-400" />
+                <span>Xuất Excel</span>
+              </button>
+              <Link href="/admin/repairs" className="text-xs text-amber-400 font-bold hover:underline">
+                Xử lý phiếu ↗
+              </Link>
+            </div>
           </div>
 
           <div className="space-y-2.5">

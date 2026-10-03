@@ -35,13 +35,37 @@ function RepairTrackingContent() {
   const [inputQuery, setInputQuery] = useState(initialCode);
   const [ticket, setTicket] = useState<RepairTicket | null | undefined>(undefined);
   const [searchedKey, setSearchedKey] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSearch = (keyToSearch?: string) => {
+  const handleSearch = async (keyToSearch?: string) => {
     const key = (keyToSearch || inputQuery).trim();
     if (!key) return;
     setSearchedKey(key);
+
+    // 1. Try local storage first
     const found = IShopStore.getRepairByCode(key);
-    setTicket(found || null);
+    if (found) {
+      setTicket(found);
+      return;
+    }
+
+    // 2. Fetch from backend API
+    setIsLoading(true);
+    try {
+      const res = await fetch(`/api/repairs?code=${encodeURIComponent(key)}`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data) {
+          setTicket(json.data);
+          return;
+        }
+      }
+      setTicket(null);
+    } catch {
+      setTicket(null);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -120,10 +144,20 @@ function RepairTrackingContent() {
           </div>
           <button
             type="submit"
-            className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-bold text-sm shadow-xl shadow-amber-500/20 flex items-center justify-center gap-2 shrink-0 transition-transform hover:scale-105"
+            disabled={isLoading}
+            className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 disabled:opacity-50 text-black font-bold text-sm shadow-xl shadow-amber-500/20 flex items-center justify-center gap-2 shrink-0 transition-transform hover:scale-105"
           >
-            <Search className="w-4 h-4" />
-            <span>Tra Cứu Tiến Độ</span>
+            {isLoading ? (
+              <>
+                <Clock className="w-4 h-4 animate-spin" />
+                <span>Đang tra cứu...</span>
+              </>
+            ) : (
+              <>
+                <Search className="w-4 h-4" />
+                <span>Tra Cứu Tiến Độ</span>
+              </>
+            )}
           </button>
         </form>
 
