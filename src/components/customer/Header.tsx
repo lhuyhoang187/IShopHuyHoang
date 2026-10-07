@@ -58,8 +58,8 @@ export default function Header() {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       if (!target.closest('.auth-menu-container')) {
-        setIsLoginMenuOpen(false);
         setIsCustomerMenuOpen(false);
+        setIsLoginMenuOpen(false);
       }
     };
     window.addEventListener('click', handleClickOutside);
@@ -191,11 +191,15 @@ export default function Header() {
                   <div className="relative auth-menu-container hidden sm:block shrink-0">
                     <button
                       onClick={() => setIsCustomerMenuOpen(!isCustomerMenuOpen)}
-                      className="flex items-center gap-2 px-3 py-2 rounded-2xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-400/40 text-amber-300 font-bold text-xs sm:text-sm transition-all"
+                      className="flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-400/40 text-amber-300 font-bold text-xs sm:text-sm transition-all"
                       title="Thông tin thành viên"
                     >
-                      <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-amber-400 to-amber-600 text-black flex items-center justify-center font-black text-xs shadow-sm">
-                        {customerUser.name.charAt(0).toUpperCase()}
+                      <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-amber-400 to-amber-600 text-black flex items-center justify-center font-black text-xs shadow-sm overflow-hidden shrink-0">
+                        {customerUser.avatar ? (
+                          <img src={customerUser.avatar} alt={customerUser.name} className="w-full h-full object-cover" />
+                        ) : (
+                          customerUser.name.charAt(0).toUpperCase()
+                        )}
                       </div>
                       <span className="max-w-[110px] truncate">{customerUser.name}</span>
                       <ChevronDown className="w-3.5 h-3.5 opacity-70" />
@@ -203,19 +207,36 @@ export default function Header() {
 
                     {/* Popover thông tin khách hàng */}
                     {isCustomerMenuOpen && (
-                      <div className="absolute right-0 mt-2 w-60 rounded-2xl bg-[#140e0a]/98 border border-amber-500/30 p-3 shadow-2xl backdrop-blur-2xl z-50 space-y-2 text-xs animate-in fade-in zoom-in-95">
-                        <div className="p-3 rounded-xl bg-white/[0.04] border border-white/10 space-y-1">
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold text-white text-sm truncate">{customerUser.name}</span>
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                              VIP
-                            </span>
+                      <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-[#140e0a]/98 border border-amber-500/30 p-3 shadow-2xl backdrop-blur-2xl z-50 space-y-2 text-xs animate-in fade-in zoom-in-95">
+                        <div className="p-3 rounded-xl bg-white/[0.04] border border-white/10 flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-[#0c1220] border border-amber-500/40 overflow-hidden flex items-center justify-center shrink-0">
+                            {customerUser.avatar ? (
+                              <img src={customerUser.avatar} alt={customerUser.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="text-amber-300 font-bold text-sm">{customerUser.name.charAt(0)}</span>
+                            )}
                           </div>
-                          <p className="text-gray-400 text-[11px] truncate">{customerUser.phone || customerUser.email}</p>
-                          <p className="text-amber-400 text-[11px] font-medium">Điểm tích lũy: {customerUser.points || 100} pts</p>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-white text-xs truncate">{customerUser.name}</span>
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                                VIP
+                              </span>
+                            </div>
+                            <p className="text-gray-400 text-[10px] truncate">{customerUser.phone || customerUser.email}</p>
+                            <p className="text-amber-400 text-[10px] font-medium">Điểm: {customerUser.points || 100} pts</p>
+                          </div>
                         </div>
 
                         <div className="space-y-1">
+                          <Link
+                            href="/account"
+                            onClick={() => setIsCustomerMenuOpen(false)}
+                            className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-amber-300 font-bold hover:bg-amber-500/15 transition-colors"
+                          >
+                            <User className="w-4 h-4 text-amber-400" />
+                            <span>Hồ Sơ &amp; Đổi Mật Khẩu</span>
+                          </Link>
                           <Link
                             href="/repair/tracking"
                             onClick={() => setIsCustomerMenuOpen(false)}
@@ -230,15 +251,7 @@ export default function Header() {
                             className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
                           >
                             <ShoppingCart className="w-4 h-4 text-amber-400" />
-                            <span>Giỏ hàng & Đơn mua ({cartCount})</span>
-                          </Link>
-                          <Link
-                            href="/admin"
-                            onClick={() => setIsCustomerMenuOpen(false)}
-                            className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 transition-colors font-medium border-t border-white/5 pt-2"
-                          >
-                            <Store className="w-4 h-4 text-emerald-400" />
-                            <span>Cổng Đăng Nhập Cho Shop (POS)</span>
+                            <span>Giỏ hàng &amp; Đơn mua ({cartCount})</span>
                           </Link>
                         </div>
 
@@ -262,22 +275,22 @@ export default function Header() {
                   <div className="relative auth-menu-container hidden sm:block shrink-0">
                     <button
                       onClick={() => setIsLoginMenuOpen(!isLoginMenuOpen)}
-                      className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 hover:border-amber-400/40 text-white font-bold text-xs sm:text-sm transition-all shadow-sm"
-                      title="Đăng nhập tài khoản"
+                      className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 hover:border-amber-400/40 text-white font-bold text-xs sm:text-sm transition-all shadow-sm group"
+                      title="Chọn cổng đăng nhập"
                     >
                       <User className="w-4 h-4 text-cyan-400 shrink-0" />
                       <span>Đăng Nhập</span>
-                      <ChevronDown className="w-3.5 h-3.5 opacity-70" />
+                      <ChevronDown className={`w-3.5 h-3.5 opacity-70 transition-transform duration-200 ${isLoginMenuOpen ? 'rotate-180 text-amber-400' : ''}`} />
                     </button>
 
-                    {/* Popover Điều Hướng Đăng Nhập: Khách Hàng hoặc Shop */}
+                    {/* Popover Lựa Chọn Đăng Nhập: Khách Hàng hoặc Shop */}
                     {isLoginMenuOpen && (
                       <div className="absolute right-0 mt-2 w-72 rounded-3xl bg-[#140e0a]/98 border border-amber-500/35 p-3.5 shadow-2xl backdrop-blur-2xl z-50 space-y-2 text-xs animate-in fade-in zoom-in-95">
                         <div className="px-2 py-1 text-[10px] font-black uppercase text-gray-400 tracking-wider">
                           Chọn Cổng Đăng Nhập:
                         </div>
 
-                        {/* 1. Khách Hàng */}
+                        {/* 1. Đăng nhập Khách Hàng */}
                         <Link
                           href="/login"
                           onClick={() => setIsLoginMenuOpen(false)}
@@ -296,7 +309,7 @@ export default function Header() {
                           </div>
                         </Link>
 
-                        {/* 2. Cửa Hàng / Shop Staff */}
+                        {/* 2. Đăng nhập Cửa Hàng / Shop POS & Quản Trị */}
                         <Link
                           href="/admin"
                           onClick={() => setIsLoginMenuOpen(false)}
@@ -455,12 +468,16 @@ export default function Header() {
                 <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-amber-400 text-black font-bold flex items-center justify-center text-xs">
-                        {customerUser.name.charAt(0).toUpperCase()}
+                      <div className="w-9 h-9 rounded-full bg-amber-400 text-black font-bold flex items-center justify-center text-xs overflow-hidden shrink-0">
+                        {customerUser.avatar ? (
+                          <img src={customerUser.avatar} alt={customerUser.name} className="w-full h-full object-cover" />
+                        ) : (
+                          customerUser.name.charAt(0).toUpperCase()
+                        )}
                       </div>
-                      <div>
-                        <p className="text-xs font-bold text-white leading-none">{customerUser.name}</p>
-                        <p className="text-[10px] text-gray-400 mt-0.5">{customerUser.phone || customerUser.email}</p>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-white leading-none truncate">{customerUser.name}</p>
+                        <p className="text-[10px] text-gray-400 mt-0.5 truncate">{customerUser.phone || customerUser.email}</p>
                       </div>
                     </div>
                     <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
@@ -470,12 +487,21 @@ export default function Header() {
 
                   <div className="grid grid-cols-2 gap-2 pt-1">
                     <Link
+                      href="/account"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="col-span-2 flex items-center justify-center gap-1.5 p-2 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-bold hover:bg-amber-500/30 transition-colors"
+                    >
+                      <User className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Hồ Sơ Cá Nhân &amp; Đổi Mật Khẩu</span>
+                    </Link>
+
+                    <Link
                       href="/repair/tracking"
                       onClick={() => setIsMobileMenuOpen(false)}
                       className="flex items-center justify-center gap-1.5 p-2 rounded-xl bg-white/[0.06] border border-white/10 text-gray-200 text-xs font-bold"
                     >
                       <Wrench className="w-3.5 h-3.5 text-amber-400" />
-                      <span>Đơn Của Tôi</span>
+                      <span>Đơn Sửa iCare</span>
                     </Link>
 
                     <button

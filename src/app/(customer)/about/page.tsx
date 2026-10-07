@@ -5,17 +5,12 @@ import {
   ShieldCheck,
   CheckCircle2,
   Wrench,
-  Sparkles,
+  Zap,
   MapPin,
   Phone,
   Clock,
   Award,
-  Users,
-  Star,
   ArrowRight,
-  Truck,
-  RotateCcw,
-  Zap,
 } from 'lucide-react';
 import type { Metadata } from 'next';
 

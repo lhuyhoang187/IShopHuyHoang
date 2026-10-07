@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
         await tx.phoneStock.upsert({
           where: { imei },
           update: {
-            phoneId: phoneId || 'p-custom',
+            phoneId: phoneId || 'p-1',
             phoneName: phoneName || 'iPhone Mới Nhập',
             color: color || 'Titan Tự Nhiên',
             capacity: capacity || '256GB',
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
           },
           create: {
             imei,
-            phoneId: phoneId || 'p-custom',
+            phoneId: phoneId || 'p-1',
             phoneName: phoneName || 'iPhone Mới Nhập',
             color: color || 'Titan Tự Nhiên',
             capacity: capacity || '256GB',

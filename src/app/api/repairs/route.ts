@@ -93,12 +93,32 @@ export async function POST(request: NextRequest) {
       },
     ];
 
+    // 1. Ensure Customer exists (Toàn vẹn khóa ngoại)
+    await prisma.customer.upsert({
+      where: { phone: body.customerPhone.trim() },
+      update: {
+        name: body.customerName.trim(),
+        repairCount: { increment: 1 },
+      },
+      create: {
+        id: 'cust-' + Date.now(),
+        name: body.customerName.trim(),
+        phone: body.customerPhone.trim(),
+        address: body.customerAddress || null,
+        totalSpent: 0,
+        purchaseCount: 0,
+        repairCount: 1,
+        points: 10,
+      },
+    });
+
+    // 2. Create RepairTicket in MySQL
     const newTicket = await prisma.repairTicket.create({
       data: {
         id: 'rep-' + Date.now(),
         ticketCode,
         customerName: body.customerName,
-        customerPhone: body.customerPhone,
+        customerPhone: body.customerPhone.trim(),
         customerAddress: body.customerAddress || 'Khách đặt online',
         deviceModel: body.deviceModel,
         imeiOrSerial: body.imeiOrSerial || 'OL-' + Math.floor(100000 + Math.random() * 900000),
@@ -114,6 +134,7 @@ export async function POST(request: NextRequest) {
         totalAmount: Number(body.laborFee || 150000),
         estimatedDeliveryDate: body.estimatedDeliveryDate || `${now.split(' ')[0]} 18:00:00`,
         receivedAt: now,
+        technicianId: 'ktv-1',
         technicianName: 'Trần Trọng Nghĩa',
         warrantyPeriod: 'Bảo hành 12 tháng linh kiện',
       },

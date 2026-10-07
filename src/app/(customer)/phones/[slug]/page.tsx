@@ -1,10 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
-  Smartphone,
   ShieldCheck,
   Truck,
   RotateCcw,
@@ -23,7 +22,6 @@ import VietQRModal from '@/components/customer/VietQRModal';
 
 export default function PhoneDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const slug = params?.slug as string;
 
   const [phone, setPhone] = useState<PhoneProduct | null>(null);
@@ -34,6 +32,7 @@ export default function PhoneDetailPage() {
   const [accessories, setAccessories] = useState<AccessoryProduct[]>([]);
   const [isVietQROpen, setIsVietQROpen] = useState(false);
   const [addedToast, setAddedToast] = useState(false);
+  const [orderCode] = useState(() => `DH${Date.now().toString().slice(-6)}`);
 
   const loadData = () => {
     if (!slug) return;
@@ -473,7 +472,7 @@ export default function PhoneDetailPage() {
         isOpen={isVietQROpen}
         onClose={() => setIsVietQROpen(false)}
         amount={finalPrice}
-        orderCode={`DH${Date.now().toString().slice(-6)}`}
+        orderCode={orderCode}
         onPaymentSuccess={() => {
           alert('Cảm ơn quý khách! iShop Huy Hoàng đã ghi nhận thanh toán và sẽ liên hệ giao hàng trong 15 phút.');
         }}

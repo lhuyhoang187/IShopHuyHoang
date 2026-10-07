@@ -147,6 +147,7 @@ export default function AdminRepairsPage() {
   const handleUseSparePart = () => {
     if (!selectedTicket || !selectedPartId) return;
     try {
+      // eslint-disable-next-line react-hooks/rules-of-hooks
       IShopStore.useSparePart(selectedTicket.id, selectedPartId, 1);
       setSelectedPartId('');
       const updated = IShopStore.getRepairByCode(selectedTicket.ticketCode);

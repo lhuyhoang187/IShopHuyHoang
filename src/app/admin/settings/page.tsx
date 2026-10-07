@@ -9,17 +9,20 @@ import {
   RotateCcw,
   CheckCircle2,
   Lock,
-  Eye,
-  Store,
-  Zap,
   Code,
   Send,
   Terminal,
   Radio,
   Loader2,
+  Plus,
+  Trash2,
+  Save,
+  Search,
+  Shield,
+  X,
 } from 'lucide-react';
 import { IShopStore } from '@/lib/store';
-import { Role } from '@/lib/types';
+import { Role, PermissionItem } from '@/lib/types';
 
 export default function AdminSettingsPage() {
   const [currentRole, setCurrentRole] = useState<Role>('admin');
@@ -63,13 +66,122 @@ export default function AdminSettingsPage() {
     }
   };
 
+  // RBAC Permission Matrix State
+  const [permissions, setPermissions] = useState<PermissionItem[]>([]);
+  const [rbacSearch, setRbacSearch] = useState('');
+  const [rbacCategory, setRbacCategory] = useState<string>('all');
+  const [isDirtyRbac, setIsDirtyRbac] = useState(false);
+  const [rbacSuccessMsg, setRbacSuccessMsg] = useState<string | null>(null);
+  const [isAddModuleOpen, setIsAddModuleOpen] = useState(false);
+
+  // New module state
+  const [newModuleName, setNewModuleName] = useState('');
+  const [newModuleCategory, setNewModuleCategory] = useState<PermissionItem['category']>('bán hàng');
+  const [newModuleDesc, setNewModuleDesc] = useState('');
+  const [newModuleTech, setNewModuleTech] = useState(false);
+  const [newModuleCashier, setNewModuleCashier] = useState(false);
+
   useEffect(() => {
     setCurrentRole(IShopStore.getRole());
+    setPermissions(IShopStore.getPermissionMatrix());
+
+    const handleDataChanged = () => {
+      setCurrentRole(IShopStore.getRole());
+      setPermissions(IShopStore.getPermissionMatrix());
+    };
+    window.addEventListener('ishop_data_changed', handleDataChanged);
+    return () => window.removeEventListener('ishop_data_changed', handleDataChanged);
   }, []);
 
   const handleRoleChange = (role: Role) => {
     IShopStore.setRole(role);
     setCurrentRole(role);
+  };
+
+  const handleTogglePermission = (id: string, roleKey: 'tech' | 'cashier') => {
+    const updated = permissions.map((item) => {
+      if (item.id === id) {
+        const newVal = !item[roleKey];
+        return { ...item, [roleKey]: newVal };
+      }
+      return item;
+    });
+    setPermissions(updated);
+    setIsDirtyRbac(true);
+    IShopStore.setPermissionMatrix(updated);
+    const target = updated.find((x) => x.id === id);
+    const roleName = roleKey === 'tech' ? 'Kỹ Thuật Viên' : 'Thu Ngân';
+    const statusText = target?.[roleKey] ? 'MỞ QUYỀN (CHO PHÉP)' : 'KHÓA TRUY CẬP';
+    setRbacSuccessMsg(`Đã ${statusText} mục "${target?.module}" cho ${roleName}!`);
+    setTimeout(() => setRbacSuccessMsg(null), 3000);
+  };
+
+  const handleSaveAllRbac = () => {
+    IShopStore.setPermissionMatrix(permissions);
+    setIsDirtyRbac(false);
+    setRbacSuccessMsg('✓ Đã lưu và đồng bộ toàn bộ ma trận phân quyền RBAC thành công cho toàn hệ thống!');
+    setTimeout(() => setRbacSuccessMsg(null), 3500);
+  };
+
+  const handleResetRbac = () => {
+    if (confirm('Khôi phục ma trận phân quyền về cấu hình bảo mật mặc định ban đầu?')) {
+      const def = IShopStore.resetPermissionMatrix();
+      setPermissions(def);
+      setIsDirtyRbac(false);
+      setRbacSuccessMsg('✓ Đã khôi phục ma trận phân quyền về chuẩn mặc định!');
+      setTimeout(() => setRbacSuccessMsg(null), 3000);
+    }
+  };
+
+  const handleGrantAll = (roleKey: 'tech' | 'cashier', grant: boolean) => {
+    const updated = permissions.map((p) => ({
+      ...p,
+      [roleKey]: grant,
+    }));
+    setPermissions(updated);
+    setIsDirtyRbac(true);
+    IShopStore.setPermissionMatrix(updated);
+    const roleName = roleKey === 'tech' ? 'Kỹ Thuật Viên' : 'Thu Ngân';
+    const actionName = grant ? 'Cấp toàn quyền' : 'Khóa toàn bộ';
+    setRbacSuccessMsg(`✓ Đã ${actionName} cho ${roleName}!`);
+    setTimeout(() => setRbacSuccessMsg(null), 3000);
+  };
+
+  const handleAddNewPermission = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newModuleName.trim()) return;
+    const newId = 'perm_' + Date.now().toString(36);
+    const newItem: PermissionItem = {
+      id: newId,
+      module: newModuleName.trim(),
+      category: newModuleCategory,
+      description: newModuleDesc.trim() || 'Phân quyền tính năng mở rộng của cửa hàng',
+      admin: true,
+      tech: newModuleTech,
+      cashier: newModuleCashier,
+    };
+    const updated = [...permissions, newItem];
+    setPermissions(updated);
+    setIsDirtyRbac(true);
+    IShopStore.setPermissionMatrix(updated);
+    setIsAddModuleOpen(false);
+    setNewModuleName('');
+    setNewModuleDesc('');
+    setNewModuleTech(false);
+    setNewModuleCashier(false);
+    setRbacSuccessMsg(`✓ Đã thêm phân hệ quyền mới: "${newItem.module}"!`);
+    setTimeout(() => setRbacSuccessMsg(null), 3000);
+  };
+
+  const handleDeletePermission = (id: string, moduleName: string) => {
+    if (confirm(`Bạn có chắc muốn xóa phân hệ "${moduleName}" khỏi ma trận phân quyền?`)) {
+      const updated = permissions.filter((p) => p.id !== id);
+      setPermissions(updated);
+      setIsDirtyRbac(true);
+      IShopStore.setPermissionMatrix(updated);
+      setRbacSuccessMsg(`✓ Đã xóa phân hệ "${moduleName}"!`);
+      setTimeout(() => setRbacSuccessMsg(null), 3000);
+    }
   };
 
   const handleSaveStoreInfo = (e: React.FormEvent) => {
@@ -86,15 +198,21 @@ export default function AdminSettingsPage() {
     }
   };
 
-  const permissions = [
-    { module: 'Bán Hàng POS & In Bill Nhiệt K80/A5', admin: true, tech: false, cashier: true },
-    { module: 'Tiếp Nhận Sửa Chữa & Xuất Kho Linh Kiện', admin: true, tech: true, cashier: false },
-    { module: 'Xem Giá Vốn Máy Mới & Linh Kiện', admin: true, tech: false, cashier: false },
-    { module: 'Xem Báo Cáo Lợi Nhuận Gộp 3 Mảng', admin: true, tech: false, cashier: false },
-    { module: 'Nhập Lô IMEI Từ Nhà Cung Cấp & Ghi Nợ', admin: true, tech: false, cashier: false },
-    { module: 'Quản Lý Sổ Quỹ Thu - Chi Toàn Cửa Hàng', admin: true, tech: false, cashier: false },
-    { module: 'Chỉnh Sửa Cấu Hình & Mẫu In Bill', admin: true, tech: false, cashier: false },
-  ];
+  const filteredPermissions = permissions.filter((p) => {
+    const matchesSearch =
+      p.module.toLowerCase().includes(rbacSearch.toLowerCase()) ||
+      (p.description && p.description.toLowerCase().includes(rbacSearch.toLowerCase()));
+    const matchesCat = rbacCategory === 'all' || p.category === rbacCategory;
+    return matchesSearch && matchesCat;
+  });
+
+  const categoryBadges: Record<string, { label: string; color: string }> = {
+    'bán hàng': { label: 'Bán Hàng POS', color: 'bg-blue-500/20 text-blue-300 border-blue-500/30' },
+    'kỹ thuật': { label: 'Kỹ Thuật iCare', color: 'bg-amber-500/20 text-amber-300 border-amber-500/30' },
+    'kho & mua hàng': { label: 'Kho & Mua Hàng', color: 'bg-purple-500/20 text-purple-300 border-purple-500/30' },
+    'kế toán & báo cáo': { label: 'Kế Toán / Quỹ', color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' },
+    'hệ thống': { label: 'Hệ Thống / RBAC', color: 'bg-rose-500/20 text-rose-300 border-rose-500/30' },
+  };
 
   return (
     <div className="space-y-8">
@@ -180,49 +298,404 @@ export default function AdminSettingsPage() {
         </div>
       </div>
 
-      {/* 2. Permission Matrix Table */}
-      <div className="glass-panel rounded-3xl p-6 border border-white/10 space-y-4">
-        <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-          <Lock className="w-4 h-4 text-rose-400" />
-          <span>2. Ma Trận Phân Quyền Chi Tiết (Role-Based Access Control)</span>
-        </h2>
+      {/* 2. Interactive Permission Matrix Table (RBAC) */}
+      <div className="glass-panel rounded-3xl p-6 border border-white/10 space-y-5">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-white/10">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                TƯƠNG TÁC THỜI GIAN THỰC
+              </span>
+              <span className="text-gray-500">•</span>
+              <span className="text-xs text-gray-400">Enterprise Security</span>
+            </div>
+            <h2 className="text-base sm:text-lg font-bold text-white uppercase tracking-wider flex items-center gap-2 mt-1">
+              <Lock className="w-5 h-5 text-rose-400" />
+              <span>2. Ma Trận Phân Quyền Chi Tiết (Role-Based Access Control)</span>
+            </h2>
+            <p className="text-xs text-gray-400 mt-1">
+              Bấm trực tiếp vào các nút công tắc bên dưới để <strong className="text-emerald-400">Cho phép (✓)</strong> hoặc <strong className="text-rose-400">Khóa (✕)</strong> quyền của từng chức vụ. Hệ thống tự động ghi nhớ và áp dụng ngay lập tức.
+            </p>
+          </div>
 
-        <div className="overflow-x-auto">
+          {/* Action buttons */}
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => setIsAddModuleOpen(true)}
+              className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white font-bold text-xs border border-white/10 flex items-center gap-1.5 transition-all cursor-pointer"
+            >
+              <Plus className="w-4 h-4 text-emerald-400" />
+              <span>Thêm Quyền Mới</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleResetRbac}
+              className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white font-bold text-xs border border-white/10 flex items-center gap-1.5 transition-all cursor-pointer"
+              title="Khôi phục về bảng phân quyền mặc định ban đầu"
+            >
+              <RotateCcw className="w-4 h-4 text-amber-400" />
+              <span>Khôi Phục Mặc Định</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleSaveAllRbac}
+              className={`px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-2 transition-all cursor-pointer shadow-lg ${
+                isDirtyRbac
+                  ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-black shadow-emerald-500/20 hover:opacity-90 animate-pulse'
+                  : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30'
+              }`}
+            >
+              <Save className="w-4 h-4" />
+              <span>Lưu Cấu Hình RBAC</span>
+              {isDirtyRbac && <span className="w-2 h-2 rounded-full bg-rose-500" />}
+            </button>
+          </div>
+        </div>
+
+        {/* Live Feedback Toast Alert */}
+        {rbacSuccessMsg && (
+          <div className="p-3.5 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-semibold flex items-center justify-between gap-2 shadow-lg animate-in fade-in">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>{rbacSuccessMsg}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setRbacSuccessMsg(null)}
+              className="text-emerald-400/80 hover:text-white cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {/* Quick Batch Actions & Filter Toolbar */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 text-xs">
+          {/* Search */}
+          <div className="lg:col-span-4 relative">
+            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Tìm phân hệ chức năng..."
+              value={rbacSearch}
+              onChange={(e) => setRbacSearch(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-amber-400"
+            />
+          </div>
+
+          {/* Category Filter */}
+          <div className="lg:col-span-4 flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0">
+            <select
+              value={rbacCategory}
+              onChange={(e) => setRbacCategory(e.target.value)}
+              className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-amber-400"
+            >
+              <option value="all" className="bg-[#0f1629]">Tất cả nhóm nghiệp vụ ({permissions.length})</option>
+              <option value="bán hàng" className="bg-[#0f1629]">Bán Hàng POS</option>
+              <option value="kỹ thuật" className="bg-[#0f1629]">Kỹ Thuật iCare</option>
+              <option value="kho & mua hàng" className="bg-[#0f1629]">Kho & Mua Hàng</option>
+              <option value="kế toán & báo cáo" className="bg-[#0f1629]">Kế Toán / Báo Cáo</option>
+              <option value="hệ thống" className="bg-[#0f1629]">Hệ Thống / Quản Trị</option>
+            </select>
+          </div>
+
+          {/* Quick Bulk Actions */}
+          <div className="lg:col-span-4 flex items-center justify-end gap-2">
+            <div className="flex items-center gap-1 bg-white/[0.03] p-1 rounded-xl border border-white/10">
+              <span className="text-[11px] text-gray-400 px-1 font-semibold">KTV:</span>
+              <button
+                type="button"
+                onClick={() => handleGrantAll('tech', true)}
+                className="px-2 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 font-bold text-[10px] transition-colors cursor-pointer"
+                title="Bật tất cả quyền cho Kỹ Thuật Viên"
+              >
+                Mở hết
+              </button>
+              <button
+                type="button"
+                onClick={() => handleGrantAll('tech', false)}
+                className="px-2 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 font-bold text-[10px] transition-colors cursor-pointer"
+                title="Khóa tất cả quyền cho Kỹ Thuật Viên"
+              >
+                Khóa hết
+              </button>
+            </div>
+
+            <div className="flex items-center gap-1 bg-white/[0.03] p-1 rounded-xl border border-white/10">
+              <span className="text-[11px] text-gray-400 px-1 font-semibold">Thu Ngân:</span>
+              <button
+                type="button"
+                onClick={() => handleGrantAll('cashier', true)}
+                className="px-2 py-1 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 font-bold text-[10px] transition-colors cursor-pointer"
+                title="Bật tất cả quyền cho Thu Ngân"
+              >
+                Mở hết
+              </button>
+              <button
+                type="button"
+                onClick={() => handleGrantAll('cashier', false)}
+                className="px-2 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 font-bold text-[10px] transition-colors cursor-pointer"
+                title="Khóa tất cả quyền cho Thu Ngân"
+              >
+                Khóa hết
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Matrix Table */}
+        <div className="overflow-x-auto rounded-2xl border border-white/10 shadow-xl bg-[#090e1c]/80 backdrop-blur-xl">
           <table className="w-full text-left text-xs">
-            <thead className="bg-[#0d1320] text-gray-400 uppercase text-[11px] border-b border-white/10">
+            <thead className="bg-[#0b1224] text-gray-400 uppercase text-[11px] border-b border-white/10 select-none">
               <tr>
-                <th className="p-3">Phân Hệ Chức Năng</th>
-                <th className="p-3 text-center text-rose-400">Chủ Shop (Admin)</th>
-                <th className="p-3 text-center text-amber-400">Kỹ Thuật Viên</th>
-                <th className="p-3 text-center text-blue-400">Thu Ngân / Bán Hàng</th>
+                <th className="p-4 w-5/12">Phân Hệ Chức Năng Nghiệp Vụ</th>
+                <th className="p-4 w-2/12 text-center text-rose-400">
+                  <div className="flex items-center justify-center gap-1.5 font-bold">
+                    <span>👑 Chủ Shop (Admin)</span>
+                  </div>
+                </th>
+                <th className="p-4 w-2/12 text-center text-amber-400">
+                  <div className="flex items-center justify-center gap-1.5 font-bold">
+                    <span>🔧 Kỹ Thuật Viên</span>
+                  </div>
+                </th>
+                <th className="p-4 w-2/12 text-center text-blue-400">
+                  <div className="flex items-center justify-center gap-1.5 font-bold">
+                    <span>🛒 Thu Ngân / Bán Hàng</span>
+                  </div>
+                </th>
+                <th className="p-4 w-1/12 text-center">Thao Tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {permissions.map((p, idx) => (
-                <tr key={idx} className="hover:bg-white/[0.02]">
-                  <td className="p-3 font-semibold text-white">{p.module}</td>
-                  <td className="p-3 text-center">
-                    <span className="text-emerald-400 font-bold">✓ Cho phép</span>
-                  </td>
-                  <td className="p-3 text-center">
-                    {p.tech ? (
-                      <span className="text-emerald-400 font-bold">✓ Cho phép</span>
-                    ) : (
-                      <span className="text-gray-500">✕ Khóa</span>
-                    )}
-                  </td>
-                  <td className="p-3 text-center">
-                    {p.cashier ? (
-                      <span className="text-emerald-400 font-bold">✓ Cho phép</span>
-                    ) : (
-                      <span className="text-gray-500">✕ Ẩn/Khóa</span>
-                    )}
+              {filteredPermissions.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="p-8 text-center text-gray-500 italic">
+                    Không tìm thấy phân hệ phân quyền nào phù hợp từ khóa tìm kiếm.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filteredPermissions.map((p) => {
+                  const badge = categoryBadges[p.category] || {
+                    label: p.category,
+                    color: 'bg-gray-500/20 text-gray-300 border-gray-500/30',
+                  };
+
+                  return (
+                    <tr key={p.id} className="hover:bg-white/[0.03] transition-colors">
+                      {/* Module info */}
+                      <td className="p-4">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-bold text-white text-sm">{p.module}</span>
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${badge.color}`}>
+                              {badge.label}
+                            </span>
+                          </div>
+                          {p.description && (
+                            <p className="text-xs text-gray-400 leading-relaxed max-w-lg">
+                              {p.description}
+                            </p>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Admin column: Permanent full rights */}
+                      <td className="p-4 text-center">
+                        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/10 text-rose-300 border border-rose-500/30 font-bold shadow-[0_0_10px_rgba(244,63,94,0.1)]">
+                          <ShieldCheck className="w-3.5 h-3.5 text-rose-400" />
+                          <span>Toàn quyền</span>
+                        </div>
+                      </td>
+
+                      {/* Tech column: Interactive live toggle button */}
+                      <td className="p-4 text-center">
+                        <button
+                          type="button"
+                          onClick={() => handleTogglePermission(p.id, 'tech')}
+                          className={`w-36 mx-auto py-2 px-3 rounded-xl border flex items-center justify-between gap-2 text-xs font-bold transition-all shadow-sm cursor-pointer group ${
+                            p.tech
+                              ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30 shadow-[0_0_14px_rgba(16,185,129,0.25)] hover:scale-[1.02]'
+                              : 'bg-white/[0.03] text-gray-400 border-white/10 hover:bg-white/[0.08] hover:text-gray-200'
+                          }`}
+                          title="Nhấn để Bật / Tắt phân quyền cho Kỹ Thuật Viên"
+                        >
+                          <span className="flex items-center gap-1.5">
+                            {p.tech ? (
+                              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                            ) : (
+                              <Lock className="w-4 h-4 text-gray-500 group-hover:text-rose-400 shrink-0 transition-colors" />
+                            )}
+                            <span>{p.tech ? 'Cho phép' : 'Khóa'}</span>
+                          </span>
+
+                          {/* Switch dot indicator */}
+                          <div
+                            className={`w-7 h-4 rounded-full p-0.5 flex items-center transition-colors ${
+                              p.tech ? 'bg-emerald-500 justify-end' : 'bg-gray-700 justify-start'
+                            }`}
+                          >
+                            <div className="w-3 h-3 rounded-full bg-white shadow-md transform transition-transform" />
+                          </div>
+                        </button>
+                      </td>
+
+                      {/* Cashier column: Interactive live toggle button */}
+                      <td className="p-4 text-center">
+                        <button
+                          type="button"
+                          onClick={() => handleTogglePermission(p.id, 'cashier')}
+                          className={`w-36 mx-auto py-2 px-3 rounded-xl border flex items-center justify-between gap-2 text-xs font-bold transition-all shadow-sm cursor-pointer group ${
+                            p.cashier
+                              ? 'bg-blue-500/20 text-blue-300 border-blue-500/40 hover:bg-blue-500/30 shadow-[0_0_14px_rgba(59,130,246,0.25)] hover:scale-[1.02]'
+                              : 'bg-white/[0.03] text-gray-400 border-white/10 hover:bg-white/[0.08] hover:text-gray-200'
+                          }`}
+                          title="Nhấn để Bật / Tắt phân quyền cho Thu Ngân / Bán Hàng"
+                        >
+                          <span className="flex items-center gap-1.5">
+                            {p.cashier ? (
+                              <CheckCircle2 className="w-4 h-4 text-blue-400 shrink-0" />
+                            ) : (
+                              <Lock className="w-4 h-4 text-gray-500 group-hover:text-rose-400 shrink-0 transition-colors" />
+                            )}
+                            <span>{p.cashier ? 'Cho phép' : 'Ẩn / Khóa'}</span>
+                          </span>
+
+                          {/* Switch dot indicator */}
+                          <div
+                            className={`w-7 h-4 rounded-full p-0.5 flex items-center transition-colors ${
+                              p.cashier ? 'bg-blue-500 justify-end' : 'bg-gray-700 justify-start'
+                            }`}
+                          >
+                            <div className="w-3 h-3 rounded-full bg-white shadow-md transform transition-transform" />
+                          </div>
+                        </button>
+                      </td>
+
+                      {/* Actions */}
+                      <td className="p-4 text-center">
+                        {p.id.startsWith('perm_') ? (
+                          <button
+                            type="button"
+                            onClick={() => handleDeletePermission(p.id, p.module)}
+                            className="p-2 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 hover:text-rose-200 transition-colors cursor-pointer"
+                            title="Xóa phân quyền tùy chỉnh này"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        ) : (
+                          <span className="text-[11px] text-gray-500">Mặc định</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
+
+        {/* Modal: Add New Module */}
+        {isAddModuleOpen && (
+          <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-[#0f172a] border border-white/15 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                <h3 className="font-bold text-white text-base flex items-center gap-2">
+                  <Shield className="w-5 h-5 text-emerald-400" />
+                  <span>Thêm Phân Hệ Phân Quyền Mới</span>
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setIsAddModuleOpen(false)}
+                  className="text-gray-400 hover:text-white cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleAddNewPermission} className="space-y-4 text-xs">
+                <div>
+                  <label className="text-gray-300 font-semibold mb-1 block">Tên Phân Hệ Chức Năng:</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="VD: Xuất File Báo Cáo Doanh Thu Excel..."
+                    value={newModuleName}
+                    onChange={(e) => setNewModuleName(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-gray-300 font-semibold mb-1 block">Nhóm Nghiệp Vụ:</label>
+                  <select
+                    value={newModuleCategory}
+                    onChange={(e) => setNewModuleCategory(e.target.value as any)}
+                    className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-amber-400"
+                  >
+                    <option value="bán hàng" className="bg-[#0f172a]">Bán Hàng POS</option>
+                    <option value="kỹ thuật" className="bg-[#0f172a]">Kỹ Thuật iCare</option>
+                    <option value="kho & mua hàng" className="bg-[#0f172a]">Kho & Mua Hàng</option>
+                    <option value="kế toán & báo cáo" className="bg-[#0f172a]">Kế Toán / Báo Cáo</option>
+                    <option value="hệ thống" className="bg-[#0f172a]">Hệ Thống / Quản Trị</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-gray-300 font-semibold mb-1 block">Mô Tả Chi Tiết:</label>
+                  <textarea
+                    rows={2}
+                    placeholder="Mô tả phạm vi quyền hạn và tác động..."
+                    value={newModuleDesc}
+                    onChange={(e) => setNewModuleDesc(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+
+                <div className="p-3 rounded-xl bg-white/[0.03] border border-white/10 space-y-2">
+                  <span className="text-[11px] font-bold text-gray-400 block uppercase">
+                    Cấp Quyền Ban Đầu:
+                  </span>
+                  <label className="flex items-center gap-2 cursor-pointer text-gray-300">
+                    <input
+                      type="checkbox"
+                      checked={newModuleTech}
+                      onChange={(e) => setNewModuleTech(e.target.checked)}
+                      className="w-4 h-4 rounded text-amber-500"
+                    />
+                    <span>Cho phép Kỹ Thuật Viên truy cập</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer text-gray-300">
+                    <input
+                      type="checkbox"
+                      checked={newModuleCashier}
+                      onChange={(e) => setNewModuleCashier(e.target.checked)}
+                      className="w-4 h-4 rounded text-blue-500"
+                    />
+                    <span>Cho phép Thu Ngân / Bán Hàng truy cập</span>
+                  </label>
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <button
+                    type="submit"
+                    className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-black font-bold text-xs hover:opacity-90 transition-opacity cursor-pointer"
+                  >
+                    Xác Nhận Thêm
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsAddModuleOpen(false)}
+                    className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-xs cursor-pointer"
+                  >
+                    Hủy
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 3. Receipt Template Customization */}

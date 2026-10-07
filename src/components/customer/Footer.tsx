@@ -12,6 +12,7 @@ import {
   Clock,
   Wrench,
   Sparkles,
+  User,
 } from 'lucide-react';
 
 export default function Footer() {
@@ -139,9 +140,15 @@ export default function Footer() {
           {/* Customer Service & Repair Desk */}
           <div>
             <h4 className="text-white font-bold text-sm mb-4 tracking-wider uppercase text-[11px] text-cyan-400">
-              Tra Cứu & Dịch Vụ
+              Tra Cứu &amp; Dịch Vụ
             </h4>
             <ul className="space-y-2.5 text-xs">
+              <li>
+                <Link href="/account" className="hover:text-amber-300 transition-colors flex items-center gap-1.5 font-bold text-amber-300/90">
+                  <User className="w-3.5 h-3.5 text-amber-400" />
+                  Hồ sơ hội viên &amp; Thẻ VIP tích điểm
+                </Link>
+              </li>
               <li>
                 <Link href="/warranty" className="hover:text-cyan-300 transition-colors flex items-center gap-1.5">
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
@@ -161,7 +168,7 @@ export default function Footer() {
               </li>
               <li>
                 <Link href="/about" className="hover:text-cyan-300 transition-colors">
-                  Giới thiệu hệ sinh thái Apple & Showroom
+                  Giới thiệu hệ sinh thái Apple &amp; Showroom
                 </Link>
               </li>
             </ul>
@@ -198,15 +205,10 @@ export default function Footer() {
       <div className="bg-[#020306] border-t border-white/[0.04] py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-3 text-xs text-gray-400 font-medium">
           <span>© 2026 <span className="text-white font-bold">iShop Huy Hoàng</span> - Đỉnh Cao Công Nghệ &amp; Dịch Vụ Chuyên Nghiệp</span>
-          <div className="flex items-center gap-3 text-[11px] text-gray-400">
-            <span>|</span>
-            <Link
-              href="/admin"
-              className="text-gray-400 hover:text-amber-400 transition-colors"
-              title="Dành riêng cho nhân viên và ban quản trị"
-            >
-              Cổng Nội Bộ Nhân Sự
-            </Link>
+          <div className="flex items-center gap-4 text-[11px] text-gray-500">
+            <span>Bảo mật thông tin 100%</span>
+            <span>•</span>
+            <span>Hệ thống phân phối Apple chính hãng</span>
           </div>
         </div>
       </div>

@@ -1,11 +1,6 @@
 import {
-  initialPhones,
   initialPhoneStock,
-  initialAccessories,
-  initialSpareParts,
   initialRepairTickets,
-  initialCustomers,
-  initialSuppliers,
   initialCashbook,
   initialInvoices,
 } from './initialData';
@@ -159,7 +154,6 @@ class ServerStoreManager {
       };
     }
 
-    const isSold = phone.status === 'sold';
     const importDate = new Date(phone.importDate);
     const expireDate = new Date(importDate);
     expireDate.setMonth(expireDate.getMonth() + (phone.warrantyMonths || 12));
@@ -204,24 +198,27 @@ class ServerStoreManager {
     const invoiceMatch = content.match(/HD[-_]?\d+[-_]?\d+/i);
     const repairMatch = content.match(/SC[-_]?\d+[-_]?\d+/i);
 
-    let matchedTarget: any = null;
+    let matchedInvoice: Invoice | null = null;
+    let matchedRepair: RepairTicket | null = null;
     let type: 'invoice' | 'repair' | 'unknown' = 'unknown';
 
     if (invoiceMatch) {
       const code = invoiceMatch[0].replace(/_/g, '-');
       const inv = this.invoices.find((i) => i.invoiceCode.toUpperCase().includes(code.toUpperCase()));
       if (inv) {
-        matchedTarget = inv;
+        matchedInvoice = inv;
         type = 'invoice';
       }
     } else if (repairMatch) {
       const code = repairMatch[0].replace(/_/g, '-');
       const rep = this.repairs.find((r) => r.ticketCode.toUpperCase().includes(code.toUpperCase()));
       if (rep) {
-        matchedTarget = rep;
+        matchedRepair = rep;
         type = 'repair';
       }
     }
+
+    const matched = !!(matchedInvoice || matchedRepair);
 
     // Ghi nhận giao dịch vào sổ quỹ
     const now = new Date();
@@ -235,7 +232,7 @@ class ServerStoreManager {
       categoryLabel: 'VietQR Napas 247 Webhook',
       amount: amount,
       paymentMethod: 'transfer',
-      referenceCode: matchedTarget?.invoiceCode || matchedTarget?.ticketCode || payload.referenceCode || 'WEBHOOK',
+      referenceCode: matchedInvoice?.invoiceCode || matchedRepair?.ticketCode || payload.referenceCode || 'WEBHOOK',
       description: `[Tự Động Napas 247] Nhận ${amount.toLocaleString('vi-VN')}đ. Nội dung: ${payload.content}`,
       creator: 'Hệ Thống Webhook Tự Động',
     };
@@ -243,9 +240,9 @@ class ServerStoreManager {
 
     return {
       success: true,
-      matched: !!matchedTarget,
+      matched,
       type,
-      targetCode: matchedTarget?.invoiceCode || matchedTarget?.ticketCode || null,
+      targetCode: matchedInvoice?.invoiceCode || matchedRepair?.ticketCode || null,
       amountReceived: amount,
       cashbookEntryCode: entry.code,
     };

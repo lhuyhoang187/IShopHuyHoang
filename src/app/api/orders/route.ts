@@ -80,14 +80,37 @@ export async function POST(request: NextRequest) {
     const totalAmount = Number(body.totalAmount || 0);
     const subtotal = Number(body.subtotal || totalAmount);
     const discount = Number(body.discount || 0);
+    const earnedPoints =
+      typeof body.earnedPoints === 'number' && body.earnedPoints >= 0
+        ? Number(body.earnedPoints)
+        : Math.floor(totalAmount / 100000);
 
-    // 1. Create Invoice in MySQL
+    // 1. Ensure Customer exists and update loyalty stats (Toàn vẹn khóa ngoại)
+    await prisma.customer.upsert({
+      where: { phone: body.customerPhone.trim() },
+      update: {
+        name: body.customerName.trim(),
+        totalSpent: { increment: totalAmount },
+        purchaseCount: { increment: 1 },
+        points: { increment: earnedPoints },
+      },
+      create: {
+        id: 'cust-' + Date.now(),
+        name: body.customerName.trim(),
+        phone: body.customerPhone.trim(),
+        totalSpent: totalAmount,
+        purchaseCount: 1,
+        points: earnedPoints,
+      },
+    });
+
+    // 2. Create Invoice in MySQL
     const newInvoice = await prisma.invoice.create({
       data: {
         id: 'inv-' + Date.now(),
         invoiceCode,
         customerName: body.customerName,
-        customerPhone: body.customerPhone,
+        customerPhone: body.customerPhone.trim(),
         items: JSON.stringify(body.items),
         subtotal,
         discount,
@@ -96,7 +119,7 @@ export async function POST(request: NextRequest) {
         cashReceived: body.cashReceived ? Number(body.cashReceived) : null,
         cashChange: body.cashChange ? Number(body.cashChange) : null,
         cashierName: body.cashierName || 'Website Online Order',
-        createdAt: now,
+        createdAt: new Date(),
         warrantyNote: 'Bảo hành điện tử 12 tháng theo IMEI/Hóa đơn.',
       },
     });

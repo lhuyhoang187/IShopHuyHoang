@@ -46,7 +46,7 @@ export default function InventoryPhonesPage() {
     return () => window.removeEventListener('ishop_data_changed', listener);
   }, []);
 
-  const isCashier = role === 'cashier';
+  const canViewCostPrice = IShopStore.hasPermission(role, 'cost_price');
 
   const filtered = stock
     .filter((item) => (statusFilter === 'all' ? true : item.status === statusFilter))
@@ -159,7 +159,7 @@ export default function InventoryPhonesPage() {
                 <th className="p-4">Dòng Máy & Dung Lượng</th>
                 <th className="p-4">Màu Sắc</th>
                 <th className="p-4 text-right">
-                  {isCashier ? 'Giá Vốn' : 'Giá Vốn Nhập'}
+                  {canViewCostPrice ? 'Giá Vốn Nhập' : 'Giá Vốn'}
                 </th>
                 <th className="p-4 text-right">Giá Bán Niêm Yết</th>
                 <th className="p-4">Trạng Thái</th>
@@ -184,10 +184,10 @@ export default function InventoryPhonesPage() {
                   <td className="p-4 text-gray-300">{unit.color}</td>
 
                   <td className="p-4 text-right font-medium">
-                    {isCashier ? (
-                      <span className="text-gray-500 italic">*** Ẩn</span>
-                    ) : (
+                    {canViewCostPrice ? (
                       formatVND(unit.costPrice)
+                    ) : (
+                      <span className="text-gray-500 italic">*** Ẩn</span>
                     )}
                   </td>
 

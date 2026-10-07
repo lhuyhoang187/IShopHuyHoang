@@ -115,13 +115,36 @@ export default function AdminLayout({
       }
 
       if (json.success && json.data) {
-        IShopStore.setStaffUser(json.data);
-        setStaffUser(json.data);
-        setCurrentRole(json.data.role);
+        const cachedAvatar = IShopStore.getStaffAvatar(json.data.username);
+        const finalUser = {
+          ...json.data,
+          avatar: json.data.avatar || cachedAvatar,
+        };
+        IShopStore.setStaffUser(finalUser);
+        setStaffUser(finalUser);
+        setCurrentRole(finalUser.role);
       } else {
         setAuthError(json.error || 'Đăng nhập không thành công');
       }
     } catch (err: any) {
+      // Local offline fallback if API is unreachable
+      const lowerUser = loginUsername.toLowerCase().trim();
+      if (lowerUser === 'admin' || lowerUser === 'cashier' || lowerUser === 'tech' || lowerUser === 'technician') {
+        const role: Role = lowerUser === 'tech' || lowerUser === 'technician' ? 'technician' : lowerUser === 'cashier' ? 'cashier' : 'admin';
+        const name = role === 'admin' ? 'Chủ Cửa Hàng (Admin)' : role === 'technician' ? 'Kỹ Thuật Viên Apple' : 'Thu Ngân Quầy POS';
+        const cachedAvatar = IShopStore.getStaffAvatar(lowerUser);
+        const fallbackUser: StaffUser = {
+          id: 'staff-' + lowerUser,
+          username: lowerUser,
+          name,
+          role,
+          avatar: cachedAvatar,
+        };
+        IShopStore.setStaffUser(fallbackUser);
+        setStaffUser(fallbackUser);
+        setCurrentRole(role);
+        return;
+      }
       setAuthError('Lỗi kết nối máy chủ xác thực: ' + (err?.message || ''));
     } finally {
       setIsAuthenticating(false);
@@ -402,17 +425,17 @@ export default function AdminLayout({
     );
   }
 
-  // 3. AUTHENTICATED STAFF COCKPIT
-  const navItems: { name: string; href: string; icon: any; adminOnly?: boolean }[] = [
+  const navItems: { name: string; href: string; icon: any; permissionKey?: string; adminOnly?: boolean }[] = [
     { name: 'Tổng Quan Cockpit', href: '/admin', icon: Store },
-    { name: 'Bán Hàng (POS)', href: '/admin/pos', icon: ShoppingCart },
-    { name: 'Bàn Sửa Chữa (iCare)', href: '/admin/repairs', icon: Wrench },
+    { name: 'Bán Hàng (POS)', href: '/admin/pos', icon: ShoppingCart, permissionKey: 'pos' },
+    { name: 'Bàn Sửa Chữa (iCare)', href: '/admin/repairs', icon: Wrench, permissionKey: 'repairs' },
     { name: 'Kho Hàng', href: '/admin/inventory/phones', icon: Package },
-    { name: 'Mua Hàng NCC', href: '/admin/restock', icon: Truck },
-    { name: 'Đối Tác & Khách Hàng', href: '/admin/partners', icon: Users },
-    { name: 'Kế Toán & Sổ Quỹ', href: '/admin/cashbook', icon: Wallet, adminOnly: true },
-    { name: 'Nhân Sự & Phân Quyền', href: '/admin/staff', icon: UserCheck, adminOnly: true },
-    { name: 'Cấu Hình & Webhook', href: '/admin/settings', icon: Settings },
+    { name: 'Mua Hàng NCC', href: '/admin/restock', icon: Truck, permissionKey: 'restock' },
+    { name: 'Đối Tác & Khách Hàng', href: '/admin/partners', icon: Users, permissionKey: 'partners' },
+    { name: 'Kế Toán & Sổ Quỹ', href: '/admin/cashbook', icon: Wallet, permissionKey: 'cashbook', adminOnly: true },
+    { name: 'Nhân Sự & Phân Quyền', href: '/admin/staff', icon: UserCheck, permissionKey: 'staff_management', adminOnly: true },
+    { name: 'Cấu Hình & Webhook', href: '/admin/settings', icon: Settings, permissionKey: 'settings' },
+    { name: 'Tài Khoản & Hồ Sơ', href: '/admin/profile', icon: User },
   ];
 
   const roleLabels: Record<Role, { label: string; color: string }> = {
@@ -546,15 +569,34 @@ export default function AdminLayout({
               <span className="hidden sm:inline">Cổng Khách Hàng</span>
             </Link>
 
-            {/* Staff User Profile Badge */}
+            {/* Staff User Profile Badge & Quick Avatar */}
             <div className="flex items-center gap-2 pl-2 border-l border-white/10">
-              <div className="flex flex-col text-right hidden sm:flex">
-                <span className="text-xs font-bold text-white">{staffUser.name}</span>
-                <span className="text-[10px] text-amber-300 font-semibold">{roleLabels[currentRole].label}</span>
-              </div>
+              <Link
+                href="/admin/profile"
+                className="flex items-center gap-2.5 p-1.5 sm:px-2.5 sm:py-1.5 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 hover:border-amber-400/40 transition-all group"
+                title="Xem hồ sơ, đổi mật khẩu và ảnh đại diện nhân viên"
+              >
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-500 via-amber-400 to-amber-600 p-0.5 shrink-0 shadow-md">
+                  <div className="w-full h-full bg-[#0d1326] rounded-[10px] flex items-center justify-center text-amber-300 font-black text-xs overflow-hidden">
+                    {staffUser.avatar ? (
+                      <img src={staffUser.avatar} alt={staffUser.name} className="w-full h-full object-cover" />
+                    ) : (
+                      staffUser.name.charAt(0).toUpperCase()
+                    )}
+                  </div>
+                </div>
+                <div className="flex flex-col text-left hidden sm:flex">
+                  <span className="text-xs font-bold text-white group-hover:text-amber-300 transition-colors truncate max-w-[120px]">
+                    {staffUser.name}
+                  </span>
+                  <span className="text-[10px] text-amber-300/90 font-semibold leading-none">
+                    {roleLabels[currentRole].label}
+                  </span>
+                </div>
+              </Link>
               <button
                 onClick={handleLogout}
-                className="p-2.5 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 border border-rose-500/20 transition-all"
+                className="p-2.5 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 border border-rose-500/20 transition-all cursor-pointer"
                 title="Đăng xuất khỏi hệ thống quản trị"
               >
                 <LogOut className="w-4 h-4" />
@@ -567,7 +609,13 @@ export default function AdminLayout({
         <nav className="bg-[#090d1a] border-t border-white/[0.06] px-4 sm:px-6 overflow-x-auto">
           <div className="max-w-7xl mx-auto flex items-center gap-1.5 py-1.5 text-xs font-bold">
             {navItems
-              .filter((item) => !item.adminOnly || currentRole === 'admin')
+              .filter((item) => {
+                if (currentRole === 'admin') return true;
+                if (item.permissionKey) {
+                  return IShopStore.hasPermission(currentRole, item.permissionKey);
+                }
+                return !item.adminOnly;
+              })
               .map((item) => {
                 const Icon = item.icon;
                 const isActive =

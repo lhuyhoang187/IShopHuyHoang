@@ -4,13 +4,11 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
-  Headphones,
   ShieldCheck,
   RotateCcw,
   Truck,
   ShoppingCart,
   Zap,
-  Check,
   ChevronRight,
 } from 'lucide-react';
 import { IShopStore } from '@/lib/store';
@@ -25,6 +23,7 @@ export default function AccessoryDetailPage() {
   const [accessory, setAccessory] = useState<AccessoryProduct | null>(null);
   const [isVietQROpen, setIsVietQROpen] = useState(false);
   const [addedToast, setAddedToast] = useState(false);
+  const [orderCode] = useState(() => `PK${Date.now().toString().slice(-6)}`);
 
   useEffect(() => {
     if (!slug) return;
@@ -183,7 +182,7 @@ export default function AccessoryDetailPage() {
         isOpen={isVietQROpen}
         onClose={() => setIsVietQROpen(false)}
         amount={accessory.sellingPrice}
-        orderCode={`PK${Date.now().toString().slice(-6)}`}
+        orderCode={orderCode}
         onPaymentSuccess={() => {
           alert('Cảm ơn quý khách! iShop Huy Hoàng đã ghi nhận thanh toán phụ kiện.');
         }}

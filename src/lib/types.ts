@@ -6,6 +6,12 @@ export interface StaffUser {
   name: string;
   role: Role;
   avatar?: string;
+  phone?: string;
+  email?: string;
+  bio?: string;
+  department?: string;
+  birthday?: string;
+  address?: string;
   createdAt?: string;
 }
 
@@ -15,6 +21,14 @@ export interface CustomerUser {
   phone: string;
   email?: string;
   points?: number;
+  address?: string;
+  birthday?: string;
+  city?: string;
+  gender?: string;
+  membershipTier?: string;
+  avatar?: string;
+  password?: string;
+  createdAt?: string;
 }
 
 export interface PhoneSpec {
@@ -78,6 +92,7 @@ export interface PhoneStockItem {
   soldToCustomerName?: string;
   soldToCustomerPhone?: string;
   soldInvoiceId?: string;
+  rewardPoints?: number;
 }
 
 export interface AccessoryProduct {
@@ -98,6 +113,7 @@ export interface AccessoryProduct {
   specs: string;
   compatibleWith: string;
   discountWhenBoughtWithPhone: number; // e.g. 15 for 15% off
+  rewardPoints?: number;
 }
 
 export interface SparePartItem {
@@ -177,6 +193,7 @@ export interface InvoiceItem {
   costPrice: number;
   discount: number;
   total: number;
+  rewardPoints?: number;
 }
 
 export interface Invoice {
@@ -184,10 +201,12 @@ export interface Invoice {
   invoiceCode: string; // e.g. HD-2608-001
   customerName: string;
   customerPhone: string;
+  customerTier?: string;
   items: InvoiceItem[];
   subtotal: number;
   discount: number;
   totalAmount: number;
+  pointsEarned?: number;
   paymentMethod: 'cash' | 'vietqr' | 'card';
   cashReceived?: number;
   cashChange?: number;
@@ -237,6 +256,13 @@ export interface Customer {
   createdAt: string;
   purchaseCount: number;
   repairCount: number;
+  customerType?: string; // 'Khách lẻ' | 'Khách thợ' | 'Khách buôn' | 'Doanh nghiệp'
+  membershipTier?: string; // 'Thẻ Bạch Kim' | 'Thẻ Vàng' | 'Thẻ Bạc' | 'Thẻ Đồng' | 'Thành viên mới'
+  taxCode?: string;
+  birthday?: string;
+  city?: string;
+  avatar?: string;
+  notes?: string;
 }
 
 export interface Supplier {
@@ -263,4 +289,14 @@ export interface CartItem {
   originalPrice: number;
   quantity: number;
   isComboDiscount?: boolean;
+}
+
+export interface PermissionItem {
+  id: string;
+  module: string;
+  category: 'bán hàng' | 'kỹ thuật' | 'kho & mua hàng' | 'kế toán & báo cáo' | 'hệ thống';
+  description?: string;
+  admin: boolean;
+  tech: boolean;
+  cashier: boolean;
 }

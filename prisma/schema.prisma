@@ -7,61 +7,148 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// -------------------------------------------------------------
+// 1. NGƯỜI DÙNG & NHÂN SỰ NỘI BỘ
+// -------------------------------------------------------------
 model User {
-  id        String   @id @default(cuid())
-  username  String   @unique
-  password  String
-  name      String
-  role      String   @default("cashier")
-  avatar    String?
-  createdAt DateTime @default(now())
+  id              String         @id @default(cuid())
+  username        String         @unique @db.VarChar(50)
+  password        String         @db.VarChar(191)
+  name            String         @db.VarChar(100)
+  role            String         @default("cashier") @db.VarChar(20) // 'admin' | 'technician' | 'cashier' | 'pending'
+  phone           String?        @db.VarChar(20)
+  email           String?        @unique @db.VarChar(100)
+  avatar          String?        @db.Text
+  isActive        Boolean        @default(true)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @default(now()) @updatedAt
+
+  repairTickets   RepairTicket[] @relation("TechnicianRepairs")
+
+  @@index([role])
+  @@index([isActive])
 }
 
+// -------------------------------------------------------------
+// 2. KHÁCH HÀNG & THÀNH VIÊN
+// -------------------------------------------------------------
+model Customer {
+  id            String         @id @default(cuid())
+  name          String         @db.VarChar(100)
+  phone         String         @unique @db.VarChar(20)
+  email         String?        @db.VarChar(100)
+  address       String?        @db.VarChar(191)
+  totalSpent    Float          @default(0)
+  points        Int            @default(0)
+  purchaseCount Int            @default(0)
+  repairCount   Int            @default(0)
+  createdAt     DateTime       @default(now())
+  updatedAt       DateTime       @default(now()) @updatedAt
+
+  invoices      Invoice[]      @relation("CustomerInvoices")
+  repairTickets RepairTicket[] @relation("CustomerRepairs")
+
+  @@index([phone])
+  @@index([name])
+  @@index([points])
+  @@index([totalSpent])
+}
+
+// -------------------------------------------------------------
+// 3. NHÀ CUNG CẤP & ĐỐI TÁC
+// -------------------------------------------------------------
+model Supplier {
+  id             String          @id
+  name           String          @db.VarChar(150)
+  phone          String          @db.VarChar(20)
+  email          String          @db.VarChar(100)
+  address        String          @db.VarChar(191)
+  contactPerson  String          @db.VarChar(100)
+  totalPurchased Float           @default(0)
+  currentDebt    Float           @default(0)
+  createdAt      DateTime        @default(now())
+  updatedAt       DateTime       @default(now()) @updatedAt
+
+  phoneStocks    PhoneStock[]    @relation("SupplierPhoneStocks")
+  orders         SupplierOrder[] @relation("SupplierOrders")
+
+  @@index([name])
+  @@index([phone])
+}
+
+// -------------------------------------------------------------
+// 4. DANH MỤC ĐIỆN THOẠI MASTER
+// -------------------------------------------------------------
 model PhoneProduct {
-  id           String   @id
-  name         String
-  slug         String   @unique
-  brand        String
-  description  String   @db.Text
-  rating       Float    @default(5.0)
-  reviewCount  Int      @default(0)
-  isHot        Boolean  @default(false)
-  isNew        Boolean  @default(false)
-  colors       String   @db.Text
-  capacities   String   @db.Text
-  specs        String   @db.Text
-  warrantyInfo String
-  createdAt    DateTime @default(now())
+  id           String       @id
+  name         String       @db.VarChar(191)
+  slug         String       @unique @db.VarChar(191)
+  brand        String       @db.VarChar(50)
+  description  String       @db.Text
+  rating       Float        @default(5.0)
+  reviewCount  Int          @default(0)
+  isHot        Boolean      @default(false)
+  isNew        Boolean      @default(false)
+  colors       String       @db.Text
+  capacities   String       @db.Text
+  specs        String       @db.Text
+  warrantyInfo String       @db.Text
+  createdAt    DateTime     @default(now())
+  updatedAt       DateTime       @default(now()) @updatedAt
+
+  phoneStocks  PhoneStock[] @relation("ProductPhoneStocks")
+
+  @@index([brand])
+  @@index([isHot])
+  @@index([isNew])
+  @@index([createdAt])
 }
 
+// -------------------------------------------------------------
+// 5. KHO ĐIỆN THOẠI TỪNG CÁ THỂ (QUẢN LÝ THEO SỐ IMEI)
+// -------------------------------------------------------------
 model PhoneStock {
-  imei                String   @id
-  phoneId             String
-  phoneName           String
-  color               String
-  capacity            String
+  imei                String       @id @db.VarChar(50)
+  phoneId             String       @db.VarChar(50)
+  phone               PhoneProduct @relation("ProductPhoneStocks", fields: [phoneId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  phoneName           String       @db.VarChar(191)
+  color               String       @db.VarChar(100)
+  capacity            String       @db.VarChar(50)
   costPrice           Float
   sellingPrice        Float
-  supplierId          String
-  supplierName        String
-  importDate          String
-  status              String   @default("in_stock")
-  warrantyMonths      Int      @default(12)
-  soldAt              String?
-  soldToCustomerName  String?
-  soldToCustomerPhone String?
-  soldInvoiceId       String?
-  createdAt           DateTime @default(now())
+  supplierId          String       @db.VarChar(50)
+  supplier            Supplier     @relation("SupplierPhoneStocks", fields: [supplierId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  supplierName        String       @db.VarChar(150)
+  importDate          String       @db.VarChar(50)
+  status              String       @default("in_stock") @db.VarChar(30) // 'in_stock' | 'sold' | 'reserved'
+  warrantyMonths      Int          @default(12)
+  soldAt              String?      @db.VarChar(50)
+  soldToCustomerName  String?      @db.VarChar(100)
+  soldToCustomerPhone String?      @db.VarChar(20)
+  soldInvoiceId       String?      @db.VarChar(50)
+  soldInvoice         Invoice?     @relation("InvoicePhoneStocks", fields: [soldInvoiceId], references: [invoiceCode], onDelete: SetNull, onUpdate: Cascade)
+  createdAt           DateTime     @default(now())
+  updatedAt       DateTime       @default(now()) @updatedAt
+
+  @@index([phoneId])
+  @@index([supplierId])
+  @@index([status])
+  @@index([soldInvoiceId])
+  @@index([soldToCustomerPhone])
+  @@index([importDate])
 }
 
+// -------------------------------------------------------------
+// 6. PHỤ KIỆN ĐIỆN THOẠI
+// -------------------------------------------------------------
 model AccessoryProduct {
   id                          String   @id
-  name                        String
-  slug                        String   @unique
-  category                    String
-  categoryName                String
-  barcode                     String   @unique
-  brand                       String
+  name                        String   @db.VarChar(191)
+  slug                        String   @unique @db.VarChar(191)
+  category                    String   @db.VarChar(50)
+  categoryName                String   @db.VarChar(100)
+  barcode                     String   @unique @db.VarChar(50)
+  brand                       String   @db.VarChar(100)
   costPrice                   Float
   sellingPrice                Float
   originalPrice               Float
@@ -70,123 +157,189 @@ model AccessoryProduct {
   imageUrl                    String   @db.Text
   description                 String   @db.Text
   specs                       String   @db.Text
-  compatibleWith              String
+  compatibleWith              String   @db.Text
   discountWhenBoughtWithPhone Int      @default(15)
   createdAt                   DateTime @default(now())
+  updatedAt       DateTime       @default(now()) @updatedAt
+
+  @@index([category])
+  @@index([brand])
+  @@index([barcode])
+  @@index([stock])
 }
 
+// -------------------------------------------------------------
+// 7. LINH KIỆN SỬA CHỮA
+// -------------------------------------------------------------
 model SparePart {
   id                String   @id
-  name              String
-  category          String
-  categoryName      String
-  barcode           String   @unique
+  name              String   @db.VarChar(191)
+  category          String   @db.VarChar(50)
+  categoryName      String   @db.VarChar(100)
+  barcode           String   @unique @db.VarChar(50)
   compatibleModels  String   @db.Text
   costPrice         Float
   retailRepairPrice Float
   stock             Int      @default(0)
-  unit              String   @default("cái")
+  unit              String   @default("cái") @db.VarChar(20)
   warrantyMonths    Int      @default(6)
   createdAt         DateTime @default(now())
+  updatedAt       DateTime       @default(now()) @updatedAt
+
+  @@index([category])
+  @@index([barcode])
+  @@index([stock])
 }
 
+// -------------------------------------------------------------
+// 8. PHIẾU TIẾP NHẬN SỬA CHỮA THIẾT BỊ
+// -------------------------------------------------------------
 model RepairTicket {
-  id                    String   @id
-  ticketCode            String   @unique
-  customerName          String
-  customerPhone         String
-  customerAddress       String?
-  deviceModel           String
-  imeiOrSerial          String
-  unlockPasscode        String
-  appearanceCondition   String
-  accessoriesIncluded   String
-  issueDescription      String   @db.Text
-  technicianNotes       String?  @db.Text
-  status                String   @default("received")
-  statusHistory         String   @db.Text
-  partsUsed             String   @db.Text
-  laborFee              Float    @default(0)
-  totalAmount           Float    @default(0)
-  estimatedDeliveryDate String
-  receivedAt            String
-  deliveredAt           String?
-  technicianId          String?
-  technicianName        String?
-  warrantyPeriod        String
-  createdAt             DateTime @default(now())
+  id                    String    @id
+  ticketCode            String    @unique @db.VarChar(50)
+  customerName          String    @db.VarChar(100)
+  customerPhone         String    @db.VarChar(20)
+  customer              Customer? @relation("CustomerRepairs", fields: [customerPhone], references: [phone], onDelete: Restrict, onUpdate: Cascade)
+  customerAddress       String?   @db.VarChar(191)
+  deviceModel           String    @db.VarChar(100)
+  imeiOrSerial          String    @db.VarChar(50)
+  unlockPasscode        String    @db.VarChar(50)
+  appearanceCondition   String    @db.Text
+  accessoriesIncluded   String    @db.Text
+  issueDescription      String    @db.Text
+  technicianNotes       String?   @db.Text
+  status                String    @default("received") @db.VarChar(30)
+  statusHistory         String    @db.Text
+  partsUsed             String    @db.Text
+  laborFee              Float     @default(0)
+  totalAmount           Float     @default(0)
+  estimatedDeliveryDate String    @db.VarChar(50)
+  receivedAt            String    @db.VarChar(50)
+  deliveredAt           String?   @db.VarChar(50)
+  technicianId          String?   @db.VarChar(50)
+  technician            User?     @relation("TechnicianRepairs", fields: [technicianId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  technicianName        String?   @db.VarChar(100)
+  warrantyPeriod        String    @db.Text
+  createdAt             DateTime  @default(now())
+  updatedAt       DateTime       @default(now()) @updatedAt
+
+  @@index([status])
+  @@index([customerPhone])
+  @@index([imeiOrSerial])
+  @@index([technicianId])
+  @@index([createdAt])
 }
 
+// -------------------------------------------------------------
+// 9. HÓA ĐƠN BÁN HÀNG & XUẤT KHO
+// -------------------------------------------------------------
 model Invoice {
-  id            String   @id
-  invoiceCode   String   @unique
-  customerName  String
-  customerPhone String
-  items         String   @db.Text
+  id            String       @id
+  invoiceCode   String       @unique @db.VarChar(50)
+  customerName  String       @db.VarChar(100)
+  customerPhone String       @db.VarChar(20)
+  customer      Customer?    @relation("CustomerInvoices", fields: [customerPhone], references: [phone], onDelete: Restrict, onUpdate: Cascade)
+  items         String       @db.Text
   subtotal      Float
-  discount      Float
+  discount      Float        @default(0)
   totalAmount   Float
-  paymentMethod String   @default("cash")
+  paymentMethod String       @default("cash") @db.VarChar(30)
   cashReceived  Float?
   cashChange    Float?
-  cashierName   String
-  createdAt     String
-  warrantyNote  String
+  cashierName   String       @db.VarChar(100)
+  createdAt     DateTime     @default(now())
+  updatedAt       DateTime       @default(now()) @updatedAt
+  warrantyNote  String       @db.Text
+
+  phoneStocks   PhoneStock[] @relation("InvoicePhoneStocks")
+
+  @@index([customerPhone])
+  @@index([paymentMethod])
+  @@index([createdAt])
 }
 
+// -------------------------------------------------------------
+// 10. SỔ QUỸ THU CHI (TIỀN MẶT / CHUYỂN KHOẢN)
+// -------------------------------------------------------------
 model CashbookEntry {
   id            String   @id
-  code          String   @unique
-  date          String
-  type          String
-  category      String
-  categoryLabel String
+  code          String   @unique @db.VarChar(50)
+  date          String   @db.VarChar(50)
+  type          String   @db.VarChar(20) // 'receipt' | 'payment'
+  category      String   @db.VarChar(50)
+  categoryLabel String   @db.VarChar(100)
   amount        Float
-  paymentMethod String
-  referenceCode String?
+  paymentMethod String   @db.VarChar(30) // 'cash' | 'transfer'
+  referenceCode String?  @db.VarChar(50)
   description   String   @db.Text
-  creator       String
+  creator       String   @db.VarChar(100)
   createdAt     DateTime @default(now())
+  updatedAt       DateTime       @default(now()) @updatedAt
+
+  @@index([date])
+  @@index([type])
+  @@index([category])
+  @@index([referenceCode])
+  @@index([createdAt])
 }
 
-model Supplier {
-  id             String   @id
-  name           String
-  phone          String
-  email          String
-  address        String
-  contactPerson  String
-  totalPurchased Float    @default(0)
-  currentDebt    Float    @default(0)
-  createdAt      DateTime @default(now())
-}
-
+// -------------------------------------------------------------
+// 11. ĐƠN ĐẶT HÀNG NHẬP KHO TỪ NHÀ CUNG CẤP
+// -------------------------------------------------------------
 model SupplierOrder {
   id            String   @id
-  orderCode     String   @unique
-  supplierId    String
-  supplierName  String
-  date          String
-  type          String
+  orderCode     String   @unique @db.VarChar(50)
+  supplierId    String   @db.VarChar(50)
+  supplier      Supplier @relation("SupplierOrders", fields: [supplierId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  supplierName  String   @db.VarChar(150)
+  date          String   @db.VarChar(50)
+  type          String   @db.VarChar(50)
   itemsSummary  String   @db.Text
   totalAmount   Float
   paidAmount    Float
   debtAmount    Float
-  status        String
+  status        String   @db.VarChar(30)
   notes         String   @db.Text
   importedImeis String?  @db.Text
   createdAt     DateTime @default(now())
+  updatedAt       DateTime       @default(now()) @updatedAt
+
+  @@index([supplierId])
+  @@index([date])
+  @@index([status])
+  @@index([createdAt])
 }
 
-model Customer {
-  id            String   @id
-  name          String
-  phone         String   @unique
-  email         String?
-  address       String?
-  totalSpent    Float    @default(0)
-  points        Int      @default(0)
-  purchaseCount Int      @default(0)
-  repairCount   Int      @default(0)
-  createdAt     String
+// -------------------------------------------------------------
+// 12. CẤU HÌNH CỬA HÀNG & VIETQR
+// -------------------------------------------------------------
+model StoreSetting {
+  id                  String   @id @default("default")
+  storeName           String   @default("iShop Huy Hoàng") @db.VarChar(150)
+  hotline             String   @default("0909.123.456") @db.VarChar(20)
+  address             String   @default("45 Lê Văn Việt, TP. Thủ Đức, TP.HCM") @db.VarChar(191)
+  email               String   @default("contact@ishophuyhoang.vn") @db.VarChar(100)
+  bankId              String   @default("MB") @db.VarChar(20)
+  bankAccountNo       String   @default("0988888999") @db.VarChar(50)
+  bankAccountName     String   @default("NGUYEN HUY HOANG") @db.VarChar(100)
+  defaultWarrantyNote String   @default("Bảo hành điện tử chính hãng 12 tháng tại hệ thống iShop Huy Hoàng.") @db.VarChar(500)
+  updatedAt       DateTime       @default(now()) @updatedAt
+}
+
+// -------------------------------------------------------------
+// 13. NHẬT KÝ KIỂM TOÁN HỆ THỐNG (AUDIT LOGS)
+// -------------------------------------------------------------
+model AuditLog {
+  id          String   @id @default(cuid())
+  action      String   @db.VarChar(100)
+  entity      String   @db.VarChar(50)
+  entityId    String   @db.VarChar(100)
+  performedBy String   @db.VarChar(100)
+  details     String?  @db.Text
+  createdAt   DateTime @default(now())
+
+  @@index([action])
+  @@index([entity])
+  @@index([entityId])
+  @@index([createdAt])
 }

@@ -15,6 +15,7 @@ import {
   Role,
   StaffUser,
   CustomerUser,
+  PermissionItem,
 } from './types';
 import {
   initialPhones,
@@ -60,8 +61,137 @@ export interface RecentItem {
   time: string;
 }
 
+import { getTierByPoints } from './loyalty';
+
+export const defaultPermissions: PermissionItem[] = [
+  {
+    id: 'pos',
+    module: 'Bán Hàng POS & In Bill Nhiệt K80/A5',
+    category: 'bán hàng',
+    description: 'Tạo đơn bán lẻ, quét mã barcode, in hóa đơn K80/A5 và bảo hành điện tử',
+    admin: true,
+    tech: false,
+    cashier: true,
+  },
+  {
+    id: 'pos_discount',
+    module: 'Chỉnh Sửa Chiết Khấu / Giảm Giá POS',
+    category: 'bán hàng',
+    description: 'Cho phép nhân viên tự điều chỉnh % chiết khấu đơn hàng ngoài mức mặc định của hạng thẻ thành viên',
+    admin: true,
+    tech: false,
+    cashier: false,
+  },
+  {
+    id: 'repairs',
+    module: 'Tiếp Nhận Sửa Chữa & Xuất Kho Linh Kiện',
+    category: 'kỹ thuật',
+    description: 'Quy trình tiếp nhận máy, điều phối kỹ thuật viên, xuất linh kiện thay thế',
+    admin: true,
+    tech: true,
+    cashier: false,
+  },
+  {
+    id: 'cost_price',
+    module: 'Xem Giá Vốn Máy Mới & Linh Kiện',
+    category: 'kho & mua hàng',
+    description: 'Hiển thị giá nhập gốc trên bảng tồn kho, hóa đơn và chi tiết sản phẩm',
+    admin: true,
+    tech: false,
+    cashier: false,
+  },
+  {
+    id: 'profit_report',
+    module: 'Xem Báo Cáo Lợi Nhuận Gộp 3 Mảng',
+    category: 'kế toán & báo cáo',
+    description: 'Phân tích doanh thu, tỷ suất lợi nhuận mảng Máy mới, Cũ 99% và Dịch vụ sửa chữa',
+    admin: true,
+    tech: false,
+    cashier: false,
+  },
+  {
+    id: 'restock',
+    module: 'Nhập Lô IMEI Từ Nhà Cung Cấp & Ghi Nợ',
+    category: 'kho & mua hàng',
+    description: 'Tạo phiếu nhập kho NCC, nhập dải IMEI hàng loạt, ghi nhận công nợ phải trả',
+    admin: true,
+    tech: false,
+    cashier: false,
+  },
+  {
+    id: 'cashbook',
+    module: 'Quản Lý Sổ Quỹ Thu - Chi Toàn Cửa Hàng',
+    category: 'kế toán & báo cáo',
+    description: 'Lập phiếu thu/chi, chốt quỹ tiền mặt ca làm việc, đối soát tài khoản ngân hàng',
+    admin: true,
+    tech: false,
+    cashier: false,
+  },
+  {
+    id: 'settings',
+    module: 'Chỉnh Sửa Cấu Hình & Mẫu In Bill',
+    category: 'hệ thống',
+    description: 'Cấu hình thông tin cửa hàng, mẫu in K80, kết nối webhook và phân quyền RBAC',
+    admin: true,
+    tech: false,
+    cashier: false,
+  },
+  {
+    id: 'partners',
+    module: 'Quản Lý Danh Bạ Đối Tác & Khách Hàng',
+    category: 'bán hàng',
+    description: 'Xem thông tin khách hàng thân thiết, tích điểm và thông tin nhà cung cấp',
+    admin: true,
+    tech: false,
+    cashier: true,
+  },
+  {
+    id: 'staff_management',
+    module: 'Phê Duyệt & Quản Lý Nhân Sự',
+    category: 'hệ thống',
+    description: 'Duyệt tài khoản nhân viên mới, phân bổ chức vụ và giám sát hoạt động',
+    admin: true,
+    tech: false,
+    cashier: false,
+  },
+];
+
 export const IShopStore = {
-  // Roles
+  // Roles & RBAC Matrix
+  getPermissionMatrix(): PermissionItem[] {
+    const stored = getStorage<PermissionItem[]>('permission_matrix', defaultPermissions);
+    const existingIds = new Set(stored.map((s) => s.id));
+    const missing = defaultPermissions.filter((p) => !existingIds.has(p.id));
+    if (missing.length > 0) {
+      const merged = [...stored, ...missing];
+      setStorage('permission_matrix', merged);
+      return merged;
+    }
+    return stored;
+  },
+  setPermissionMatrix(matrix: PermissionItem[]) {
+    setStorage('permission_matrix', matrix);
+  },
+  resetPermissionMatrix(): PermissionItem[] {
+    setStorage('permission_matrix', defaultPermissions);
+    return defaultPermissions;
+  },
+  updatePermission(id: string, role: 'admin' | 'tech' | 'cashier', value: boolean) {
+    const list = this.getPermissionMatrix();
+    const updated = list.map((item) => (item.id === id ? { ...item, [role]: value } : item));
+    setStorage('permission_matrix', updated);
+  },
+  hasPermission(role: Role, permissionId: string): boolean {
+    if (role === 'admin') return true;
+    if (role === 'pending') return false;
+    const list = this.getPermissionMatrix();
+    const perm = list.find((p) => p.id === permissionId);
+    if (!perm) return false;
+    if (role === 'technician') return perm.tech;
+    if (role === 'cashier') return perm.cashier;
+    return false;
+  },
+
   getRole(): Role {
     const staff = this.getStaffUser();
     if (staff) return staff.role;
@@ -71,29 +201,176 @@ export const IShopStore = {
     setStorage('current_role', role);
   },
 
-  // Staff Authentication
+  // Staff Authentication & Avatars
+  getStaffAvatar(username: string): string | undefined {
+    if (!username) return undefined;
+    const avatars = getStorage<Record<string, string>>('staff_avatars', {});
+    return avatars[username.toLowerCase().trim()];
+  },
+  setStaffAvatar(username: string, avatarUrl: string | null) {
+    if (!username) return;
+    const avatars = getStorage<Record<string, string>>('staff_avatars', {});
+    const key = username.toLowerCase().trim();
+    if (avatarUrl) {
+      avatars[key] = avatarUrl;
+    } else {
+      delete avatars[key];
+    }
+    setStorage('staff_avatars', avatars);
+  },
   getStaffUser(): StaffUser | null {
     return getStorage<StaffUser | null>('staff_user', null);
   },
   setStaffUser(user: StaffUser | null) {
+    if (user) {
+      const cachedAvatar = user.username && this.getStaffAvatar(user.username);
+      if (!user.avatar && cachedAvatar) {
+        user.avatar = cachedAvatar;
+      }
+      if (user.avatar && user.username) {
+        this.setStaffAvatar(user.username, user.avatar);
+      }
+    }
     setStorage('staff_user', user);
     if (user) {
       setStorage('current_role', user.role);
     }
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('ishop_data_changed'));
+    }
+  },
+  updateStaffUser(data: Partial<StaffUser>): StaffUser | null {
+    const current = this.getStaffUser();
+    if (!current) return null;
+    const updated: StaffUser = { ...current, ...data };
+    if (updated.avatar !== undefined && updated.username) {
+      this.setStaffAvatar(updated.username, updated.avatar || null);
+    }
+    this.setStaffUser(updated);
+    return updated;
   },
   logoutStaff() {
     setStorage('staff_user', null);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('ishop_data_changed'));
+    }
   },
 
-  // Customer Authentication
+  // Customer Authentication & Avatars
+  getCustomerAvatar(phoneOrEmailOrId: string): string | undefined {
+    if (!phoneOrEmailOrId) return undefined;
+    const avatars = getStorage<Record<string, string>>('customer_avatars', {});
+    return avatars[phoneOrEmailOrId.toLowerCase().trim()];
+  },
+  setCustomerAvatar(phoneOrEmailOrId: string, avatarUrl: string | null) {
+    if (!phoneOrEmailOrId) return;
+    const avatars = getStorage<Record<string, string>>('customer_avatars', {});
+    const key = phoneOrEmailOrId.toLowerCase().trim();
+    if (avatarUrl) {
+      avatars[key] = avatarUrl;
+    } else {
+      delete avatars[key];
+    }
+    setStorage('customer_avatars', avatars);
+  },
   getCustomerUser(): CustomerUser | null {
     return getStorage<CustomerUser | null>('customer_user', null);
   },
   setCustomerUser(user: CustomerUser | null) {
+    if (user) {
+      let cachedAvatar =
+        (user.phone && this.getCustomerAvatar(user.phone)) ||
+        (user.email && this.getCustomerAvatar(user.email)) ||
+        (user.id && this.getCustomerAvatar(user.id));
+
+      if (!cachedAvatar) {
+        const custs = this.getCustomers();
+        const matched = custs.find(
+          (c) =>
+            (user.phone && c.phone.trim() === user.phone.trim()) ||
+            (user.email && c.email && c.email.trim().toLowerCase() === user.email.trim().toLowerCase())
+        );
+        if (matched?.avatar) {
+          cachedAvatar = matched.avatar;
+        }
+      }
+
+      if (!user.avatar && cachedAvatar) {
+        user.avatar = cachedAvatar;
+      }
+      if (user.avatar) {
+        if (user.phone) this.setCustomerAvatar(user.phone, user.avatar);
+        if (user.email) this.setCustomerAvatar(user.email, user.avatar);
+        if (user.id) this.setCustomerAvatar(user.id, user.avatar);
+      }
+    }
     setStorage('customer_user', user);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('ishop_data_changed'));
+    }
+  },
+  updateCustomerUser(data: Partial<CustomerUser>): CustomerUser | null {
+    const current = this.getCustomerUser();
+    if (!current) return null;
+    const updated: CustomerUser = { ...current, ...data };
+
+    if (updated.avatar !== undefined) {
+      if (updated.phone) this.setCustomerAvatar(updated.phone, updated.avatar || null);
+      if (updated.email) this.setCustomerAvatar(updated.email, updated.avatar || null);
+      if (updated.id) this.setCustomerAvatar(updated.id, updated.avatar || null);
+    }
+
+    setStorage('customer_user', updated);
+
+    // Đồng bộ vào danh bạ khách hàng
+    const customers = this.getCustomers();
+    const existingIndex = customers.findIndex(
+      (c) => (updated.phone && c.phone === updated.phone) || (current.id && c.id === current.id)
+    );
+    if (existingIndex >= 0) {
+      customers[existingIndex] = {
+        ...customers[existingIndex],
+        name: updated.name,
+        email: updated.email,
+        phone: updated.phone,
+        address: updated.address,
+        birthday: updated.birthday,
+        city: updated.city,
+        avatar: updated.avatar,
+        membershipTier: updated.membershipTier || customers[existingIndex].membershipTier,
+      };
+      setStorage('customers', customers);
+    } else {
+      const newCustomer: Customer = {
+        id: updated.id || 'cust-' + Date.now(),
+        name: updated.name,
+        phone: updated.phone,
+        email: updated.email,
+        address: updated.address,
+        birthday: updated.birthday,
+        city: updated.city,
+        avatar: updated.avatar,
+        points: updated.points || 100,
+        totalSpent: 0,
+        purchaseCount: 0,
+        repairCount: 0,
+        membershipTier: updated.membershipTier || 'Thành viên mới',
+        createdAt: updated.createdAt || new Date().toISOString().split('T')[0],
+      };
+      customers.unshift(newCustomer);
+      setStorage('customers', customers);
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('ishop_data_changed'));
+    }
+    return updated;
   },
   logoutCustomer() {
     setStorage('customer_user', null);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('ishop_data_changed'));
+    }
   },
 
   // Phones catalog
@@ -363,7 +640,12 @@ export const IShopStore = {
     });
 
     // Update or add customer points
-    this.recordCustomerPurchase(newInvoice.customerName, newInvoice.customerPhone, newInvoice.totalAmount);
+    this.recordCustomerPurchase(
+      newInvoice.customerName,
+      newInvoice.customerPhone,
+      newInvoice.totalAmount,
+      newInvoice.pointsEarned
+    );
 
     // Add recent item
     this.addRecentItem({
@@ -471,31 +753,71 @@ export const IShopStore = {
   getCustomers(): Customer[] {
     return getStorage<Customer[]>('customers', initialCustomers);
   },
-  recordCustomerPurchase(name: string, phone: string, amount: number) {
+  addCustomer(customer: Customer): Customer {
+    const list = this.getCustomers();
+    const existing = list.find((c) => c.phone === customer.phone || c.id === customer.id);
+    let updated: Customer[];
+    if (existing) {
+      updated = list.map((c) => (c.id === existing.id ? { ...c, ...customer } : c));
+    } else {
+      updated = [customer, ...list];
+    }
+    setStorage('customers', updated);
+    return customer;
+  },
+  updateCustomer(id: string, data: Partial<Customer>): Customer | null {
+    const list = this.getCustomers();
+    const existing = list.find((c) => c.id === id);
+    if (!existing) return null;
+    const updatedCustomer = { ...existing, ...data };
+    const updated = list.map((c) => (c.id === id ? updatedCustomer : c));
+    setStorage('customers', updated);
+    return updatedCustomer;
+  },
+  deleteCustomer(id: string) {
+    const list = this.getCustomers();
+    const updated = list.filter((c) => c.id !== id);
+    setStorage('customers', updated);
+  },
+  getCustomerByPhone(phone: string): Customer | undefined {
+    if (!phone) return undefined;
+    const list = this.getCustomers();
+    return list.find((c) => c.phone.trim() === phone.trim());
+  },
+  recordCustomerPurchase(name: string, phone: string, amount: number, customEarnedPoints?: number) {
     if (!phone) return;
     const customers = this.getCustomers();
-    const existing = customers.find((c) => c.phone === phone);
-    const earnedPoints = Math.floor(amount / 100000); // 100k = 1 point
+    const existing = customers.find((c) => c.phone.trim() === phone.trim());
+    const earnedPoints =
+      typeof customEarnedPoints === 'number' && customEarnedPoints >= 0
+        ? customEarnedPoints
+        : Math.floor(amount / 100000); // Mặc định 100k = 1 điểm nếu không có điểm sản phẩm
 
     if (existing) {
+      const updatedPoints = (existing.points || 0) + earnedPoints;
+      const updatedTier = getTierByPoints(updatedPoints).tier;
       const updated = customers.map((c) =>
-        c.phone === phone
+        c.phone.trim() === phone.trim()
           ? {
               ...c,
-              totalSpent: c.totalSpent + amount,
-              points: c.points + earnedPoints,
-              purchaseCount: c.purchaseCount + 1,
+              totalSpent: (c.totalSpent || 0) + amount,
+              points: updatedPoints,
+              membershipTier: updatedTier,
+              purchaseCount: (c.purchaseCount || 0) + 1,
             }
           : c
       );
       setStorage('customers', updated);
     } else {
+      const initialPoints = earnedPoints;
+      const initialTier = getTierByPoints(initialPoints).tier;
       const newCust: Customer = {
         id: 'cust-' + Date.now(),
         name: name || 'Khách hàng',
-        phone,
+        phone: phone.trim(),
         totalSpent: amount,
-        points: earnedPoints,
+        points: initialPoints,
+        membershipTier: initialTier,
         createdAt: new Date().toISOString().substring(0, 10),
         purchaseCount: 1,
         repairCount: 0,
