@@ -28,7 +28,6 @@ import {
   Check
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import ThemeSwitcher from '@/components/common/ThemeSwitcher';
 import { IShopStore } from '@/lib/store';
 import { CustomerUser } from '@/lib/types';
 
@@ -75,92 +74,16 @@ const TESTIMONIALS: TestimonialSlide[] = [
   },
 ];
 
-// Cấu hình Accent màu tương ứng với từng Theme 2026
-const THEME_ACCENTS: Record<
-  string,
-  {
-    primaryBtn: string;
-    pillBg: string;
-    pillText: string;
-    accentText: string;
-    accentBg: string;
-    accentBorder: string;
-    focusRing: string;
-    confettiColors: string[];
-  }
-> = {
-  titanium: {
-    primaryBtn:
-      'bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black shadow-[0_0_25px_rgba(226,183,116,0.4)]',
-    pillBg:
-      'bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 shadow-[0_0_20px_rgba(226,183,116,0.45)]',
-    pillText: 'text-black',
-    accentText: 'text-amber-400',
-    accentBg: 'bg-amber-500/15',
-    accentBorder: 'border-amber-500/35',
-    focusRing: 'focus:border-amber-400 focus:ring-amber-500/20',
-    confettiColors: ['#e2b774', '#f59e0b', '#38bdf8', '#10b981', '#ffffff'],
-  },
-  cobalt: {
-    primaryBtn:
-      'bg-gradient-to-r from-indigo-500 via-blue-500 to-sky-400 hover:from-indigo-400 hover:to-sky-300 text-white shadow-[0_0_25px_rgba(99,102,241,0.45)]',
-    pillBg:
-      'bg-gradient-to-r from-indigo-500 via-blue-500 to-sky-400 shadow-[0_0_20px_rgba(99,102,241,0.5)]',
-    pillText: 'text-white',
-    accentText: 'text-sky-300',
-    accentBg: 'bg-indigo-500/20',
-    accentBorder: 'border-indigo-500/40',
-    focusRing: 'focus:border-sky-400 focus:ring-indigo-500/25',
-    confettiColors: ['#6366f1', '#38bdf8', '#818cf8', '#a78bfa', '#ffffff'],
-  },
-  teal: {
-    primaryBtn:
-      'bg-gradient-to-r from-teal-500 via-emerald-400 to-cyan-400 hover:from-teal-400 hover:to-cyan-300 text-black shadow-[0_0_25px_rgba(20,184,166,0.45)]',
-    pillBg:
-      'bg-gradient-to-r from-teal-500 via-emerald-400 to-cyan-400 shadow-[0_0_20px_rgba(20,184,166,0.5)]',
-    pillText: 'text-black',
-    accentText: 'text-teal-300',
-    accentBg: 'bg-teal-500/20',
-    accentBorder: 'border-teal-500/40',
-    focusRing: 'focus:border-teal-400 focus:ring-teal-500/25',
-    confettiColors: ['#14b8a6', '#10b981', '#38bdf8', '#34d399', '#ffffff'],
-  },
-  mocha: {
-    primaryBtn:
-      'bg-gradient-to-r from-rose-500 via-pink-500 to-amber-500 hover:from-rose-400 hover:to-pink-400 text-white shadow-[0_0_25px_rgba(244,63,94,0.45)]',
-    pillBg:
-      'bg-gradient-to-r from-rose-500 via-pink-500 to-amber-500 shadow-[0_0_20px_rgba(244,63,94,0.5)]',
-    pillText: 'text-white',
-    accentText: 'text-rose-300',
-    accentBg: 'bg-rose-500/20',
-    accentBorder: 'border-rose-500/40',
-    focusRing: 'focus:border-rose-400 focus:ring-rose-500/25',
-    confettiColors: ['#f43f5e', '#fb7185', '#f59e0b', '#fbbf24', '#ffffff'],
-  },
-  cream: {
-    primaryBtn:
-      'bg-gradient-to-r from-amber-600 via-amber-500 to-yellow-500 hover:from-amber-500 hover:to-yellow-400 text-black shadow-[0_0_25px_rgba(217,119,6,0.35)]',
-    pillBg:
-      'bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 shadow-[0_0_20px_rgba(226,183,116,0.45)]',
-    pillText: 'text-black',
-    accentText: 'text-amber-600',
-    accentBg: 'bg-amber-500/15',
-    accentBorder: 'border-amber-500/35',
-    focusRing: 'focus:border-amber-500 focus:ring-amber-500/20',
-    confettiColors: ['#e2b774', '#f59e0b', '#0ea5e9', '#d97706', '#ffffff'],
-  },
-  dusk: {
-    primaryBtn:
-      'bg-gradient-to-r from-blue-600 via-indigo-500 to-cyan-400 hover:from-blue-500 hover:to-indigo-400 text-white shadow-[0_0_25px_rgba(129,140,248,0.45)]',
-    pillBg:
-      'bg-gradient-to-r from-blue-600 via-indigo-500 to-cyan-400 shadow-[0_0_20px_rgba(129,140,248,0.5)]',
-    pillText: 'text-white',
-    accentText: 'text-blue-300',
-    accentBg: 'bg-blue-500/20',
-    accentBorder: 'border-blue-500/40',
-    focusRing: 'focus:border-blue-400 focus:ring-blue-500/25',
-    confettiColors: ['#818cf8', '#60a5fa', '#38bdf8', '#c084fc', '#ffffff'],
-  },
+const ACCENT = {
+  primaryBtn:
+    'bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white font-black shadow-lg shadow-amber-500/25',
+  pillBg: 'bg-slate-900 shadow-md',
+  pillText: 'text-white',
+  accentText: 'text-amber-600',
+  accentBg: 'bg-amber-500/10',
+  accentBorder: 'border-amber-500/30',
+  focusRing: 'focus:border-amber-500 focus:ring-amber-500/20',
+  confettiColors: ['#f59e0b', '#d97706', '#0ea5e9', '#10b981', '#ffffff'],
 };
 
 export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'login' | 'signup' }) {
@@ -171,9 +94,6 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
   const [firstName, setFirstName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
-
-  // Active theme tracking
-  const [currentTheme, setCurrentTheme] = useState<string>('titanium');
 
   // States for UX
   const [isLoading, setIsLoading] = useState(false);
@@ -191,20 +111,6 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
   // Carousel state
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isCarouselHovered, setIsCarouselHovered] = useState(false);
-
-  // Read & Listen to theme changes from ThemeSwitcher
-  useEffect(() => {
-    const saved = localStorage.getItem('ishop_theme') || 'titanium';
-    setCurrentTheme(saved);
-
-    const handleThemeChange = () => {
-      const active = localStorage.getItem('ishop_theme') || 'titanium';
-      setCurrentTheme(active);
-    };
-
-    window.addEventListener('ishop_theme_changed', handleThemeChange);
-    return () => window.removeEventListener('ishop_theme_changed', handleThemeChange);
-  }, []);
 
   // Sync mode with prop if changes
   useEffect(() => {
@@ -228,7 +134,7 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
     setCurrentSlide((prev) => (prev + 1) % TESTIMONIALS.length);
   };
 
-  const accent = THEME_ACCENTS[currentTheme] || THEME_ACCENTS.titanium;
+  const accent = ACCENT;
 
   const triggerConfetti = () => {
     try {
@@ -352,91 +258,72 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
   const activeTestimonial = TESTIMONIALS[currentSlide];
 
   return (
-    <div className="relative min-h-screen w-full bg-transparent text-slate-100 flex flex-col justify-between items-center py-5 px-4 sm:px-6 lg:px-8 selection:bg-amber-400 selection:text-black font-sans transition-colors duration-300">
-      {/* Background ambient lighting - Tự động thích ứng màu nền theo Theme 2026 */}
+    <div className="relative min-h-screen w-full bg-transparent text-slate-800 flex flex-col justify-between items-center py-5 px-4 sm:px-6 lg:px-8 selection:bg-amber-400 selection:text-black font-sans transition-colors duration-300">
+      {/* Background ambient lighting - Light luxury ambient glow */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-        {/* Glow sa mạc chính phía trên */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[950px] h-[450px] bg-white/[0.04] rounded-full blur-[140px]" />
-        {/* Grid pattern nhẹ nhàng tạo chiều sâu hi-tech */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_40%,#000_70%,transparent_100%)] opacity-60" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[950px] h-[450px] bg-amber-500/[0.06] rounded-full blur-[140px]" />
+        <div className="absolute bottom-0 right-1/4 w-[600px] h-[350px] bg-sky-500/[0.05] rounded-full blur-[130px]" />
       </div>
 
-      {/* Fix Autofill styling for dark theme */}
-      <style>{`
-        input:-webkit-autofill,
-        input:-webkit-autofill:hover, 
-        input:-webkit-autofill:focus,
-        input:-webkit-autofill:active {
-          -webkit-box-shadow: 0 0 0 40px #140f0a inset !important;
-          -webkit-text-fill-color: #ffffff !important;
-          caret-color: #ffffff !important;
-        }
-      `}</style>
-
-      {/* 1. Header chuẩn nhận diện thương hiệu iShop Huy Hoàng + BỘ CHỌN BẢNG MÀU */}
-      <header className="relative z-40 w-full max-w-[1180px] flex items-center justify-between px-4 sm:px-5 py-2.5 sm:py-3 mb-4 sm:mb-6 rounded-2xl border border-white/10 glass-panel shadow-md backdrop-blur-2xl">
+      {/* 1. Header chuẩn nhận diện thương hiệu iShop Huy Hoàng */}
+      <header className="relative z-40 w-full max-w-[1180px] flex items-center justify-between px-4 sm:px-5 py-2.5 sm:py-3 mb-4 sm:mb-6 rounded-2xl border border-slate-200 bg-white/95 shadow-sm backdrop-blur-2xl">
         {/* Logo thương hiệu */}
         <Link href="/" className="flex items-center gap-3 shrink-0 group">
-          <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-amber-500 via-amber-400 to-amber-600 p-0.5 shadow-[0_0_20px_rgba(226,183,116,0.35)] group-hover:scale-105 group-hover:shadow-[0_0_30px_rgba(226,183,116,0.55)] transition-all">
-            <div className="w-full h-full bg-[#0e0b08] rounded-[10px] flex items-center justify-center">
+          <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-amber-500 via-amber-400 to-amber-600 p-0.5 shadow-md group-hover:scale-105 transition-all">
+            <div className="w-full h-full bg-slate-900 rounded-[10px] flex items-center justify-center">
               <Smartphone className="w-5 h-5 text-amber-300 group-hover:rotate-6 transition-transform" />
             </div>
           </div>
           <div className="flex flex-col">
-            <span className="text-lg sm:text-xl font-black tracking-tight text-white flex items-center gap-1.5 leading-none">
+            <span className="text-lg sm:text-xl font-black tracking-tight text-slate-900 flex items-center gap-1.5 leading-none">
               iShop <span className="text-gradient-gold">Huy Hoàng</span>
             </span>
-            <span className="text-[10px] tracking-wider uppercase text-gray-400 font-semibold flex items-center gap-1.5 mt-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-[10px] tracking-wider uppercase text-slate-500 font-semibold flex items-center gap-1.5 mt-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
               Apple Flagship &amp; iCare
             </span>
           </div>
         </Link>
 
         {/* Badge xác thực trung tâm (Ẩn trên màn hình nhỏ) */}
-        <div className="hidden lg:inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/[0.05] border border-white/10 shadow-sm text-xs font-bold backdrop-blur-md">
-          <ShieldCheck className={`w-4 h-4 ${accent.accentText}`} />
-          <span className="tracking-wide text-gray-200">XÁC THỰC BẢO MẬT 256-BIT</span>
+        <div className="hidden lg:inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-100 border border-slate-200 shadow-sm text-xs font-bold">
+          <ShieldCheck className="w-4 h-4 text-amber-600" />
+          <span className="tracking-wide text-slate-700">XÁC THỰC BẢO MẬT 256-BIT</span>
         </div>
 
-        {/* Cụm tiện ích bên phải: BẢNG MÀU + Về Cửa Hàng + Quản Trị POS */}
+        {/* Cụm tiện ích bên phải: Về Cửa Hàng */}
         <div className="flex items-center gap-2 sm:gap-2.5">
-          {/* BỘ CHỌN BẢNG MÀU THEME 2026 - Bo góc rounded-xl đồng bộ */}
-          <ThemeSwitcher dropDirection="down" buttonRounded="rounded-xl" />
-
           <Link
             href="/"
-            className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 hover:border-amber-400/40 text-gray-200 hover:text-white text-xs sm:text-sm font-bold shadow-sm transition-all hover:scale-105"
+            className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-800 text-xs sm:text-sm font-bold shadow-sm transition-all hover:scale-105"
           >
-            <Store className="w-4 h-4 text-amber-400" />
+            <Store className="w-4 h-4 text-amber-600" />
             <span className="hidden sm:inline">Về Cửa Hàng</span>
           </Link>
-
-
         </div>
       </header>
 
-      {/* 2. Container chính: Thẻ Split Card phong cách Glass Panel thích ứng theo Theme */}
+      {/* 2. Container chính: Thẻ Split Card phong cách Light Panel */}
       <main className="relative z-10 w-full max-w-[1180px] my-auto">
-        <div className="w-full glass-panel rounded-3xl sm:rounded-[2.5rem] p-3 sm:p-5 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 transition-all duration-300">
+        <div className="w-full bg-white/95 rounded-3xl sm:rounded-[2.5rem] p-3 sm:p-5 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 border border-slate-200 shadow-xl backdrop-blur-xl transition-all duration-300">
           
           {/* CỘT TRÁI: Form Xác thực (55% trên Desktop / lg:col-span-7) */}
           <div className="lg:col-span-7 flex flex-col justify-between p-4 sm:p-7 md:p-9">
             <div>
               {/* Nút chuyển tab dạng viên thuốc (Segmented Pill Switcher) */}
               <div className="flex justify-center mb-7">
-                <div className="relative inline-flex p-1.5 bg-black/40 rounded-full border border-white/10 shadow-inner">
+                <div className="relative inline-flex p-1.5 bg-slate-100 rounded-full border border-slate-200 shadow-inner">
                   <button
                     type="button"
                     onClick={() => setMode('login')}
                     className={`relative z-10 px-7 py-2 rounded-full text-xs sm:text-sm font-black transition-colors duration-200 ${
-                      mode === 'login' ? accent.pillText : 'text-gray-400 hover:text-gray-200'
+                      mode === 'login' ? 'text-white' : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
                     {mode === 'login' && (
                       <motion.div
                         layoutId="activePill"
-                        className={`absolute inset-0 rounded-full -z-10 ${accent.pillBg}`}
+                        className="absolute inset-0 rounded-full -z-10 bg-slate-900 shadow-md"
                         transition={{ type: 'spring', stiffness: 450, damping: 32 }}
                       />
                     )}
@@ -447,13 +334,13 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
                     type="button"
                     onClick={() => setMode('signup')}
                     className={`relative z-10 px-7 py-2 rounded-full text-xs sm:text-sm font-black transition-colors duration-200 ${
-                      mode === 'signup' ? accent.pillText : 'text-gray-400 hover:text-gray-200'
+                      mode === 'signup' ? 'text-white' : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
                     {mode === 'signup' && (
                       <motion.div
                         layoutId="activePill"
-                        className={`absolute inset-0 rounded-full -z-10 ${accent.pillBg}`}
+                        className="absolute inset-0 rounded-full -z-10 bg-slate-900 shadow-md"
                         transition={{ type: 'spring', stiffness: 450, damping: 32 }}
                       />
                     )}
@@ -474,10 +361,10 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
                       transition={{ duration: 0.2 }}
                       className="space-y-1.5"
                     >
-                      <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+                      <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
                         Welcome! Please enter your details to login
                       </h1>
-                      <p className="text-xs sm:text-sm text-gray-400 font-normal">
+                      <p className="text-xs sm:text-sm text-slate-500 font-normal">
                         Chào mừng trở lại iShop Huy Hoàng! Quản lý đơn hàng Apple, tra cứu bảo hành IMEI &amp; đặt lịch sửa chữa iCare.
                       </p>
                     </motion.div>
@@ -490,10 +377,10 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
                       transition={{ duration: 0.2 }}
                       className="space-y-1.5"
                     >
-                      <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+                      <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
                         Create Account / Join us today
                       </h1>
-                      <p className="text-xs sm:text-sm text-gray-400 font-normal">
+                      <p className="text-xs sm:text-sm text-slate-500 font-normal">
                         Gia nhập cộng đồng iShop VIP để nhận trợ giá thu cũ 2 triệu, bảo hành 1 đổi 1 &amp; ưu đãi linh kiện chính hãng.
                       </p>
                     </motion.div>
@@ -513,11 +400,11 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
                       transition={{ duration: 0.25 }}
                       className="space-y-1.5"
                     >
-                      <label className="block text-xs font-bold text-gray-300">
-                        First Name / Họ và tên <span className={accent.accentText}>*</span>
+                      <label className="block text-xs font-bold text-slate-700">
+                        First Name / Họ và tên <span className="text-amber-600">*</span>
                       </label>
                       <div className="relative">
-                        <div className={`absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none ${accent.accentText}`}>
+                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-amber-600">
                           <User className="w-4 h-4" />
                         </div>
                         <input
@@ -528,7 +415,7 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
                           value={firstName}
                           onChange={(e) => setFirstName(e.target.value)}
                           placeholder="Trần Minh Quân"
-                          className={`w-full pl-10 pr-4 py-3 rounded-xl bg-black/40 border border-white/10 text-sm font-medium text-white placeholder:text-gray-500 hover:border-white/20 focus:bg-black/60 focus:outline-none transition-all ${accent.focusRing}`}
+                          className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-medium text-slate-900 placeholder:text-slate-400 hover:border-slate-300 focus:bg-white focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all"
                         />
                       </div>
                     </motion.div>
@@ -537,11 +424,11 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
 
                 {/* Email address */}
                 <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-gray-300">
-                    Email address <span className={accent.accentText}>*</span>
+                  <label className="block text-xs font-bold text-slate-700">
+                    Email address <span className="text-amber-600">*</span>
                   </label>
                   <div className="relative">
-                    <div className={`absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none ${accent.accentText}`}>
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-amber-600">
                       <Mail className="w-4 h-4" />
                     </div>
                     <input
@@ -553,18 +440,18 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="quan.tran@apple.vip"
-                      className={`w-full pl-10 pr-4 py-3 rounded-xl bg-black/40 border border-white/10 text-sm font-medium text-white placeholder:text-gray-500 hover:border-white/20 focus:bg-black/60 focus:outline-none transition-all ${accent.focusRing}`}
+                      className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-medium text-slate-900 placeholder:text-slate-400 hover:border-slate-300 focus:bg-white focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all"
                     />
                   </div>
                 </div>
 
                 {/* Password */}
                 <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-gray-300">
-                    Password <span className={accent.accentText}>*</span>
+                  <label className="block text-xs font-bold text-slate-700">
+                    Password <span className="text-amber-600">*</span>
                   </label>
                   <div className="relative">
-                    <div className={`absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none ${accent.accentText}`}>
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-amber-600">
                       <Lock className="w-4 h-4" />
                     </div>
                     <input
@@ -576,12 +463,12 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
-                      className={`w-full pl-10 pr-11 py-3 rounded-xl bg-black/40 border border-white/10 text-sm font-medium text-white placeholder:text-gray-500 hover:border-white/20 focus:bg-black/60 focus:outline-none transition-all ${accent.focusRing}`}
+                      className="w-full pl-10 pr-11 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-medium text-slate-900 placeholder:text-slate-400 hover:border-slate-300 focus:bg-white focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-white transition-colors"
+                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-700 transition-colors"
                       tabIndex={-1}
                       title={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
                     >
@@ -598,40 +485,40 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
                         type="checkbox"
                         checked={rememberMe}
                         onChange={(e) => setRememberMe(e.target.checked)}
-                        className="w-4 h-4 rounded border-white/20 bg-black/40 text-amber-500 focus:ring-amber-400/20 accent-amber-500"
+                        className="w-4 h-4 rounded border-slate-300 bg-white text-amber-500 focus:ring-amber-400/20 accent-amber-500"
                       />
-                      <span className="text-xs text-gray-300 font-medium">Remember me</span>
+                      <span className="text-xs text-slate-600 font-medium">Remember me</span>
                     </label>
 
                     <button
                       type="button"
                       onClick={() => setShowForgotModal(true)}
-                      className={`text-xs font-bold transition-colors underline-offset-2 hover:underline ${accent.accentText}`}
+                      className="text-xs font-bold text-amber-600 hover:text-amber-700 transition-colors underline-offset-2 hover:underline"
                     >
                       Forgot password?
                     </button>
                   </div>
                 ) : (
                   <div className="pt-1">
-                    <p className="text-[11px] text-gray-400 leading-relaxed">
+                    <p className="text-[11px] text-slate-500 leading-relaxed">
                       Bằng việc tạo tài khoản, bạn đồng ý với{' '}
-                      <span className={`font-bold underline cursor-pointer ${accent.accentText}`}>
+                      <span className="font-bold underline cursor-pointer text-amber-600">
                         Điều khoản dịch vụ
                       </span>{' '}
                       và{' '}
-                      <span className={`font-bold underline cursor-pointer ${accent.accentText}`}>
+                      <span className="font-bold underline cursor-pointer text-amber-600">
                         Chính sách bảo hành iShop
                       </span>.
                     </p>
                   </div>
                 )}
 
-                {/* Nút Submit chính có hiệu ứng loading & màu theo theme */}
+                {/* Nút Submit chính có hiệu ứng loading */}
                 <div className="pt-2">
                   <button
                     type="submit"
                     disabled={isLoading}
-                    className={`w-full py-3.5 px-6 rounded-xl font-black text-sm active:scale-[0.99] flex items-center justify-center gap-2 transition-all duration-200 disabled:opacity-75 disabled:cursor-not-allowed group ${accent.primaryBtn}`}
+                    className="w-full py-3.5 px-6 rounded-xl font-black text-sm active:scale-[0.99] flex items-center justify-center gap-2 transition-all duration-200 disabled:opacity-75 disabled:cursor-not-allowed group bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white shadow-md shadow-amber-500/25"
                   >
                     {isLoading ? (
                       <>
@@ -668,8 +555,8 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
 
                 {/* Đường kẻ phân cách "OR" */}
                 <div className="relative my-6 flex items-center justify-center">
-                  <div className="border-t border-white/10 w-full" />
-                  <span className={`absolute bg-[#140e0a] px-3 text-[11px] font-extrabold uppercase tracking-widest ${accent.accentText}`}>
+                  <div className="border-t border-slate-200 w-full" />
+                  <span className="absolute bg-white px-3 text-[11px] font-extrabold uppercase tracking-widest text-slate-400">
                     OR
                   </span>
                 </div>
@@ -681,10 +568,10 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
                     type="button"
                     onClick={() => handleSocialLogin('Google')}
                     disabled={!!socialLoading}
-                    className="w-full py-2.5 px-4 rounded-xl border border-white/10 hover:border-white/30 bg-white/[0.04] hover:bg-white/[0.09] active:scale-[0.99] text-xs font-bold text-gray-200 hover:text-white flex items-center justify-center gap-2.5 transition-all shadow-sm"
+                    className="w-full py-2.5 px-4 rounded-xl border border-slate-200 hover:border-slate-300 bg-slate-50 hover:bg-slate-100 active:scale-[0.99] text-xs font-bold text-slate-800 flex items-center justify-center gap-2.5 transition-all shadow-sm"
                   >
                     {socialLoading === 'Google' ? (
-                      <div className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+                      <div className="w-4 h-4 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
                     ) : (
                       <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
                         <path
@@ -713,12 +600,12 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
                     type="button"
                     onClick={() => handleSocialLogin('Apple')}
                     disabled={!!socialLoading}
-                    className="w-full py-2.5 px-4 rounded-xl border border-white/10 hover:border-white/30 bg-white/[0.04] hover:bg-white/[0.09] active:scale-[0.99] text-xs font-bold text-gray-200 hover:text-white flex items-center justify-center gap-2.5 transition-all shadow-sm"
+                    className="w-full py-2.5 px-4 rounded-xl border border-slate-200 hover:border-slate-300 bg-slate-50 hover:bg-slate-100 active:scale-[0.99] text-xs font-bold text-slate-800 flex items-center justify-center gap-2.5 transition-all shadow-sm"
                   >
                     {socialLoading === 'Apple' ? (
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <div className="w-4 h-4 border-2 border-slate-800 border-t-transparent rounded-full animate-spin" />
                     ) : (
-                      <svg className="w-4 h-4 shrink-0 fill-current text-white" viewBox="0 0 170 170">
+                      <svg className="w-4 h-4 shrink-0 fill-current text-slate-900" viewBox="0 0 170 170">
                         <path d="M150.37 130.25c-2.45 5.66-5.35 10.87-8.71 15.66-4.58 6.53-8.33 11.05-11.22 13.56-4.48 4.12-9.28 6.23-14.42 6.35-3.69 0-8.14-1.05-13.32-3.18-5.19-2.12-9.97-3.17-14.34-3.17-4.58 0-9.49 1.05-14.75 3.17-5.26 2.13-9.5 3.24-12.74 3.35-4.35.13-9.16-1.9-14.42-6.08-3.69-3.06-7.66-7.85-11.91-14.39-7.14-10.9-12.82-23.1-17.06-36.59-4.23-13.5-6.35-26.17-6.35-38.01 0-14.82 3.65-27.24 10.95-37.28 7.3-10.04 16.63-15.15 28-15.34 4.58 0 9.77 1.25 15.58 3.75 5.81 2.5 9.43 3.75 10.87 3.75 1.25 0 5.09-1.31 11.51-3.94 6.42-2.62 11.83-3.81 16.23-3.56 12.39.75 22.38 5.48 29.98 14.2-10.8 6.54-16.1 15.56-15.91 27.07.2 9.07 3.65 16.85 10.37 23.33 6.72 6.48 14.68 10.23 23.88 11.25-2.2 6.64-4.83 13.43-7.89 20.37zM119.22 31.81c0-7.39 2.65-14.31 7.96-20.76 5.3-6.45 11.84-10.42 19.61-11.91.49 1.48.74 3.02.74 4.62 0 7.3-2.73 14.28-8.2 20.93-5.46 6.65-12.18 10.63-20.11 11.95v-4.83z" />
                       </svg>
                     )}
@@ -729,25 +616,25 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
             </div>
 
             {/* Chân form chuyển đổi nhanh */}
-            <div className="mt-8 pt-6 border-t border-white/10 text-center">
+            <div className="mt-8 pt-6 border-t border-slate-200 text-center">
               {mode === 'login' ? (
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-slate-500">
                   Chưa có tài khoản thành viên?{' '}
                   <button
                     type="button"
                     onClick={() => setMode('signup')}
-                    className={`font-bold underline transition-colors ${accent.accentText}`}
+                    className="font-bold underline transition-colors text-amber-600 hover:text-amber-700"
                   >
                     Đăng ký tài khoản VIP
                   </button>
                 </p>
               ) : (
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-slate-500">
                   Đã có tài khoản iShop?{' '}
                   <button
                     type="button"
                     onClick={() => setMode('login')}
-                    className={`font-bold underline transition-colors ${accent.accentText}`}
+                    className="font-bold underline transition-colors text-amber-600 hover:text-amber-700"
                   >
                     Đăng nhập ngay
                   </button>
@@ -758,10 +645,9 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
 
           {/* CỘT PHẢI: Carousel Hình ảnh Apple Flagship & Testimonial (lg:col-span-5) */}
           <div
-            className="lg:col-span-5 relative rounded-2xl sm:rounded-[2rem] overflow-hidden min-h-[480px] sm:min-h-[540px] lg:min-h-[640px] flex flex-col justify-between p-6 sm:p-8 select-none group border border-white/15 shadow-2xl"
+            className="dark-testimonial-card lg:col-span-5 relative rounded-2xl sm:rounded-[2rem] overflow-hidden min-h-[480px] sm:min-h-[540px] lg:min-h-[640px] flex flex-col justify-between p-6 sm:p-8 select-none group border border-white/20 shadow-2xl"
             onMouseEnter={() => setIsCarouselHovered(true)}
             onMouseLeave={() => setIsCarouselHovered(false)}
-            style={{ color: '#ffffff' }}
           >
             {/* Background Image Carousel with smooth crossfade */}
             <AnimatePresence mode="wait">
@@ -776,8 +662,8 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
               />
             </AnimatePresence>
 
-            {/* Lớp phủ gradient mờ đồng bộ bảo vệ độ tương phản chữ */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/70 to-black/35 pointer-events-none" />
+            {/* Lớp phủ gradient mờ bảo vệ độ tương phản chữ */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/75 to-black/40 pointer-events-none" />
 
             {/* Top Carousel Bar: Badge & Counter */}
             <div className="relative z-10 flex items-center justify-between">
@@ -787,7 +673,7 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
               </div>
 
               {/* Bộ đếm số trang (01 / 03) */}
-              <div className="px-3.5 py-1 rounded-full bg-black/65 backdrop-blur-md border border-white/20 text-xs font-mono font-bold tracking-widest text-white">
+              <div className="px-3.5 py-1 rounded-full bg-black/75 backdrop-blur-md border border-white/20 text-xs font-mono font-bold tracking-widest text-white shadow-sm">
                 0{currentSlide + 1} / 0{TESTIMONIALS.length}
               </div>
             </div>
@@ -800,7 +686,7 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
                   {[...Array(activeTestimonial.rating)].map((_, i) => (
                     <Star key={i} className="w-4 h-4 fill-amber-400" />
                   ))}
-                  <span className="text-[11px] font-black text-amber-300 ml-1.5 tracking-wider">
+                  <span className="text-[11px] font-black text-amber-300 ml-1.5 tracking-wider drop-shadow-sm">
                     ĐÁNH GIÁ 5.0 SAO CHUẨN VIP
                   </span>
                 </div>
@@ -814,8 +700,8 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
                     transition={{ duration: 0.35 }}
                     className="relative"
                   >
-                    <Quote className="w-8 h-8 text-amber-400/35 absolute -top-3 -left-2 -z-10" />
-                    <p className="text-sm sm:text-base font-medium text-white leading-relaxed italic line-clamp-4 pt-2">
+                    <Quote className="w-8 h-8 text-amber-400 absolute -top-3 -left-2 -z-10 opacity-70" />
+                    <p className="testimonial-quote text-base sm:text-lg font-semibold text-white leading-relaxed italic line-clamp-4 pt-2 drop-shadow-md">
                       &ldquo;{activeTestimonial.quote}&rdquo;
                     </p>
                   </motion.div>
@@ -830,16 +716,18 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 10 }}
                   transition={{ duration: 0.3 }}
-                  className="flex items-center gap-3.5 pt-2 border-t border-white/20"
+                  className="flex items-center gap-3.5 pt-3 border-t border-white/25"
                 >
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 flex items-center justify-center text-black font-black text-sm shadow-md ring-2 ring-white/40 shrink-0">
+                  <div className="w-11 h-11 rounded-full bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 flex items-center justify-center text-white font-black text-sm shadow-md ring-2 ring-white/50 shrink-0">
                     {activeTestimonial.author.charAt(0)}
                   </div>
                   <div>
-                    <h4 className="font-extrabold text-white text-sm sm:text-base leading-tight">
+                    <h4 className="testimonial-author font-black text-white text-base sm:text-lg leading-tight drop-shadow-sm">
                       {activeTestimonial.author}
                     </h4>
-                    <p className="text-xs text-amber-200/90 font-medium mt-0.5">{activeTestimonial.role}</p>
+                    <p className="testimonial-role text-xs text-amber-300 font-bold mt-1 drop-shadow-sm">
+                      {activeTestimonial.role}
+                    </p>
                   </div>
                 </motion.div>
               </AnimatePresence>
@@ -888,7 +776,7 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
       </main>
 
       {/* Footer bản quyền đồng bộ */}
-      <footer className="relative z-10 mt-6 text-center text-xs text-gray-400 font-medium">
+      <footer className="relative z-10 mt-6 text-center text-xs text-slate-500 font-medium">
         © 2026 iShop Huy Hoàng. All rights reserved. Hệ thống bán lẻ Apple Flagship &amp; Trung tâm sửa chữa iCare kỹ thuật cao.
       </footer>
 
@@ -901,7 +789,7 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowSuccessModal(false)}
-              className="fixed inset-0 bg-black/80 backdrop-blur-md"
+              className="fixed inset-0 bg-slate-900/60 backdrop-blur-md"
             />
 
             <motion.div
@@ -909,41 +797,41 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
               transition={{ type: 'spring', stiffness: 400, damping: 28 }}
-              className="relative z-10 w-full max-w-md glass-panel rounded-3xl p-6 sm:p-8 shadow-[0_25px_80px_rgba(0,0,0,0.95)] text-center overflow-hidden text-white"
+              className="relative z-10 w-full max-w-md bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-2xl text-center overflow-hidden text-slate-900"
             >
               {/* Decorative top accent */}
-              <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-amber-500 via-amber-300 to-amber-600" />
+              <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600" />
 
-              <div className={`w-16 h-16 rounded-3xl ${accent.accentBg} border ${accent.accentBorder} ${accent.accentText} flex items-center justify-center mx-auto mb-5 shadow-lg`}>
+              <div className="w-16 h-16 rounded-3xl bg-amber-500/10 border border-amber-500/30 text-amber-600 flex items-center justify-center mx-auto mb-5 shadow-sm">
                 <CheckCircle2 className="w-9 h-9" />
               </div>
 
-              <h3 className="text-xl font-black text-white mb-2">
+              <h3 className="text-xl font-black text-slate-900 mb-2">
                 {successInfo.isNewUser ? 'Đăng Ký Thành Viên Thành Công!' : 'Xác Thực Đăng Nhập Thành Công!'}
               </h3>
-              <p className="text-xs sm:text-sm text-gray-300 mb-6">
+              <p className="text-xs sm:text-sm text-slate-600 mb-6">
                 Chào mừng{' '}
-                <span className={`font-bold ${accent.accentText}`}>{successInfo.email}</span> đã kết nối vào hệ thống iShop Huy Hoàng an toàn.
+                <span className="font-bold text-amber-600">{successInfo.email}</span> đã kết nối vào hệ thống iShop Huy Hoàng an toàn.
               </p>
 
               {/* Thẻ trạng thái phiên bảo mật */}
-              <div className="p-4 rounded-2xl bg-black/40 border border-white/10 text-left mb-6 space-y-2 text-xs text-gray-300">
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-left mb-6 space-y-2 text-xs text-slate-700">
                 <div className="flex justify-between items-center">
                   <span>Trạng thái kết nối:</span>
-                  <span className="font-bold text-emerald-400 flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="font-bold text-emerald-600 flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                     Đã xác thực SSL 256-bit
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span>Thời gian phiên:</span>
-                  <span className="font-mono font-bold text-white">
+                  <span className="font-mono font-bold text-slate-900">
                     {new Date().toLocaleTimeString('vi-VN')}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span>Bảng màu đang chọn:</span>
-                  <span className={`font-bold capitalize ${accent.accentText}`}>{currentTheme}</span>
+                  <span>Loại tài khoản:</span>
+                  <span className="font-bold text-amber-600">Thành Viên VIP iShop</span>
                 </div>
               </div>
 
@@ -951,7 +839,7 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
                 <button
                   type="button"
                   onClick={() => router.push('/')}
-                  className={`w-full py-3 px-4 rounded-xl text-xs font-black flex items-center justify-center gap-2 transition-all hover:scale-105 ${accent.primaryBtn}`}
+                  className="w-full py-3 px-4 rounded-xl text-xs font-black flex items-center justify-center gap-2 transition-all hover:scale-105 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 text-white shadow-md shadow-amber-500/25"
                 >
                   <ShoppingBag className="w-4 h-4" />
                   <span>Tiếp Tục Mua Sắm</span>
@@ -960,18 +848,18 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
                 <button
                   type="button"
                   onClick={() => router.push('/repair')}
-                  className="w-full py-3 px-4 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold flex items-center justify-center gap-2 transition-all hover:scale-105"
+                  className="w-full py-3 px-4 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold flex items-center justify-center gap-2 transition-all hover:scale-105 shadow-md"
                 >
-                  <Smartphone className="w-4 h-4" />
+                  <Smartphone className="w-4 h-4 text-amber-400" />
                   <span>Đặt Lịch iCare 30p</span>
                 </button>
               </div>
 
-              <div className="pt-2">
+              <div className="pt-3">
                 <button
                   type="button"
                   onClick={() => router.push('/cart')}
-                  className="text-[11px] text-gray-400 hover:text-amber-400 transition-colors underline flex items-center justify-center gap-1 mx-auto"
+                  className="text-[11px] text-slate-500 hover:text-amber-600 transition-colors underline flex items-center justify-center gap-1 mx-auto"
                 >
                   <ShoppingBag className="w-3.5 h-3.5" />
                   <span>Xem giỏ hàng &amp; các đơn hàng của bạn</span>
@@ -994,7 +882,7 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
                 setShowForgotModal(false);
                 setForgotSent(false);
               }}
-              className="fixed inset-0 bg-black/80 backdrop-blur-md"
+              className="fixed inset-0 bg-slate-900/60 backdrop-blur-md"
             />
 
             <motion.div
@@ -1002,7 +890,7 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.92, y: 15 }}
               transition={{ type: 'spring', stiffness: 420, damping: 30 }}
-              className="relative z-10 w-full max-w-md glass-panel rounded-3xl p-6 sm:p-8 shadow-[0_25px_80px_rgba(0,0,0,0.95)] text-left overflow-hidden text-white"
+              className="relative z-10 w-full max-w-md bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-2xl text-left overflow-hidden text-slate-900"
             >
               <button
                 type="button"
@@ -1010,29 +898,29 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
                   setShowForgotModal(false);
                   setForgotSent(false);
                 }}
-                className="absolute top-5 right-5 w-8 h-8 rounded-full bg-white/[0.06] hover:bg-white/[0.12] text-gray-400 hover:text-white flex items-center justify-center transition-colors border border-white/10"
+                className="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-colors border border-slate-200"
               >
                 <X className="w-4 h-4" />
               </button>
 
-              <div className={`w-12 h-12 rounded-2xl ${accent.accentBg} border ${accent.accentBorder} ${accent.accentText} flex items-center justify-center mb-4 shadow-md`}>
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-600 flex items-center justify-center mb-4 shadow-sm">
                 <KeyRound className="w-6 h-6" />
               </div>
 
               {!forgotSent ? (
                 <>
-                  <h3 className="text-xl font-black text-white mb-1.5">Khôi Phục Mật Khẩu</h3>
-                  <p className="text-xs text-gray-400 mb-5 leading-relaxed">
+                  <h3 className="text-xl font-black text-slate-900 mb-1.5">Khôi Phục Mật Khẩu</h3>
+                  <p className="text-xs text-slate-500 mb-5 leading-relaxed">
                     Nhập email tài khoản iShop của bạn. Hệ thống sẽ gửi đường dẫn khôi phục mật khẩu bảo mật trong vòng vài giây.
                   </p>
 
                   <form onSubmit={handleForgotPasswordSubmit} className="space-y-4">
                     <div className="space-y-1.5">
-                      <label className="block text-xs font-bold text-gray-300">
+                      <label className="block text-xs font-bold text-slate-700">
                         Email address
                       </label>
                       <div className="relative">
-                        <div className={`absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none ${accent.accentText}`}>
+                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-amber-600">
                           <Mail className="w-4 h-4" />
                         </div>
                         <input
@@ -1041,7 +929,7 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
                           value={forgotEmail}
                           onChange={(e) => setForgotEmail(e.target.value)}
                           placeholder="quan.tran@apple.vip"
-                          className={`w-full pl-10 pr-4 py-3 rounded-xl bg-black/40 border border-white/10 text-sm font-medium text-white placeholder:text-gray-500 focus:outline-none transition-all ${accent.focusRing}`}
+                          className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all"
                         />
                       </div>
                     </div>
@@ -1049,7 +937,7 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
                     <button
                       type="submit"
                       disabled={forgotLoading}
-                      className={`w-full py-3 px-5 rounded-xl text-xs sm:text-sm font-black shadow-md flex items-center justify-center gap-2 transition-all disabled:opacity-75 ${accent.primaryBtn}`}
+                      className="w-full py-3 px-5 rounded-xl text-xs sm:text-sm font-black shadow-md flex items-center justify-center gap-2 transition-all disabled:opacity-75 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white"
                     >
                       {forgotLoading ? (
                         <span>Đang gửi liên kết xác thực...</span>
@@ -1061,12 +949,12 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
                 </>
               ) : (
                 <div className="text-center py-2 space-y-4">
-                  <div className="w-12 h-12 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center justify-center mx-auto shadow-md">
+                  <div className="w-12 h-12 rounded-full bg-emerald-500/15 text-emerald-600 border border-emerald-500/30 flex items-center justify-center mx-auto shadow-sm">
                     <Check className="w-7 h-7" />
                   </div>
-                  <h3 className="text-lg font-black text-white">Email đã được gửi!</h3>
-                  <p className="text-xs text-gray-300 leading-relaxed">
-                    Vui lòng kiểm tra hộp thư đến của <span className={`font-bold ${accent.accentText}`}>{forgotEmail}</span> và làm theo hướng dẫn để tạo mật khẩu mới.
+                  <h3 className="text-lg font-black text-slate-900">Email đã được gửi!</h3>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Vui lòng kiểm tra hộp thư đến của <span className="font-bold text-amber-600">{forgotEmail}</span> và làm theo hướng dẫn để tạo mật khẩu mới.
                   </p>
                   <button
                     type="button"
@@ -1074,7 +962,7 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
                       setShowForgotModal(false);
                       setForgotSent(false);
                     }}
-                    className="w-full py-2.5 rounded-xl bg-white/[0.08] hover:bg-white/[0.15] text-white text-xs font-bold transition-colors border border-white/10 hover:border-white/20"
+                    className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-colors border border-slate-200"
                   >
                     Quay lại đăng nhập
                   </button>

@@ -103,20 +103,20 @@ function RepairTrackingContent() {
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
       {/* Header */}
       <div className="text-center space-y-3">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/15 text-amber-300 text-xs font-semibold border border-amber-500/30">
-          <QrCode className="w-4 h-4" />
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-50 text-amber-800 text-xs font-semibold border border-amber-200 shadow-sm">
+          <QrCode className="w-4 h-4 text-amber-700" />
           <span>TRA CỨU TIẾN ĐỘ THỜI GIAN THỰC</span>
         </div>
-        <h1 className="text-2xl sm:text-4xl font-extrabold text-white">
+        <h1 className="text-2xl sm:text-4xl font-extrabold text-slate-900">
           Theo Dõi Tiến Độ Sửa Chữa Bằng Mã QR
         </h1>
-        <p className="text-xs sm:text-sm text-gray-400 max-w-xl mx-auto">
-          Nhập mã phiếu biên nhận (VD: <strong>SC-2608-001</strong>), Số điện thoại khách hàng hoặc quét mã QR in trên phiếu để xem trực tiếp các bước xử lý kỹ thuật.
+        <p className="text-xs sm:text-sm text-slate-600 max-w-xl mx-auto">
+          Nhập mã phiếu biên nhận (VD: <strong className="text-slate-900">SC-2608-001</strong>), Số điện thoại khách hàng hoặc quét mã QR in trên phiếu để xem trực tiếp các bước xử lý kỹ thuật.
         </p>
       </div>
 
       {/* Search Bar */}
-      <div className="glass-panel rounded-3xl p-6 sm:p-8 border border-white/15 shadow-2xl space-y-4">
+      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-lg space-y-4">
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -130,13 +130,13 @@ function RepairTrackingContent() {
               value={inputQuery}
               onChange={(e) => setInputQuery(e.target.value)}
               placeholder="Nhập mã phiếu (SC-2608-001) hoặc số điện thoại (0912345678)..."
-              className="w-full pl-4 pr-10 py-3.5 bg-white/5 border border-white/15 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 font-mono text-sm sm:text-base"
+              className="w-full pl-4 pr-10 py-3.5 bg-slate-50 border border-slate-300 rounded-2xl text-slate-900 placeholder-slate-400 focus:outline-none focus:border-amber-600 focus:bg-white font-mono text-sm sm:text-base shadow-inner transition-colors"
             />
             {inputQuery && (
               <button
                 type="button"
                 onClick={() => setInputQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-xs"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 text-xs"
               >
                 Xóa
               </button>
@@ -145,16 +145,16 @@ function RepairTrackingContent() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 disabled:opacity-50 text-black font-bold text-sm shadow-xl shadow-amber-500/20 flex items-center justify-center gap-2 shrink-0 transition-transform hover:scale-105"
+            className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white font-bold text-sm shadow-lg shadow-slate-900/10 flex items-center justify-center gap-2 shrink-0 transition-transform hover:scale-105"
           >
             {isLoading ? (
               <>
-                <Clock className="w-4 h-4 animate-spin" />
+                <Clock className="w-4 h-4 animate-spin text-amber-400" />
                 <span>Đang tra cứu...</span>
               </>
             ) : (
               <>
-                <Search className="w-4 h-4" />
+                <Search className="w-4 h-4 text-amber-400" />
                 <span>Tra Cứu Tiến Độ</span>
               </>
             )}
@@ -163,7 +163,7 @@ function RepairTrackingContent() {
 
         {/* Quick Click Samples */}
         <div className="pt-2">
-          <span className="text-xs text-gray-400 font-semibold block mb-2">
+          <span className="text-xs text-slate-600 font-semibold block mb-2">
             Thử nghiệm nhanh bằng các phiếu mẫu thực tế:
           </span>
           <div className="flex flex-wrap gap-2">
@@ -172,7 +172,7 @@ function RepairTrackingContent() {
                 setInputQuery('SC-2608-001');
                 handleSearch('SC-2608-001');
               }}
-              className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-amber-500/20 text-gray-300 hover:text-amber-400 border border-white/10 text-xs font-mono font-semibold transition-colors"
+              className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-amber-50 text-slate-700 hover:text-amber-800 border border-slate-200 text-xs font-mono font-semibold transition-colors"
             >
               SC-2608-001 (iPhone 15 Pro Max - Đang sửa)
             </button>
@@ -181,7 +181,7 @@ function RepairTrackingContent() {
                 setInputQuery('SC-2608-002');
                 handleSearch('SC-2608-002');
               }}
-              className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-emerald-500/20 text-gray-300 hover:text-emerald-400 border border-white/10 text-xs font-mono font-semibold transition-colors"
+              className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 border border-slate-200 text-xs font-mono font-semibold transition-colors"
             >
               SC-2608-002 (iPhone 13 Pro Max - Sẵn sàng giao)
             </button>
@@ -193,27 +193,27 @@ function RepairTrackingContent() {
       {ticket !== undefined && (
         <div className="animate-in fade-in duration-300">
           {ticket ? (
-            <div className="glass-panel rounded-3xl p-6 sm:p-8 border border-amber-500/30 shadow-2xl space-y-8">
+            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-amber-200 shadow-xl space-y-8">
               {/* Header result */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-white/10">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-mono font-bold text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded border border-amber-500/30">
+                    <span className="text-xs font-mono font-bold text-amber-800 bg-amber-50 px-2.5 py-0.5 rounded border border-amber-200">
                       {ticket.ticketCode}
                     </span>
-                    <span className="text-xs text-gray-400">Tiếp nhận: {ticket.receivedAt}</span>
+                    <span className="text-xs text-slate-500 font-medium">Tiếp nhận: {ticket.receivedAt}</span>
                   </div>
-                  <h2 className="text-xl sm:text-2xl font-bold text-white mt-1">
+                  <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-1">
                     {ticket.deviceModel}
                   </h2>
-                  <p className="text-xs text-gray-400 font-mono">
-                    IMEI/Serial: {ticket.imeiOrSerial} • Khách hàng: {ticket.customerName}
+                  <p className="text-xs text-slate-600 font-mono">
+                    IMEI/Serial: <strong className="text-slate-800">{ticket.imeiOrSerial}</strong> • Khách hàng: <strong className="text-slate-800">{ticket.customerName}</strong>
                   </p>
                 </div>
 
                 <div className="text-right">
-                  <span className="text-xs text-gray-400 block">Tổng chi phí sửa chữa:</span>
-                  <span className="text-2xl font-black text-amber-400">
+                  <span className="text-xs text-slate-500 block font-medium">Tổng chi phí sửa chữa:</span>
+                  <span className="text-2xl font-black text-amber-700">
                     {formatVND(ticket.totalAmount)}
                   </span>
                 </div>
@@ -221,8 +221,8 @@ function RepairTrackingContent() {
 
               {/* 6-Step Stepper */}
               <div className="space-y-4">
-                <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-blue-400" />
+                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-sky-700" />
                   <span>Quy Trình 6 Bước Xử Lý Kỹ Thuật</span>
                 </h3>
 
@@ -237,10 +237,10 @@ function RepairTrackingContent() {
                         key={step.key}
                         className={`p-4 rounded-2xl border transition-all ${
                           isCurrent
-                            ? 'bg-amber-500/10 border-amber-500/50 shadow-lg shadow-amber-500/10'
+                            ? 'bg-amber-50/90 border-amber-300 shadow-sm'
                             : isDone
-                            ? 'bg-emerald-500/[0.04] border-emerald-500/30'
-                            : 'bg-white/[0.02] border-white/5 opacity-50'
+                            ? 'bg-emerald-50/60 border-emerald-200'
+                            : 'bg-slate-50/70 border-slate-200 opacity-70'
                         }`}
                       >
                         <div className="flex items-center justify-between mb-1.5">
@@ -248,10 +248,10 @@ function RepairTrackingContent() {
                             <span
                               className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
                                 isDone
-                                  ? 'bg-emerald-500 text-black'
+                                  ? 'bg-emerald-600 text-white'
                                   : isCurrent
-                                  ? 'bg-amber-500 text-black animate-pulse'
-                                  : 'bg-white/10 text-gray-400'
+                                  ? 'bg-amber-600 text-white animate-pulse'
+                                  : 'bg-slate-200 text-slate-600'
                               }`}
                             >
                               {isDone ? '✓' : idx + 1}
@@ -259,10 +259,10 @@ function RepairTrackingContent() {
                             <span
                               className={`text-xs font-bold ${
                                 isCurrent
-                                  ? 'text-amber-300'
+                                  ? 'text-amber-900'
                                   : isDone
-                                  ? 'text-emerald-400'
-                                  : 'text-gray-400'
+                                  ? 'text-emerald-900'
+                                  : 'text-slate-700'
                               }`}
                             >
                               {step.label}
@@ -270,19 +270,19 @@ function RepairTrackingContent() {
                           </div>
 
                           {matchedHistory && (
-                            <span className="text-[10px] text-gray-400 font-mono">
+                            <span className="text-[10px] text-slate-500 font-mono font-medium">
                               {matchedHistory.time.split(' ')[1]}
                             </span>
                           )}
                         </div>
 
-                        <p className="text-[11px] text-gray-400 ml-8">{step.desc}</p>
+                        <p className="text-[11px] text-slate-600 ml-8">{step.desc}</p>
 
                         {matchedHistory?.note && (
-                          <div className="mt-2 ml-8 p-2 rounded-xl bg-black/40 text-[11px] text-gray-300 border border-white/5">
-                            <strong>Ghi chú:</strong> {matchedHistory.note}
+                          <div className="mt-2 ml-8 p-2.5 rounded-xl bg-white text-[11px] text-slate-700 border border-slate-200 shadow-sm">
+                            <strong className="text-slate-900">Ghi chú:</strong> {matchedHistory.note}
                             {matchedHistory.actor && (
-                              <span className="text-gray-500 ml-2">({matchedHistory.actor})</span>
+                              <span className="text-slate-500 ml-2">({matchedHistory.actor})</span>
                             )}
                           </div>
                         )}
@@ -295,61 +295,61 @@ function RepairTrackingContent() {
               {/* Hardware Details & Parts Used */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
                 {/* Parts Used */}
-                <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-3">
-                  <div className="flex items-center gap-2 text-blue-400 font-bold uppercase text-[11px]">
-                    <Cpu className="w-4 h-4" />
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                  <div className="flex items-center gap-2 text-sky-800 font-bold uppercase text-[11px]">
+                    <Cpu className="w-4 h-4 text-sky-600" />
                     <span>Linh Kiện Xuất Kho Sử Dụng:</span>
                   </div>
                   {ticket.partsUsed.length > 0 ? (
                     <div className="space-y-2">
                       {ticket.partsUsed.map((p, idx) => (
-                        <div key={idx} className="flex justify-between items-center py-1 border-b border-white/5">
-                          <span className="text-white font-medium">{p.partName}</span>
-                          <span className="text-amber-400 font-bold">{formatVND(p.unitPrice)}</span>
+                        <div key={idx} className="flex justify-between items-center py-1 border-b border-slate-200 last:border-0">
+                          <span className="text-slate-800 font-medium">{p.partName}</span>
+                          <span className="text-amber-700 font-bold">{formatVND(p.unitPrice)}</span>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-gray-500 italic">Đang kiểm tra, chưa xuất linh kiện.</p>
+                    <p className="text-slate-500 italic">Đang kiểm tra, chưa xuất linh kiện.</p>
                   )}
                 </div>
 
                 {/* Device Diagnostics & Warranty */}
-                <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-2">
-                  <div className="flex items-center gap-2 text-emerald-400 font-bold uppercase text-[11px]">
-                    <ShieldCheck className="w-4 h-4" />
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+                  <div className="flex items-center gap-2 text-emerald-800 font-bold uppercase text-[11px]">
+                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
                     <span>Chẩn Đoán & Bảo Hành:</span>
                   </div>
-                  <p className="text-gray-300">
-                    <strong>Tình trạng máy:</strong> {ticket.issueDescription}
+                  <p className="text-slate-700">
+                    <strong className="text-slate-900">Tình trạng máy:</strong> {ticket.issueDescription}
                   </p>
-                  <p className="text-gray-300">
-                    <strong>Ngoại quan:</strong> {ticket.appearanceCondition}
+                  <p className="text-slate-700">
+                    <strong className="text-slate-900">Ngoại quan:</strong> {ticket.appearanceCondition}
                   </p>
-                  <p className="text-emerald-400 font-medium">
-                    <strong>Gói bảo hành:</strong> {ticket.warrantyPeriod}
+                  <p className="text-emerald-800 font-semibold">
+                    <strong className="text-slate-900">Gói bảo hành:</strong> {ticket.warrantyPeriod}
                   </p>
                 </div>
               </div>
 
               {/* Technician In Charge */}
-              <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs flex items-center justify-between text-gray-300">
+              <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-slate-700">
                 <div className="flex items-center gap-2">
-                  <User className="w-4 h-4 text-amber-400" />
+                  <User className="w-4 h-4 text-amber-700" />
                   <span>
-                    Kỹ thuật viên phụ trách: <strong className="text-white">{ticket.technicianName || 'Trần Trọng Nghĩa'}</strong>
+                    Kỹ thuật viên phụ trách: <strong className="text-slate-900">{ticket.technicianName || 'Trần Trọng Nghĩa'}</strong>
                   </span>
                 </div>
-                <span>Dự kiến hoàn thành: <strong className="text-white">{ticket.estimatedDeliveryDate}</strong></span>
+                <span>Dự kiến hoàn thành: <strong className="text-slate-900">{ticket.estimatedDeliveryDate}</strong></span>
               </div>
             </div>
           ) : (
-            <div className="glass-panel rounded-3xl p-8 border border-red-500/30 text-center space-y-3">
-              <AlertCircle className="w-12 h-12 text-red-400 mx-auto" />
-              <h3 className="text-lg font-bold text-white">
+            <div className="bg-white rounded-3xl p-8 border border-red-200 text-center space-y-3 shadow-lg">
+              <AlertCircle className="w-12 h-12 text-red-600 mx-auto" />
+              <h3 className="text-lg font-bold text-slate-900">
                 Không Tìm Thấy Phiếu Sửa Chữa Cho: &quot;{searchedKey}&quot;
               </h3>
-              <p className="text-xs text-gray-400 max-w-md mx-auto">
+              <p className="text-xs text-slate-600 max-w-md mx-auto">
                 Vui lòng kiểm tra lại mã phiếu in trên biên nhận (dạng SC-xxxx-xxx) hoặc số điện thoại khi gửi máy.
               </p>
             </div>

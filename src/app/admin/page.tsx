@@ -86,38 +86,49 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="space-y-8">
-      {/* Welcome Cockpit Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5 bg-gradient-to-r from-[#0d1527] via-[#09101f] to-[#060a14] p-7 rounded-3xl border border-white/[0.1] shadow-2xl relative overflow-hidden">
-        <div className="space-y-1.5">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full badge-glow-emerald text-[11px] font-bold">
-            <Activity className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+      {/* Welcome Cockpit Banner - Warm Luxury Flash Sale Aesthetic (Matching Image 2) */}
+      <div className="relative rounded-3xl p-7 sm:p-9 bg-gradient-to-r from-amber-50/95 via-orange-50/85 to-rose-50/95 border-2 border-amber-300/80 overflow-hidden shadow-[0_15px_40px_rgba(245,158,11,0.18)] flex flex-col md:flex-row md:items-center justify-between gap-6">
+        {/* Soft background ambient glow orbs */}
+        <div className="absolute -top-24 -left-24 w-72 h-72 bg-amber-400/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-24 -right-24 w-72 h-72 bg-rose-400/20 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 space-y-2.5">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-rose-100/90 text-rose-700 font-black text-xs border border-rose-300/80 shadow-sm animate-pulse">
+            <Activity className="w-3.5 h-3.5 text-rose-600 animate-pulse" />
             <span>HỆ THỐNG ĐIỀU HÀNH THỜI GIAN THỰC 2026</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-white">
-            Trung Tâm Quản Trị iShop Huy Hoàng
+
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 leading-tight tracking-tight">
+            Trung Tâm Quản Trị <span className="text-amber-600">iShop Huy Hoàng</span>
           </h1>
-          <p className="text-xs text-gray-400">
+
+          <p className="text-xs sm:text-sm text-slate-600 font-medium">
             Đang đăng nhập với vai trò:{' '}
-            <strong className="text-amber-400 uppercase font-bold">
-              {role === 'admin' ? 'Chủ Cửa Hàng (Admin Toàn Quyền)' : role === 'technician' ? 'Kỹ Thuật Viên' : 'Thu Ngân / Bán Hàng (Bảo Mật Giá Vốn)'}
+            <strong className="text-amber-700 uppercase font-black ml-1">
+              {role === 'admin'
+                ? 'CHỦ CỬA HÀNG (ADMIN TOÀN QUYỀN)'
+                : role === 'technician'
+                ? 'KỸ THUẬT VIÊN'
+                : 'THU NGÂN / BÁN HÀNG (BẢO MẬT GIÁ VỐN)'}
             </strong>
           </p>
         </div>
 
         {/* Quick Launch Buttons */}
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="relative z-10 flex flex-wrap items-center gap-3.5 shrink-0">
           <Link
             href="/admin/pos"
-            className="px-5 py-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-black text-xs shadow-[0_0_25px_rgba(16,185,129,0.35)] flex items-center gap-2 transition-all hover:scale-105"
+            className="btn-gold px-6 py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 text-white font-black text-xs sm:text-sm shadow-xl shadow-amber-500/30 flex items-center gap-2 transition-transform hover:scale-105 active:scale-95"
           >
-            <ShoppingCart className="w-4 h-4" />
-            <span>Mở POS Bán Hàng</span>
+            <ShoppingCart className="w-4 h-4 text-white" />
+            <span className="text-white font-bold">Mở POS Bán Hàng</span>
           </Link>
+
           <Link
             href="/admin/repairs"
-            className="px-5 py-3 rounded-2xl bg-white/[0.06] hover:bg-white/[0.12] text-white font-bold text-xs border border-white/[0.1] flex items-center gap-2 transition-all"
+            className="px-5 py-3.5 rounded-2xl bg-white hover:bg-slate-50 text-slate-800 font-extrabold text-xs sm:text-sm border border-amber-300/80 shadow-sm hover:shadow-md flex items-center gap-2 transition-all hover:scale-105"
           >
-            <Wrench className="w-4 h-4 text-amber-400" />
+            <Wrench className="w-4 h-4 text-amber-600" />
             <span>Tiếp Nhận Sửa (30s)</span>
           </Link>
         </div>

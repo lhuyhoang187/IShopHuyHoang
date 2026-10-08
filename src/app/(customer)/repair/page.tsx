@@ -153,21 +153,21 @@ export default function RepairPriceListPage() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
       {/* Header */}
       <div className="text-center space-y-3">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 text-amber-300 text-xs font-semibold border border-amber-500/20">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-100 text-amber-800 text-xs font-bold border border-amber-300">
           <Wrench className="w-4 h-4" />
           <span>TRUNG TÂM DỊCH VỤ SỬA CHỮA iCARE</span>
         </div>
-        <h1 className="text-2xl sm:text-4xl font-extrabold text-white">
+        <h1 className="text-2xl sm:text-4xl font-extrabold text-slate-900">
           Bảng Giá Sửa Chữa & Đặt Lịch Lấy Liền 30 Phút
         </h1>
-        <p className="text-xs sm:text-sm text-gray-400 max-w-2xl mx-auto">
+        <p className="text-xs sm:text-sm text-slate-600 max-w-2xl mx-auto">
           Minh bạch linh kiện, bảo hành rõ ràng, khách hàng trực tiếp quan sát kỹ thuật viên thao tác. Nhận máy có in mã QR theo dõi tiến độ thời gian thực.
         </p>
 
         <div className="pt-2">
           <Link
             href="/repair/tracking"
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 text-xs font-bold transition-colors"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-bold transition-colors shadow-sm"
           >
             <span>Đã gửi máy? Bấm vào đây để Tra Cứu Tiến Độ Sửa Bằng Mã QR</span>
             <ArrowRight className="w-4 h-4" />
@@ -178,27 +178,27 @@ export default function RepairPriceListPage() {
       {/* Pricing Tables */}
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">
+          <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
             <span>Bảng Giá Tham Khảo</span>
           </h2>
 
-          <div className="flex items-center gap-2 bg-white/5 p-1 rounded-xl border border-white/10">
+          <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl border border-slate-200">
             <button
               onClick={() => setActiveTab('iphone')}
-              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-colors ${
                 activeTab === 'iphone'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-400 hover:text-white'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               Apple iPhone
             </button>
             <button
               onClick={() => setActiveTab('samsung')}
-              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-colors ${
                 activeTab === 'samsung'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-400 hover:text-white'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               Samsung Galaxy
@@ -206,10 +206,10 @@ export default function RepairPriceListPage() {
           </div>
         </div>
 
-        <div className="glass-panel rounded-3xl border border-white/10 overflow-hidden shadow-2xl">
+        <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-md">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs sm:text-sm">
-              <thead className="bg-[#0d1320] text-gray-400 uppercase text-[11px] border-b border-white/10">
+              <thead className="bg-slate-50 text-slate-700 uppercase text-[11px] font-bold border-b border-slate-200">
                 <tr>
                   <th className="p-4">Dịch Vụ Sửa Chữa</th>
                   <th className="p-4">Dòng Máy Áp Dụng</th>
@@ -218,19 +218,19 @@ export default function RepairPriceListPage() {
                   <th className="p-4 text-center">Thao Tác</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5">
+              <tbody className="divide-y divide-slate-100">
                 {(activeTab === 'iphone' ? iphonePrices : samsungPrices).map((item, idx) => (
-                  <tr key={idx} className="hover:bg-white/[0.02] transition-colors">
-                    <td className="p-4 font-semibold text-white">
+                  <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                    <td className="p-4 font-bold text-slate-900">
                       {item.service}
                     </td>
-                    <td className="p-4 text-gray-300">{item.models}</td>
+                    <td className="p-4 text-slate-600 font-medium">{item.models}</td>
                     <td className="p-4">
-                      <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                         {item.warranty}
                       </span>
                     </td>
-                    <td className="p-4 text-right font-black text-amber-400 text-sm sm:text-base">
+                    <td className="p-4 text-right font-black text-amber-700 text-sm sm:text-base">
                       {formatVND(item.price)}
                     </td>
                     <td className="p-4 text-center">
@@ -244,7 +244,7 @@ export default function RepairPriceListPage() {
                           const el = document.getElementById('booking-form');
                           el?.scrollIntoView({ behavior: 'smooth' });
                         }}
-                        className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-blue-600 text-gray-200 hover:text-white text-xs font-medium transition-colors"
+                        className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-blue-600 text-slate-700 hover:text-white border border-slate-200 text-xs font-semibold transition-colors"
                       >
                         Đặt hẹn
                       </button>
@@ -258,50 +258,50 @@ export default function RepairPriceListPage() {
       </div>
 
       {/* Appointment Booking Form */}
-      <div id="booking-form" className="glass-panel rounded-3xl p-6 sm:p-10 border border-white/15 shadow-2xl">
+      <div id="booking-form" className="bg-white rounded-3xl p-6 sm:p-10 border border-slate-200 shadow-lg">
         <div className="max-w-2xl mx-auto space-y-6">
           <div className="text-center space-y-2">
-            <h2 className="text-xl sm:text-2xl font-bold text-white">
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
               Đặt Lịch Hẹn Mang Máy Đến Cửa Hàng
             </h2>
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-slate-600">
               Đặt hẹn trước để kỹ thuật viên chuẩn bị sẵn linh kiện zin, đến nơi được phục vụ ngay không phải chờ đợi.
             </p>
           </div>
 
           {bookingSuccess ? (
-            <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-b from-emerald-500/15 to-transparent border border-emerald-500/30 text-center space-y-5 animate-in fade-in zoom-in-95">
-              <div className="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center mx-auto shadow-[0_0_30px_rgba(16,185,129,0.3)]">
+            <div className="p-6 sm:p-8 rounded-3xl bg-emerald-50/70 border border-emerald-200 text-center space-y-5 animate-in fade-in zoom-in-95">
+              <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-300 flex items-center justify-center mx-auto shadow-md">
                 <CheckCircle2 className="w-9 h-9" />
               </div>
 
               <div>
-                <h3 className="text-xl sm:text-2xl font-black text-white">Đặt Lịch Hẹn Thành Công!</h3>
-                <p className="text-xs text-gray-300 mt-1 max-w-md mx-auto">
+                <h3 className="text-xl sm:text-2xl font-black text-slate-900">Đặt Lịch Hẹn Thành Công!</h3>
+                <p className="text-xs text-slate-600 mt-1 max-w-md mx-auto">
                   iShop Huy Hoàng đã ghi nhận lịch hẹn và cấp mã phiếu biên nhận điện tử cho máy của quý khách.
                 </p>
               </div>
 
               {/* Ticket Card Preview */}
-              <div className="max-w-md mx-auto p-4 rounded-2xl bg-[#0a0f1d] border border-amber-500/30 text-left space-y-3 font-mono text-xs shadow-xl">
-                <div className="flex items-center justify-between pb-2 border-b border-white/10">
-                  <span className="text-[10px] text-gray-400 uppercase tracking-wider">Mã Phiếu Tiếp Nhận</span>
-                  <span className="text-sm font-bold text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded border border-amber-500/30">
+              <div className="max-w-md mx-auto p-4 rounded-2xl bg-white border border-amber-300 text-left space-y-3 font-mono text-xs shadow-md">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                  <span className="text-[10px] text-slate-500 uppercase tracking-wider font-sans font-bold">Mã Phiếu Tiếp Nhận</span>
+                  <span className="text-sm font-bold text-amber-800 bg-amber-100 px-2.5 py-0.5 rounded border border-amber-300">
                     {createdTicketCode}
                   </span>
                 </div>
-                <div className="space-y-1 text-gray-300">
-                  <p><span className="text-gray-500">Khách hàng:</span> <strong className="text-white">{bookingForm.name}</strong> ({bookingForm.phone})</p>
-                  <p><span className="text-gray-500">Thiết bị:</span> <strong className="text-cyan-400">{bookingForm.model}</strong></p>
-                  <p><span className="text-gray-500">Dịch vụ:</span> {bookingForm.service}</p>
-                  <p><span className="text-gray-500">Khung giờ hẹn:</span> <strong className="text-amber-300">{bookingForm.time} • Ngày {bookingForm.date}</strong></p>
+                <div className="space-y-1.5 text-slate-700 font-sans">
+                  <p><span className="text-slate-500 font-medium">Khách hàng:</span> <strong className="text-slate-900 font-bold">{bookingForm.name}</strong> ({bookingForm.phone})</p>
+                  <p><span className="text-slate-500 font-medium">Thiết bị:</span> <strong className="text-blue-700 font-bold">{bookingForm.model}</strong></p>
+                  <p><span className="text-slate-500 font-medium">Dịch vụ:</span> <strong className="text-slate-800">{bookingForm.service}</strong></p>
+                  <p><span className="text-slate-500 font-medium">Khung giờ hẹn:</span> <strong className="text-amber-800 font-bold">{bookingForm.time} • Ngày {bookingForm.date}</strong></p>
                 </div>
               </div>
 
               <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
                 <Link
                   href={`/repair/tracking?code=${encodeURIComponent(createdTicketCode)}`}
-                  className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition-transform hover:scale-105"
+                  className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-white font-black text-xs flex items-center justify-center gap-2 shadow-md shadow-amber-500/20 transition-transform hover:scale-105"
                 >
                   <Wrench className="w-4 h-4" />
                   <span>Xem Tiến Độ Sửa Chữa (Real-time)</span>
@@ -311,25 +311,25 @@ export default function RepairPriceListPage() {
                 <button
                   type="button"
                   onClick={() => setBookingSuccess(false)}
-                  className="w-full sm:w-auto px-5 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white text-xs font-semibold border border-white/10 transition-colors"
+                  className="w-full sm:w-auto px-5 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 text-xs font-bold border border-slate-200 transition-colors"
                 >
                   Đặt thêm lịch khác
                 </button>
               </div>
             </div>
           ) : !customerUser ? (
-            <div className="p-6 sm:p-8 rounded-3xl bg-amber-500/10 border border-amber-500/30 text-center space-y-5 animate-in fade-in">
-              <div className="w-14 h-14 rounded-2xl bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center justify-center mx-auto shadow-lg">
+            <div className="p-6 sm:p-8 rounded-3xl bg-amber-50/80 border border-amber-200 text-center space-y-5 animate-in fade-in">
+              <div className="w-14 h-14 rounded-2xl bg-amber-100 text-amber-700 border border-amber-300 flex items-center justify-center mx-auto shadow-sm">
                 <Lock className="w-7 h-7" />
               </div>
               <div className="space-y-1">
-                <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-300">
                   YÊU CẦU XÁC THỰC TÀI KHOẢN KHÁCH HÀNG
                 </span>
-                <h3 className="text-xl font-black text-white mt-2">
+                <h3 className="text-xl font-black text-slate-900 mt-2">
                   Xác Thực Để Kích Hoạt Phiếu Sửa Chữa iCare
                 </h3>
-                <p className="text-xs text-gray-300 max-w-md mx-auto">
+                <p className="text-xs text-slate-600 max-w-md mx-auto">
                   Để tự động cấp mã theo dõi thời gian thực và kích hoạt gói bảo hành điện tử chính chủ, quý khách vui lòng xác nhận danh tính thành viên:
                 </p>
               </div>
@@ -337,32 +337,32 @@ export default function RepairPriceListPage() {
               {/* Quick Customer Login Form */}
               <form onSubmit={handleCustomerQuickLogin} className="max-w-md mx-auto space-y-3 text-xs text-left">
                 <div>
-                  <label className="text-gray-300 font-semibold mb-1 block">Họ và tên của bạn *:</label>
+                  <label className="text-slate-700 font-bold mb-1 block">Họ và tên của bạn *:</label>
                   <input
                     type="text"
                     required
                     value={quickLoginName}
                     onChange={(e) => setQuickLoginName(e.target.value)}
                     placeholder="VD: Nguyễn Văn Nam"
-                    className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-amber-400"
+                    className="w-full p-3 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-amber-500 shadow-sm placeholder:text-slate-400"
                   />
                 </div>
                 <div>
-                  <label className="text-gray-300 font-semibold mb-1 block">Số điện thoại liên hệ *:</label>
+                  <label className="text-slate-700 font-bold mb-1 block">Số điện thoại liên hệ *:</label>
                   <input
                     type="tel"
                     required
                     value={quickLoginPhone}
                     onChange={(e) => setQuickLoginPhone(e.target.value)}
                     placeholder="VD: 0909123456"
-                    className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-amber-400"
+                    className="w-full p-3 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-amber-500 shadow-sm placeholder:text-slate-400"
                   />
                 </div>
                 <button
                   type="submit"
-                  className="w-full py-3.5 rounded-xl btn-gold text-xs font-black flex items-center justify-center gap-2 shadow-lg"
+                  className="w-full py-3.5 rounded-xl btn-gold text-xs font-black flex items-center justify-center gap-2 shadow-md"
                 >
-                  <UserCheck className="w-4 h-4 text-black" />
+                  <UserCheck className="w-4 h-4 text-white" />
                   <span>Xác Nhận & Tiếp Tục Đặt Hẹn Lấy Ngay</span>
                 </button>
               </form>
@@ -370,17 +370,17 @@ export default function RepairPriceListPage() {
           ) : (
             <div className="space-y-4">
               {/* Authenticated Customer Banner */}
-              <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2 text-emerald-400">
-                  <UserCheck className="w-4 h-4" />
+              <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2 text-emerald-800 font-medium">
+                  <UserCheck className="w-4 h-4 text-emerald-600" />
                   <span>
-                    Khách hàng: <strong className="text-white">{customerUser.name}</strong> ({customerUser.phone})
+                    Khách hàng: <strong className="text-slate-900 font-bold">{customerUser.name}</strong> ({customerUser.phone})
                   </span>
                 </div>
                 <button
                   type="button"
                   onClick={handleLogoutCustomer}
-                  className="text-gray-400 hover:text-white text-[11px] underline"
+                  className="text-slate-500 hover:text-slate-900 text-[11px] underline font-semibold"
                 >
                   Đổi tài khoản
                 </button>
@@ -389,95 +389,95 @@ export default function RepairPriceListPage() {
               <form onSubmit={handleBooking} className="space-y-4 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-gray-300 font-semibold mb-1 block">Họ và tên của bạn:</label>
+                  <label className="text-slate-700 font-bold mb-1 block">Họ và tên của bạn:</label>
                   <input
                     type="text"
                     required
                     value={bookingForm.name}
                     onChange={(e) => setBookingForm({ ...bookingForm, name: e.target.value })}
                     placeholder="VD: Nguyễn Văn Nam"
-                    className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-blue-500"
+                    className="w-full p-3 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-blue-500 shadow-sm placeholder:text-slate-400"
                   />
                 </div>
                 <div>
-                  <label className="text-gray-300 font-semibold mb-1 block">Số điện thoại liên hệ:</label>
+                  <label className="text-slate-700 font-bold mb-1 block">Số điện thoại liên hệ:</label>
                   <input
                     type="tel"
                     required
                     value={bookingForm.phone}
                     onChange={(e) => setBookingForm({ ...bookingForm, phone: e.target.value })}
                     placeholder="VD: 0909123456"
-                    className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-blue-500"
+                    className="w-full p-3 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-blue-500 shadow-sm placeholder:text-slate-400"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-gray-300 font-semibold mb-1 block">Dòng máy cần sửa:</label>
+                  <label className="text-slate-700 font-bold mb-1 block">Dòng máy cần sửa:</label>
                   <input
                     type="text"
                     required
                     value={bookingForm.model}
                     onChange={(e) => setBookingForm({ ...bookingForm, model: e.target.value })}
                     placeholder="VD: iPhone 15 Pro Max"
-                    className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-blue-500"
+                    className="w-full p-3 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-blue-500 shadow-sm placeholder:text-slate-400"
                   />
                 </div>
                 <div>
-                  <label className="text-gray-300 font-semibold mb-1 block">Dịch vụ cần làm:</label>
+                  <label className="text-slate-700 font-bold mb-1 block">Dịch vụ cần làm:</label>
                   <input
                     type="text"
                     required
                     value={bookingForm.service}
                     onChange={(e) => setBookingForm({ ...bookingForm, service: e.target.value })}
                     placeholder="VD: Thay Pin Pisen / Ép kính"
-                    className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-blue-500"
+                    className="w-full p-3 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-blue-500 shadow-sm placeholder:text-slate-400"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-gray-300 font-semibold mb-1 block">Ngày hẹn mang máy:</label>
+                  <label className="text-slate-700 font-bold mb-1 block">Ngày hẹn mang máy:</label>
                   <input
                     type="date"
                     required
                     value={bookingForm.date}
                     onChange={(e) => setBookingForm({ ...bookingForm, date: e.target.value })}
-                    className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-blue-500"
+                    className="w-full p-3 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-blue-500 shadow-sm"
                   />
                 </div>
                 <div>
-                  <label className="text-gray-300 font-semibold mb-1 block">Khung giờ dự kiến:</label>
+                  <label className="text-slate-700 font-bold mb-1 block">Khung giờ dự kiến:</label>
                   <select
                     value={bookingForm.time}
                     onChange={(e) => setBookingForm({ ...bookingForm, time: e.target.value })}
-                    className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-blue-500"
+                    className="w-full p-3 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-blue-500 shadow-sm"
                   >
-                    <option value="09:00" className="bg-[#121826]">09:00 - Sáng</option>
-                    <option value="10:30" className="bg-[#121826]">10:30 - Sáng</option>
-                    <option value="14:00" className="bg-[#121826]">14:00 - Chiều</option>
-                    <option value="16:00" className="bg-[#121826]">16:00 - Chiều</option>
-                    <option value="18:30" className="bg-[#121826]">18:30 - Tối</option>
+                    <option value="09:00">09:00 - Sáng</option>
+                    <option value="10:30">10:30 - Sáng</option>
+                    <option value="14:00">14:00 - Chiều</option>
+                    <option value="16:00">16:00 - Chiều</option>
+                    <option value="18:30">18:30 - Tối</option>
                   </select>
                 </div>
               </div>
 
               <div>
-                <label className="text-gray-300 font-semibold mb-1 block">Mô tả tình trạng lỗi của máy:</label>
+                <label className="text-slate-700 font-bold mb-1 block">Mô tả tình trạng lỗi của máy:</label>
                 <textarea
                   rows={2}
                   value={bookingForm.notes}
                   onChange={(e) => setBookingForm({ ...bookingForm, notes: e.target.value })}
                   placeholder="VD: Rơi nhẹ bị sọc màn hình, pin tụt nhanh sập nguồn..."
-                  className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-blue-500"
+                  className="w-full p-3 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-blue-500 shadow-sm placeholder:text-slate-400"
                 />
               </div>
 
               <button
                 type="submit"
-                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-bold text-sm shadow-xl shadow-amber-500/20 flex items-center justify-center gap-2 transition-transform hover:scale-[1.01]"
+                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-white font-black text-sm shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 transition-transform hover:scale-[1.01]"
               >
                 <Send className="w-4 h-4" />
                 <span>Xác Nhận Đặt Lịch Sửa Chữa</span>

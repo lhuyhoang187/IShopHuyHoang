@@ -27,9 +27,9 @@ export default function ComparisonFloatingBar() {
   const selectedPhones = phones.filter((p) => compareIds.includes(p.id));
 
   return (
-    <aside aria-label="So sánh sản phẩm" className="fixed bottom-5 left-1/2 -translate-x-1/2 z-40 w-[95%] max-w-2xl bg-[#161f30]/95 backdrop-blur-xl border border-blue-500/30 rounded-2xl shadow-2xl p-3 sm:px-5 flex items-center justify-between gap-3 text-white animate-in slide-in-from-bottom-5 duration-300">
+    <aside aria-label="So sánh sản phẩm" className="fixed bottom-5 left-1/2 -translate-x-1/2 z-40 w-[95%] max-w-2xl bg-white/95 backdrop-blur-xl border border-slate-200 rounded-2xl shadow-2xl p-3 sm:px-5 flex items-center justify-between gap-3 text-slate-800 animate-in slide-in-from-bottom-5 duration-300">
       <div className="flex items-center gap-3 overflow-x-auto py-1">
-        <div className="hidden sm:flex items-center gap-2 text-xs font-semibold text-blue-400 shrink-0">
+        <div className="hidden sm:flex items-center gap-2 text-xs font-bold text-amber-700 shrink-0">
           <Scale className="w-4 h-4" />
           <span>So Sánh ({compareIds.length}/3):</span>
         </div>
@@ -38,17 +38,17 @@ export default function ComparisonFloatingBar() {
           {selectedPhones.map((phone) => (
             <div
               key={phone.id}
-              className="relative flex items-center gap-2 bg-white/10 px-2.5 py-1.5 rounded-xl text-xs border border-white/10 shrink-0"
+              className="relative flex items-center gap-2 bg-slate-100 px-2.5 py-1.5 rounded-xl text-xs border border-slate-200 shrink-0 text-slate-800 shadow-sm"
             >
               <img
                 src={phone.colors[0]?.imageUrl}
                 alt={phone.name}
-                className="w-7 h-7 object-cover rounded"
+                className="w-7 h-7 object-cover rounded bg-white p-0.5 border border-slate-200"
               />
-              <span className="max-w-[100px] truncate font-medium">{phone.name.split(' ')[0]} {phone.name.split(' ')[1]}</span>
+              <span className="max-w-[100px] truncate font-bold text-slate-900">{phone.name.split(' ')[0]} {phone.name.split(' ')[1]}</span>
               <button
                 onClick={() => IShopStore.toggleComparison(phone.id)}
-                className="text-gray-400 hover:text-red-400 p-0.5"
+                className="text-slate-400 hover:text-rose-600 p-0.5 transition-colors cursor-pointer"
                 title="Bỏ chọn"
               >
                 <X className="w-3.5 h-3.5" />
@@ -61,16 +61,16 @@ export default function ComparisonFloatingBar() {
       <div className="flex items-center gap-2 shrink-0">
         <button
           onClick={() => IShopStore.clearComparison()}
-          className="text-xs text-gray-400 hover:text-white px-2 py-1"
+          className="text-xs text-slate-500 hover:text-slate-800 px-2.5 py-1 font-medium cursor-pointer"
         >
           Xóa
         </button>
         <Link
           href="/compare"
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs transition-colors shadow-md shadow-blue-600/30"
+          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 hover:bg-black text-white font-bold text-xs transition-all shadow-md hover:scale-105"
         >
           <span>So sánh ngay</span>
-          <ArrowRight className="w-3.5 h-3.5" />
+          <ArrowRight className="w-3.5 h-3.5 text-amber-400" />
         </Link>
       </div>
     </aside>

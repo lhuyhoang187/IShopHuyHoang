@@ -59,8 +59,8 @@ export default function PhoneDetailPage() {
   if (!phone || !selectedColor || !selectedCapacity) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-24 text-center">
-        <h2 className="text-xl font-bold text-white mb-2">Đang tải thông tin sản phẩm...</h2>
-        <Link href="/phones" className="text-sm text-cyan-400 hover:underline">
+        <h2 className="text-xl font-bold text-slate-900 mb-2">Đang tải thông tin sản phẩm...</h2>
+        <Link href="/phones" className="text-sm text-blue-600 hover:underline font-bold">
           Quay lại danh sách điện thoại
         </Link>
       </div>
@@ -120,12 +120,12 @@ export default function PhoneDetailPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
       {/* Breadcrumb */}
-      <nav className="text-xs text-gray-400 flex items-center gap-2">
-        <Link href="/" className="hover:text-white transition-colors">Trang chủ</Link>
-        <ChevronRight className="w-3 h-3 text-gray-600" />
-        <Link href="/phones" className="hover:text-white transition-colors">Điện thoại</Link>
-        <ChevronRight className="w-3 h-3 text-gray-600" />
-        <span className="text-amber-400 font-semibold truncate">{phone.name}</span>
+      <nav className="text-xs text-slate-500 flex items-center gap-2">
+        <Link href="/" className="hover:text-slate-900 transition-colors">Trang chủ</Link>
+        <ChevronRight className="w-3 h-3 text-slate-400" />
+        <Link href="/phones" className="hover:text-slate-900 transition-colors">Điện thoại</Link>
+        <ChevronRight className="w-3 h-3 text-slate-400" />
+        <span className="text-amber-700 font-bold truncate">{phone.name}</span>
       </nav>
 
       {/* Main Product Layout with Ambient Lighting */}
@@ -134,18 +134,18 @@ export default function PhoneDetailPage() {
         <div className="lg:col-span-6 space-y-5">
           <div
             style={{
-              boxShadow: `0 0 70px 0px ${selectedColor.hex}33`,
+              boxShadow: `0 10px 40px -10px ${selectedColor.hex}33`,
             }}
-            className="glass-card rounded-3xl p-6 sm:p-8 border-white/[0.12] text-center relative overflow-hidden bg-[#0a0e1a]/80 backdrop-blur-2xl transition-all duration-500"
+            className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 text-center relative overflow-hidden shadow-lg transition-all duration-500"
           >
             <div className="absolute top-4 left-4 z-10">
-              <span className="px-3.5 py-1 rounded-full text-xs font-black badge-glow-gold">
+              <span className="px-3.5 py-1 rounded-full text-xs font-black bg-amber-100 text-amber-900 border border-amber-300 shadow-sm">
                 100% NGUYÊN SEAL
               </span>
             </div>
 
             {/* Product Active Image */}
-            <div className="relative aspect-square max-w-md mx-auto rounded-3xl overflow-hidden my-4 bg-gradient-to-b from-[#0f172a]/80 to-[#070a12]/80 p-6 flex items-center justify-center">
+            <div className="relative aspect-square max-w-md mx-auto rounded-3xl overflow-hidden my-4 bg-gradient-to-b from-slate-100 to-slate-200/80 border border-slate-200 p-6 flex items-center justify-center">
               <img
                 key={selectedColor.imageUrl}
                 src={selectedColor.imageUrl}
@@ -154,9 +154,9 @@ export default function PhoneDetailPage() {
               />
             </div>
 
-            <div className="text-xs text-gray-400 flex items-center justify-center gap-2">
+            <div className="text-xs text-slate-500 flex items-center justify-center gap-2">
               <span>Đang xem phiên bản màu:</span>
-              <strong className="text-amber-300 font-bold">{selectedColor.name}</strong>
+              <strong className="text-amber-800 font-bold">{selectedColor.name}</strong>
             </div>
           </div>
 
@@ -168,15 +168,15 @@ export default function PhoneDetailPage() {
                 onClick={() => setSelectedColor(c)}
                 className={`p-2.5 rounded-2xl border text-center transition-all ${
                   selectedColor.id === c.id
-                    ? 'border-amber-400 bg-amber-500/15 shadow-[0_0_15px_rgba(226,183,116,0.3)] scale-[1.03]'
-                    : 'border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06]'
+                    ? 'border-amber-500 bg-amber-50 text-slate-900 shadow-sm scale-[1.03]'
+                    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                 }`}
               >
                 <div
                   style={{ backgroundColor: c.hex }}
-                  className="w-6 h-6 rounded-full mx-auto mb-1.5 border border-white/40 shadow-sm"
+                  className="w-6 h-6 rounded-full mx-auto mb-1.5 border border-slate-300 shadow-sm"
                 />
-                <span className="text-[11px] text-gray-300 font-semibold block truncate">
+                <span className="text-[11px] font-bold block truncate">
                   {c.name.split(' ')[0]}
                 </span>
               </button>
@@ -184,21 +184,21 @@ export default function PhoneDetailPage() {
           </div>
 
           {/* Value Commitments */}
-          <div className="grid grid-cols-3 gap-3 pt-2 text-center text-xs text-gray-300">
-            <div className="glass-card p-3.5 rounded-2xl border-white/[0.06]">
-              <ShieldCheck className="w-5 h-5 mx-auto text-amber-400 mb-1" />
-              <span className="font-bold block text-white">Bảo Hành 12T</span>
-              <span className="text-[10px] text-gray-400">Apple AAR Chuẩn</span>
+          <div className="grid grid-cols-3 gap-3 pt-2 text-center text-xs">
+            <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm">
+              <ShieldCheck className="w-5 h-5 mx-auto text-amber-600 mb-1" />
+              <span className="font-bold block text-slate-900">Bảo Hành 12T</span>
+              <span className="text-[10px] text-slate-500">Apple AAR Chuẩn</span>
             </div>
-            <div className="glass-card p-3.5 rounded-2xl border-white/[0.06]">
-              <RotateCcw className="w-5 h-5 mx-auto text-emerald-400 mb-1" />
-              <span className="font-bold block text-white">1 Đổi 1 30 Ngày</span>
-              <span className="text-[10px] text-gray-400">Lỗi là đổi mới</span>
+            <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm">
+              <RotateCcw className="w-5 h-5 mx-auto text-emerald-600 mb-1" />
+              <span className="font-bold block text-slate-900">1 Đổi 1 30 Ngày</span>
+              <span className="text-[10px] text-slate-500">Lỗi là đổi mới</span>
             </div>
-            <div className="glass-card p-3.5 rounded-2xl border-white/[0.06]">
-              <Truck className="w-5 h-5 mx-auto text-cyan-400 mb-1" />
-              <span className="font-bold block text-white">Giao 1 Giờ</span>
-              <span className="text-[10px] text-gray-400">Hỏa tốc TP.HCM</span>
+            <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm">
+              <Truck className="w-5 h-5 mx-auto text-blue-600 mb-1" />
+              <span className="font-bold block text-slate-900">Giao 1 Giờ</span>
+              <span className="text-[10px] text-slate-500">Hỏa tốc TP.HCM</span>
             </div>
           </div>
         </div>
@@ -206,41 +206,41 @@ export default function PhoneDetailPage() {
         {/* Right Column: Configuration & Purchase */}
         <div className="lg:col-span-6 space-y-6">
           <div>
-            <span className="text-xs uppercase tracking-widest text-amber-400 font-bold">
+            <span className="text-xs uppercase tracking-widest text-amber-700 font-bold">
               Hãng {phone.brand} • Phân Phối Chính Ngạch
             </span>
-            <h1 className="text-3xl sm:text-4xl font-black text-white mt-1 leading-tight">
+            <h1 className="text-3xl sm:text-4xl font-black text-slate-900 mt-1 leading-tight">
               {phone.name}
             </h1>
-            <p className="text-xs text-gray-400 mt-1 font-mono">
+            <p className="text-xs text-slate-500 mt-1 font-mono">
               Model: {phone.slug.toUpperCase()} • Quản lý theo từng số IMEI trong kho
             </p>
           </div>
 
           {/* Luxury Pricing Box */}
-          <div className="glass-panel p-5 sm:p-6 rounded-3xl border-amber-500/30 bg-gradient-to-r from-amber-500/[0.1] to-transparent flex items-baseline justify-between shadow-xl">
+          <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-white p-5 sm:p-6 rounded-3xl border border-amber-200 flex items-baseline justify-between shadow-md">
             <div>
-              <span className="text-xs text-gray-400 line-through block">
+              <span className="text-xs text-slate-400 line-through block font-medium">
                 {formatVND(selectedCapacity.originalPrice)}
               </span>
-              <span className="text-3xl sm:text-4xl font-black text-amber-400">
+              <span className="text-3xl sm:text-4xl font-black text-amber-700">
                 {formatVND(finalPrice)}
               </span>
             </div>
             <div className="text-right">
-              <span className="px-3 py-1 rounded-full text-xs font-black bg-red-500/20 text-red-300 border border-red-500/30 shadow-sm">
+              <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-200 shadow-sm">
                 Tiết kiệm {formatVND(selectedCapacity.originalPrice - selectedCapacity.price)}
               </span>
-              <div className="text-[11px] text-emerald-400 mt-2 flex items-center gap-1.5 justify-end font-semibold">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              <div className="text-[11px] text-emerald-700 mt-2 flex items-center gap-1.5 justify-end font-bold">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
                 <span>Còn {availableStockCount > 0 ? `${availableStockCount} máy sẵn IMEI` : 'Sẵn hàng kích hoạt'}</span>
               </div>
             </div>
           </div>
 
-          {/* Storage selector with 2026 Card Pills */}
+          {/* Storage selector */}
           <div className="space-y-2.5">
-            <label className="text-xs font-extrabold text-gray-200 uppercase tracking-wider block">
+            <label className="text-xs font-extrabold text-slate-800 uppercase tracking-wider block">
               1. Chọn Dung Lượng Bộ Nhớ:
             </label>
             <div className="grid grid-cols-3 gap-3">
@@ -253,16 +253,16 @@ export default function PhoneDetailPage() {
                     onClick={() => setSelectedCapacity(cap)}
                     className={`p-3.5 rounded-2xl border text-left transition-all ${
                       isSelected
-                        ? 'border-amber-400 bg-amber-500/15 text-white shadow-lg shadow-amber-500/20 scale-[1.02]'
-                        : 'border-white/[0.08] bg-white/[0.03] text-gray-300 hover:bg-white/[0.07]'
+                        ? 'border-amber-500 bg-amber-50 text-slate-900 shadow-sm scale-[1.02]'
+                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                     }`}
                   >
                     <div className="font-black text-base">{cap.size}</div>
-                    <div className="text-xs text-amber-400 font-bold mt-0.5">
+                    <div className="text-xs text-amber-700 font-black mt-0.5">
                       {formatVND(cap.price)}
                     </div>
                     {diff > 0 && (
-                      <div className="text-[10px] text-gray-400 mt-0.5 font-medium">
+                      <div className="text-[10px] text-slate-500 mt-0.5 font-medium">
                         +{formatVND(diff)}
                       </div>
                     )}
@@ -274,7 +274,7 @@ export default function PhoneDetailPage() {
 
           {/* Color selector */}
           <div className="space-y-2.5">
-            <label className="text-xs font-extrabold text-gray-200 uppercase tracking-wider block">
+            <label className="text-xs font-extrabold text-slate-800 uppercase tracking-wider block">
               2. Chọn Màu Sắc Máy:
             </label>
             <div className="grid grid-cols-2 gap-2.5">
@@ -286,13 +286,13 @@ export default function PhoneDetailPage() {
                     onClick={() => setSelectedColor(c)}
                     className={`p-3 rounded-2xl border flex items-center gap-2.5 text-xs font-bold transition-all ${
                       isSelected
-                        ? 'border-amber-400 bg-amber-500/15 text-white shadow-sm'
-                        : 'border-white/[0.08] bg-white/[0.03] text-gray-300 hover:bg-white/[0.07]'
+                        ? 'border-amber-500 bg-amber-50 text-slate-900 shadow-sm'
+                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                     }`}
                   >
                     <div
                       style={{ backgroundColor: c.hex }}
-                      className="w-4 h-4 rounded-full border border-white/40 shrink-0"
+                      className="w-4 h-4 rounded-full border border-slate-300 shrink-0"
                     />
                     <span className="truncate">{c.name}</span>
                   </button>
@@ -303,8 +303,8 @@ export default function PhoneDetailPage() {
 
           {/* Combo accessory deals */}
           <div className="space-y-2.5 pt-2">
-            <label className="text-xs font-extrabold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5" />
+            <label className="text-xs font-extrabold text-emerald-800 uppercase tracking-wider flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
               <span>Ưu Đãi Mua Kèm Máy (Giảm 15%):</span>
             </label>
 
@@ -319,16 +319,16 @@ export default function PhoneDetailPage() {
                     onClick={() => toggleCombo(combo.id)}
                     className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 cursor-pointer transition-all ${
                       isChecked
-                        ? 'border-emerald-500 bg-emerald-500/15 shadow-[0_0_15px_rgba(16,185,129,0.15)]'
-                        : 'border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.06]'
+                        ? 'border-emerald-500 bg-emerald-50/80 shadow-sm'
+                        : 'border-slate-200 bg-white hover:bg-slate-50 shadow-sm'
                     }`}
                   >
                     <div className="flex items-center gap-3">
                       <div
                         className={`w-5 h-5 rounded-lg border flex items-center justify-center shrink-0 ${
                           isChecked
-                            ? 'bg-emerald-500 border-emerald-500 text-black font-black'
-                            : 'border-white/30'
+                            ? 'bg-emerald-600 border-emerald-600 text-white font-black'
+                            : 'border-slate-300'
                         }`}
                       >
                         {isChecked && <Check className="w-3.5 h-3.5 stroke-[3]" />}
@@ -336,21 +336,21 @@ export default function PhoneDetailPage() {
                       <img
                         src={combo.imageUrl}
                         alt={combo.name}
-                        className="w-10 h-10 object-contain rounded-xl bg-black/40 p-1"
+                        className="w-10 h-10 object-contain rounded-xl bg-gradient-to-b from-slate-100 to-slate-200 border border-slate-200 p-1"
                       />
                       <div>
-                        <h4 className="text-xs font-bold text-white line-clamp-1">
+                        <h4 className="text-xs font-bold text-slate-900 line-clamp-1">
                           {combo.name}
                         </h4>
-                        <span className="text-[11px] text-gray-400">{combo.brand}</span>
+                        <span className="text-[11px] text-slate-500">{combo.brand}</span>
                       </div>
                     </div>
 
                     <div className="text-right shrink-0">
-                      <span className="text-[10px] text-gray-500 line-through block">
+                      <span className="text-[10px] text-slate-400 line-through block font-medium">
                         {formatVND(combo.sellingPrice)}
                       </span>
-                      <span className="text-xs font-black text-emerald-400">
+                      <span className="text-xs font-black text-emerald-700">
                         +{formatVND(discounted)}
                       </span>
                     </div>
@@ -366,16 +366,16 @@ export default function PhoneDetailPage() {
               {/* Buy now with VietQR */}
               <button
                 onClick={() => setIsVietQROpen(true)}
-                className="btn-gold w-full py-4 px-4 rounded-2xl text-sm font-black flex items-center justify-center gap-2"
+                className="btn-gold w-full py-4 px-4 rounded-2xl text-sm font-black flex items-center justify-center gap-2 shadow-md"
               >
-                <Zap className="w-4 h-4 text-black fill-current" />
+                <Zap className="w-4 h-4 text-white fill-current" />
                 <span>MUA NGAY (VIETQR 247)</span>
               </button>
 
               {/* Add to Cart */}
               <button
                 onClick={handleAddToCart}
-                className="w-full py-4 px-4 rounded-2xl bg-white/[0.07] hover:bg-white/[0.12] text-white font-bold text-sm border border-white/15 flex items-center justify-center gap-2 transition-all shadow-sm"
+                className="w-full py-4 px-4 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm shadow-md flex items-center justify-center gap-2 transition-all"
               >
                 <ShoppingCart className="w-4 h-4 text-amber-300" />
                 <span>Thêm Vào Giỏ Hàng</span>
@@ -385,10 +385,10 @@ export default function PhoneDetailPage() {
             {/* Compare button */}
             <button
               onClick={() => IShopStore.toggleComparison(phone.id)}
-              className={`w-full py-3 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 border transition-all ${
+              className={`w-full py-3 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 border transition-all shadow-sm ${
                 isComparing
-                  ? 'border-cyan-400 bg-cyan-500/20 text-cyan-300 shadow-sm'
-                  : 'border-white/[0.08] bg-white/[0.03] text-gray-300 hover:bg-white/[0.08]'
+                  ? 'border-sky-400 bg-sky-50 text-sky-800 shadow-sm'
+                  : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
               }`}
             >
               <Scale className="w-4 h-4" />
@@ -401,7 +401,7 @@ export default function PhoneDetailPage() {
 
             {/* Toast feedback */}
             {addedToast && (
-              <div className="p-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-xs font-bold rounded-2xl text-center shadow-xl animate-in fade-in duration-200">
+              <div className="p-3.5 bg-emerald-600 text-white text-xs font-bold rounded-2xl text-center shadow-lg animate-in fade-in duration-200">
                 ✓ Đã thêm {phone.name} ({selectedCapacity.size}) vào giỏ hàng thành công!
               </div>
             )}
@@ -410,58 +410,58 @@ export default function PhoneDetailPage() {
       </div>
 
       {/* Specifications Sheet Table */}
-      <section className="glass-panel rounded-3xl p-7 sm:p-9 border-white/[0.1] space-y-6">
-        <div className="flex items-center gap-2.5 pb-4 border-b border-white/[0.08]">
-          <Layers className="w-5 h-5 text-amber-400" />
-          <h2 className="text-xl font-black text-white">
+      <section className="bg-white rounded-3xl p-7 sm:p-9 border border-slate-200 shadow-md space-y-6">
+        <div className="flex items-center gap-2.5 pb-4 border-b border-slate-100">
+          <Layers className="w-5 h-5 text-amber-600" />
+          <h2 className="text-xl font-black text-slate-900">
             Bảng Thông Số Kỹ Thuật Chi Tiết
           </h2>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
           <div className="space-y-3">
-            <div className="flex justify-between p-3.5 rounded-2xl bg-white/[0.02] border border-white/5">
-              <span className="text-gray-400">Màn hình:</span>
-              <span className="font-bold text-white text-right max-w-[60%]">{phone.specs.screen}</span>
+            <div className="flex justify-between p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
+              <span className="text-slate-500 font-medium">Màn hình:</span>
+              <span className="font-bold text-slate-900 text-right max-w-[60%]">{phone.specs.screen}</span>
             </div>
-            <div className="flex justify-between p-3.5 rounded-2xl bg-white/[0.02] border border-white/5">
-              <span className="text-gray-400">Vi xử lý (CPU):</span>
-              <span className="font-bold text-white text-right max-w-[60%]">{phone.specs.chip}</span>
+            <div className="flex justify-between p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
+              <span className="text-slate-500 font-medium">Vi xử lý (CPU):</span>
+              <span className="font-bold text-slate-900 text-right max-w-[60%]">{phone.specs.chip}</span>
             </div>
-            <div className="flex justify-between p-3.5 rounded-2xl bg-white/[0.02] border border-white/5">
-              <span className="text-gray-400">Bộ nhớ RAM:</span>
-              <span className="font-bold text-white text-right">{phone.specs.ram}</span>
+            <div className="flex justify-between p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
+              <span className="text-slate-500 font-medium">Bộ nhớ RAM:</span>
+              <span className="font-bold text-slate-900 text-right">{phone.specs.ram}</span>
             </div>
-            <div className="flex justify-between p-3.5 rounded-2xl bg-white/[0.02] border border-white/5">
-              <span className="text-gray-400">Bộ nhớ trong:</span>
-              <span className="font-bold text-white text-right">{phone.specs.storage}</span>
+            <div className="flex justify-between p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
+              <span className="text-slate-500 font-medium">Bộ nhớ trong:</span>
+              <span className="font-bold text-slate-900 text-right">{phone.specs.storage}</span>
             </div>
-            <div className="flex justify-between p-3.5 rounded-2xl bg-white/[0.02] border border-white/5">
-              <span className="text-gray-400">Hệ điều hành:</span>
-              <span className="font-bold text-white text-right">{phone.specs.os}</span>
+            <div className="flex justify-between p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
+              <span className="text-slate-500 font-medium">Hệ điều hành:</span>
+              <span className="font-bold text-slate-900 text-right">{phone.specs.os}</span>
             </div>
           </div>
 
           <div className="space-y-3">
-            <div className="flex justify-between p-3.5 rounded-2xl bg-white/[0.02] border border-white/5">
-              <span className="text-gray-400">Camera sau:</span>
-              <span className="font-bold text-white text-right max-w-[60%]">{phone.specs.rearCamera}</span>
+            <div className="flex justify-between p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
+              <span className="text-slate-500 font-medium">Camera sau:</span>
+              <span className="font-bold text-slate-900 text-right max-w-[60%]">{phone.specs.rearCamera}</span>
             </div>
-            <div className="flex justify-between p-3.5 rounded-2xl bg-white/[0.02] border border-white/5">
-              <span className="text-gray-400">Camera trước:</span>
-              <span className="font-bold text-white text-right max-w-[60%]">{phone.specs.frontCamera}</span>
+            <div className="flex justify-between p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
+              <span className="text-slate-500 font-medium">Camera trước:</span>
+              <span className="font-bold text-slate-900 text-right max-w-[60%]">{phone.specs.frontCamera}</span>
             </div>
-            <div className="flex justify-between p-3.5 rounded-2xl bg-white/[0.02] border border-white/5">
-              <span className="text-gray-400">Dung lượng pin:</span>
-              <span className="font-bold text-white text-right max-w-[60%]">{phone.specs.battery}</span>
+            <div className="flex justify-between p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
+              <span className="text-slate-500 font-medium">Dung lượng pin:</span>
+              <span className="font-bold text-slate-900 text-right max-w-[60%]">{phone.specs.battery}</span>
             </div>
-            <div className="flex justify-between p-3.5 rounded-2xl bg-white/[0.02] border border-white/5">
-              <span className="text-gray-400">Công nghệ sạc:</span>
-              <span className="font-bold text-white text-right max-w-[60%]">{phone.specs.charging}</span>
+            <div className="flex justify-between p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
+              <span className="text-slate-500 font-medium">Công nghệ sạc:</span>
+              <span className="font-bold text-slate-900 text-right max-w-[60%]">{phone.specs.charging}</span>
             </div>
-            <div className="flex justify-between p-3.5 rounded-2xl bg-white/[0.02] border border-white/5">
-              <span className="text-gray-400">Kháng nước & bụi:</span>
-              <span className="font-bold text-white text-right">{phone.specs.waterResistant}</span>
+            <div className="flex justify-between p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
+              <span className="text-slate-500 font-medium">Kháng nước & bụi:</span>
+              <span className="font-bold text-slate-900 text-right">{phone.specs.waterResistant}</span>
             </div>
           </div>
         </div>

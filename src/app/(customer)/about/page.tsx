@@ -72,38 +72,38 @@ export default function AboutPage() {
   ];
 
   return (
-    <div className="min-h-screen text-white pt-24 pb-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-24">
+    <div className="min-h-screen text-slate-800 pt-24 pb-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-24">
       {/* 1. HERO BANNER: CÂU CHUYỆN THƯƠNG HIỆU */}
-      <section className="relative rounded-[2.5rem] overflow-hidden p-8 sm:p-16 border border-white/10 shadow-2xl bg-gradient-to-b from-[#0e162e] via-[#090e1c] to-[#060810]">
+      <section className="relative rounded-[2.5rem] overflow-hidden p-8 sm:p-16 border border-amber-300/80 shadow-xl bg-gradient-to-br from-white via-amber-50/40 to-orange-50/20">
         {/* Background Ambient Glow */}
-        <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/15 rounded-full blur-[140px] pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-cyan-500/15 rounded-full blur-[140px] pointer-events-none" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/10 rounded-full blur-[140px] pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-cyan-500/10 rounded-full blur-[140px] pointer-events-none" />
 
         <div className="relative z-10 max-w-4xl space-y-6">
-          <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-white/5 border border-amber-500/30 text-xs sm:text-sm text-amber-300 font-bold backdrop-blur-md">
-            <Building2 className="w-4 h-4 text-amber-400" />
+          <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-amber-50 border border-amber-300 text-xs sm:text-sm text-amber-900 font-bold backdrop-blur-md shadow-sm">
+            <Building2 className="w-4 h-4 text-amber-600" />
             <span>CÂU CHUYỆN THƯƠNG HIỆU • HÀNH TRÌNH 10 NĂM UY TÍN</span>
           </div>
 
-          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight leading-[1.1]">
+          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight leading-[1.1] text-slate-900">
             Kiến Tạo Chuẩn Mực <br />
-            <span className="text-gradient-gold">Bán Lẻ & Dịch Vụ Apple 2026</span>
+            <span className="text-gradient-gold">Bán Lẻ &amp; Dịch Vụ Apple 2026</span>
           </h1>
 
-          <p className="text-base sm:text-xl text-gray-300 leading-relaxed font-normal max-w-3xl">
-            Được thành lập từ năm 2016 tại TP. Hồ Chí Minh, <strong className="text-white font-bold">iShop Huy Hoàng</strong> đã phục vụ hơn 50.000 khách hàng với tôn chỉ: <span className="text-white font-semibold">"Sản phẩm chuẩn mực, kỹ thuật minh bạch và dịch vụ tận tâm"</span>. Chúng tôi không chỉ bán một chiếc iPhone, chúng tôi trao gửi sự an tâm tuyệt đối trong suốt vòng đời sử dụng máy.
+          <p className="text-base sm:text-xl text-slate-600 leading-relaxed font-normal max-w-3xl">
+            Được thành lập từ năm 2016 tại TP. Hồ Chí Minh, <strong className="text-slate-900 font-bold">iShop Huy Hoàng</strong> đã phục vụ hơn 50.000 khách hàng với tôn chỉ: <span className="text-slate-900 font-semibold">"Sản phẩm chuẩn mực, kỹ thuật minh bạch và dịch vụ tận tâm"</span>. Chúng tôi không chỉ bán một chiếc iPhone, chúng tôi trao gửi sự an tâm tuyệt đối trong suốt vòng đời sử dụng máy.
           </p>
 
           <div className="flex flex-wrap items-center gap-4 pt-4">
             <Link
               href="/"
-              className="px-8 py-4 rounded-full bg-white text-black font-black text-sm sm:text-base hover:bg-gray-200 transition-all shadow-lg hover:scale-105"
+              className="px-8 py-4 rounded-full bg-slate-900 text-white font-black text-sm sm:text-base hover:bg-black transition-all shadow-lg hover:scale-105"
             >
               Khám Phá iPhone
             </Link>
             <Link
               href="/repair"
-              className="px-8 py-4 rounded-full bg-[#1F1F22] hover:bg-[#2A2A2D] text-white font-bold text-sm sm:text-base border border-white/10 transition-all hover:scale-105"
+              className="px-8 py-4 rounded-full bg-white hover:bg-slate-50 text-slate-800 font-bold text-sm sm:text-base border border-slate-200 transition-all hover:scale-105 shadow-sm"
             >
               Đặt Hẹn Sửa Chữa iCare
             </Link>
@@ -111,23 +111,23 @@ export default function AboutPage() {
         </div>
 
         {/* 3 Stats Highlights */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-16 border-t border-white/10 mt-12">
-          <div className="p-6 rounded-2xl bg-white/[0.04] border border-white/10 backdrop-blur-md text-center sm:text-left">
-            <div className="text-4xl sm:text-5xl font-black text-amber-400">10+ Năm</div>
-            <div className="text-sm text-gray-300 font-semibold mt-1">Phục vụ tận tâm từ 2016</div>
-            <p className="text-xs text-gray-400 mt-2">Hơn một thập kỷ khẳng định thương hiệu uy tín hàng đầu TP.HCM.</p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-16 border-t border-amber-200/80 mt-12">
+          <div className="p-6 rounded-2xl bg-white border border-amber-200/80 shadow-sm backdrop-blur-md text-center sm:text-left">
+            <div className="text-4xl sm:text-5xl font-black text-amber-600">10+ Năm</div>
+            <div className="text-sm text-slate-800 font-semibold mt-1">Phục vụ tận tâm từ 2016</div>
+            <p className="text-xs text-slate-500 mt-2">Hơn một thập kỷ khẳng định thương hiệu uy tín hàng đầu TP.HCM.</p>
           </div>
 
-          <div className="p-6 rounded-2xl bg-white/[0.04] border border-white/10 backdrop-blur-md text-center sm:text-left">
-            <div className="text-4xl sm:text-5xl font-black text-emerald-400">50.000+</div>
-            <div className="text-sm text-gray-300 font-semibold mt-1">Khách hàng tin tưởng</div>
-            <p className="text-xs text-gray-400 mt-2">Phục vụ hàng chục ngàn cá nhân, doanh nghiệp và người sáng tạo nội dung.</p>
+          <div className="p-6 rounded-2xl bg-white border border-amber-200/80 shadow-sm backdrop-blur-md text-center sm:text-left">
+            <div className="text-4xl sm:text-5xl font-black text-emerald-600">50.000+</div>
+            <div className="text-sm text-slate-800 font-semibold mt-1">Khách hàng tin tưởng</div>
+            <p className="text-xs text-slate-500 mt-2">Phục vụ hàng chục ngàn cá nhân, doanh nghiệp và người sáng tạo nội dung.</p>
           </div>
 
-          <div className="p-6 rounded-2xl bg-white/[0.04] border border-white/10 backdrop-blur-md text-center sm:text-left">
-            <div className="text-4xl sm:text-5xl font-black text-cyan-400">99.8%</div>
-            <div className="text-sm text-gray-300 font-semibold mt-1">Đánh giá hài lòng 5 sao</div>
-            <p className="text-xs text-gray-400 mt-2">Chính sách 1 đổi 1 trong 30 ngày và kiểm tra minh bạch trước mắt khách.</p>
+          <div className="p-6 rounded-2xl bg-white border border-amber-200/80 shadow-sm backdrop-blur-md text-center sm:text-left">
+            <div className="text-4xl sm:text-5xl font-black text-blue-600">99.8%</div>
+            <div className="text-sm text-slate-800 font-semibold mt-1">Đánh giá hài lòng 5 sao</div>
+            <p className="text-xs text-slate-500 mt-2">Chính sách 1 đổi 1 trong 30 ngày và kiểm tra minh bạch trước mắt khách.</p>
           </div>
         </div>
       </section>
@@ -135,14 +135,14 @@ export default function AboutPage() {
       {/* 2. BỐN CAM KẾT VÀNG */}
       <section className="space-y-10">
         <div className="text-center max-w-3xl mx-auto space-y-4">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-amber-500/30 text-xs font-bold text-amber-300">
-            <Award className="w-4 h-4 text-amber-400" />
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-50 border border-amber-300 text-xs font-bold text-amber-900 shadow-sm">
+            <Award className="w-4 h-4 text-amber-600" />
             <span>GIÁ TRỊ CỐT LÕI</span>
           </div>
-          <h2 className="text-3xl sm:text-5xl font-black tracking-tight">
+          <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900">
             4 Cam Kết Vàng Làm Nên Thương Hiệu
           </h2>
-          <p className="text-gray-400 text-sm sm:text-base">
+          <p className="text-slate-500 text-sm sm:text-base">
             Mỗi chính sách bán hàng và dịch vụ tại iShop Huy Hoàng đều được thiết kế vì quyền lợi cao nhất của khách hàng.
           </p>
         </div>
@@ -153,13 +153,13 @@ export default function AboutPage() {
             return (
               <div
                 key={idx}
-                className="glass-card rounded-3xl p-8 border-white/10 space-y-4 hover:border-amber-400/50 transition-all hover:scale-[1.02]"
+                className="bg-white rounded-3xl p-8 border border-amber-200/80 shadow-sm hover:shadow-xl space-y-4 hover:border-amber-400/80 transition-all hover:scale-[1.01]"
               >
-                <div className={`w-14 h-14 rounded-2xl bg-gradient-to-tr ${c.color} flex items-center justify-center text-white shadow-lg`}>
+                <div className={`w-14 h-14 rounded-2xl bg-gradient-to-tr ${c.color} flex items-center justify-center text-white shadow-md`}>
                   <Icon className="w-7 h-7" />
                 </div>
-                <h3 className="text-xl sm:text-2xl font-black text-white">{c.title}</h3>
-                <p className="text-gray-300 text-sm sm:text-base leading-relaxed">{c.desc}</p>
+                <h3 className="text-xl sm:text-2xl font-black text-slate-900">{c.title}</h3>
+                <p className="text-slate-600 text-sm sm:text-base leading-relaxed">{c.desc}</p>
               </div>
             );
           })}
@@ -169,24 +169,24 @@ export default function AboutPage() {
       {/* 3. LỊCH SỬ PHÁT TRIỂN (TIMELINE 2016 - 2026) */}
       <section className="space-y-12">
         <div className="text-center max-w-2xl mx-auto space-y-3">
-          <h2 className="text-3xl sm:text-4xl font-black tracking-tight">
+          <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-slate-900">
             Hành Trình 10 Năm Phát Triển
           </h2>
-          <p className="text-gray-400 text-sm sm:text-base">
+          <p className="text-slate-500 text-sm sm:text-base">
             Từng bước nỗ lực hoàn thiện để trở thành hệ thống bán lẻ và sửa chữa Apple được yêu thích nhất.
           </p>
         </div>
 
-        <div className="relative border-l-2 border-amber-500/40 ml-4 sm:ml-32 space-y-12 pl-6 sm:pl-10">
+        <div className="relative border-l-2 border-amber-400 ml-4 sm:ml-32 space-y-12 pl-6 sm:pl-10">
           {milestones.map((m, idx) => (
             <div key={idx} className="relative group">
               {/* Dot */}
-              <div className="absolute -left-[31px] sm:-left-[47px] top-1.5 w-5 h-5 rounded-full bg-amber-400 border-4 border-black group-hover:scale-125 transition-transform shadow-[0_0_15px_rgba(226,183,116,0.8)]" />
+              <div className="absolute -left-[31px] sm:-left-[47px] top-1.5 w-5 h-5 rounded-full bg-amber-500 border-4 border-white group-hover:scale-125 transition-transform shadow-md" />
 
-              <div className="glass-panel rounded-2xl p-6 border-white/10 space-y-2 hover:border-amber-400/50 transition-all">
-                <div className="text-sm font-black text-amber-400 font-mono tracking-wider">{m.year}</div>
-                <h4 className="text-xl font-bold text-white">{m.title}</h4>
-                <p className="text-gray-300 text-sm leading-relaxed">{m.desc}</p>
+              <div className="bg-white rounded-2xl p-6 border border-amber-200/80 shadow-sm space-y-2 hover:border-amber-400/80 hover:shadow-md transition-all">
+                <div className="text-sm font-black text-amber-600 font-mono tracking-wider">{m.year}</div>
+                <h4 className="text-xl font-bold text-slate-900">{m.title}</h4>
+                <p className="text-slate-600 text-sm leading-relaxed">{m.desc}</p>
               </div>
             </div>
           ))}
@@ -196,49 +196,49 @@ export default function AboutPage() {
       {/* 4. HỆ THỐNG SHOWROOM TRẢI NGHIỆM TẠI TP.HCM */}
       <section className="space-y-10">
         <div className="text-center max-w-3xl mx-auto space-y-4">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-cyan-500/30 text-xs font-bold text-cyan-300">
-            <MapPin className="w-4 h-4 text-cyan-400" />
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-xs font-bold text-blue-800 shadow-sm">
+            <MapPin className="w-4 h-4 text-blue-600" />
             <span>ĐỊA ĐIỂM SHOWROOM</span>
           </div>
-          <h2 className="text-3xl sm:text-5xl font-black tracking-tight">
+          <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900">
             Trải Nghiệm Trực Tiếp Tại Showroom
           </h2>
-          <p className="text-gray-400 text-sm sm:text-base">
+          <p className="text-slate-500 text-sm sm:text-base">
             Không gian trải nghiệm máy lạnh chuẩn quốc tế, trang bị đầy đủ máy mẫu trải nghiệm và khu vực iCare Desk sửa chữa xem trực tiếp.
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {/* Showroom 1 */}
-          <div className="glass-panel rounded-3xl p-8 border-white/10 space-y-6 hover:border-amber-400/40 transition-all">
+          <div className="bg-white rounded-3xl p-8 border border-amber-200/80 shadow-sm hover:shadow-xl space-y-6 hover:border-amber-400/80 transition-all">
             <div className="flex items-center justify-between">
-              <span className="px-3.5 py-1.5 rounded-full bg-amber-500/20 text-amber-300 font-black text-xs border border-amber-500/30">
+              <span className="px-3.5 py-1.5 rounded-full bg-amber-100 text-amber-800 font-black text-xs border border-amber-300">
                 Chi Nhánh 1 (Quận 10)
               </span>
-              <span className="flex items-center gap-2 text-emerald-400 text-xs font-bold">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              <span className="flex items-center gap-2 text-emerald-600 text-xs font-bold">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
                 Đang mở cửa
               </span>
             </div>
 
             <div>
-              <h3 className="text-2xl font-black text-white">iShop Huy Hoàng - Đường 3/2</h3>
-              <p className="text-gray-300 text-sm mt-2 leading-relaxed">
+              <h3 className="text-2xl font-black text-slate-900">iShop Huy Hoàng - Đường 3/2</h3>
+              <p className="text-slate-600 text-sm mt-2 leading-relaxed">
                 Số 168 Đường 3/2, Phường 12, Quận 10, TP. Hồ Chí Minh
               </p>
             </div>
 
-            <div className="space-y-3 pt-4 border-t border-white/10 text-sm text-gray-300">
+            <div className="space-y-3 pt-4 border-t border-slate-200 text-sm text-slate-600">
               <div className="flex items-center gap-3">
-                <Phone className="w-4 h-4 text-amber-400 shrink-0" />
-                <span>Hotline: <strong className="text-white font-mono">0988.888.999</strong> (Phím 1)</span>
+                <Phone className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>Hotline: <strong className="text-slate-900 font-mono">0988.888.999</strong> (Phím 1)</span>
               </div>
               <div className="flex items-center gap-3">
-                <Clock className="w-4 h-4 text-cyan-400 shrink-0" />
-                <span>Giờ mở cửa: 08:30 - 21:30 (Cả Thứ 7 & Chủ Nhật)</span>
+                <Clock className="w-4 h-4 text-blue-600 shrink-0" />
+                <span>Giờ mở cửa: 08:30 - 21:30 (Cả Thứ 7 &amp; Chủ Nhật)</span>
               </div>
               <div className="flex items-center gap-3">
-                <Wrench className="w-4 h-4 text-purple-400 shrink-0" />
+                <Wrench className="w-4 h-4 text-purple-600 shrink-0" />
                 <span>Có phòng kỹ thuật iCare Desk sửa lấy liền 30 phút</span>
               </div>
             </div>
@@ -248,7 +248,7 @@ export default function AboutPage() {
                 href="https://maps.google.com"
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-2 text-sm font-bold text-amber-400 hover:text-amber-300"
+                className="inline-flex items-center gap-2 text-sm font-bold text-amber-700 hover:text-amber-800"
               >
                 <span>Xem bản đồ chỉ đường Google Maps</span>
                 <ArrowRight className="w-4 h-4" />
@@ -257,35 +257,35 @@ export default function AboutPage() {
           </div>
 
           {/* Showroom 2 */}
-          <div className="glass-panel rounded-3xl p-8 border-white/10 space-y-6 hover:border-cyan-400/40 transition-all">
+          <div className="bg-white rounded-3xl p-8 border border-amber-200/80 shadow-sm hover:shadow-xl space-y-6 hover:border-amber-400/80 transition-all">
             <div className="flex items-center justify-between">
-              <span className="px-3.5 py-1.5 rounded-full bg-cyan-500/20 text-cyan-300 font-black text-xs border border-cyan-500/30">
+              <span className="px-3.5 py-1.5 rounded-full bg-blue-100 text-blue-800 font-black text-xs border border-blue-300">
                 Chi Nhánh 2 (TP. Thủ Đức)
               </span>
-              <span className="flex items-center gap-2 text-emerald-400 text-xs font-bold">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              <span className="flex items-center gap-2 text-emerald-600 text-xs font-bold">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
                 Đang mở cửa
               </span>
             </div>
 
             <div>
-              <h3 className="text-2xl font-black text-white">iShop Huy Hoàng - Thủ Đức</h3>
-              <p className="text-gray-300 text-sm mt-2 leading-relaxed">
+              <h3 className="text-2xl font-black text-slate-900">iShop Huy Hoàng - Thủ Đức</h3>
+              <p className="text-slate-600 text-sm mt-2 leading-relaxed">
                 Số 45 Lê Văn Việt, Phường Hiệp Phú, TP. Thủ Đức, TP. Hồ Chí Minh
               </p>
             </div>
 
-            <div className="space-y-3 pt-4 border-t border-white/10 text-sm text-gray-300">
+            <div className="space-y-3 pt-4 border-t border-slate-200 text-sm text-slate-600">
               <div className="flex items-center gap-3">
-                <Phone className="w-4 h-4 text-cyan-400 shrink-0" />
-                <span>Hotline: <strong className="text-white font-mono">0909.123.456</strong> (Phím 2)</span>
+                <Phone className="w-4 h-4 text-blue-600 shrink-0" />
+                <span>Hotline: <strong className="text-slate-900 font-mono">0909.123.456</strong> (Phím 2)</span>
               </div>
               <div className="flex items-center gap-3">
-                <Clock className="w-4 h-4 text-cyan-400 shrink-0" />
-                <span>Giờ mở cửa: 08:30 - 21:30 (Cả Thứ 7 & Chủ Nhật)</span>
+                <Clock className="w-4 h-4 text-blue-600 shrink-0" />
+                <span>Giờ mở cửa: 08:30 - 21:30 (Cả Thứ 7 &amp; Chủ Nhật)</span>
               </div>
               <div className="flex items-center gap-3">
-                <Wrench className="w-4 h-4 text-purple-400 shrink-0" />
+                <Wrench className="w-4 h-4 text-purple-600 shrink-0" />
                 <span>Có bãi đỗ xe ô tô miễn phí và phòng chờ VIP</span>
               </div>
             </div>
@@ -295,7 +295,7 @@ export default function AboutPage() {
                 href="https://maps.google.com"
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-2 text-sm font-bold text-cyan-400 hover:text-cyan-300"
+                className="inline-flex items-center gap-2 text-sm font-bold text-blue-700 hover:text-blue-800"
               >
                 <span>Xem bản đồ chỉ đường Google Maps</span>
                 <ArrowRight className="w-4 h-4" />
@@ -306,24 +306,24 @@ export default function AboutPage() {
       </section>
 
       {/* 5. LIÊN HỆ & TỔNG ĐÀI HỖ TRỢ */}
-      <section className="text-center rounded-3xl p-10 sm:p-16 bg-gradient-to-r from-amber-500/10 via-purple-500/10 to-cyan-500/10 border border-white/10 space-y-6">
-        <h2 className="text-3xl sm:text-4xl font-black text-white">
+      <section className="text-center rounded-3xl p-10 sm:p-16 bg-gradient-to-r from-amber-500/10 via-purple-500/10 to-blue-500/10 border border-slate-200 shadow-sm space-y-6">
+        <h2 className="text-3xl sm:text-4xl font-black text-slate-900">
           Bạn Cần Tư Vấn Thiết Bị Hoặc Đặt Lịch Sửa Chữa?
         </h2>
-        <p className="text-gray-300 max-w-2xl mx-auto text-sm sm:text-base leading-relaxed">
+        <p className="text-slate-600 max-w-2xl mx-auto text-sm sm:text-base leading-relaxed">
           Đội ngũ tư vấn viên và chuyên viên kỹ thuật Apple của iShop Huy Hoàng luôn sẵn sàng hỗ trợ bạn 24/7. Hãy gọi ngay hotline miễn phí cước!
         </p>
 
         <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
           <a
             href="tel:0988888999"
-            className="px-8 py-4 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 text-black font-black text-sm sm:text-base hover:scale-105 transition-all shadow-lg shadow-amber-500/30"
+            className="px-8 py-4 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 text-white font-black text-sm sm:text-base hover:scale-105 transition-all shadow-md shadow-amber-500/20"
           >
             Gọi Ngay: 0988.888.999
           </a>
           <Link
             href="/repair"
-            className="px-8 py-4 rounded-full bg-white/10 hover:bg-white/20 text-white font-bold text-sm sm:text-base border border-white/15 transition-all"
+            className="px-8 py-4 rounded-full bg-white hover:bg-slate-50 text-slate-800 font-bold text-sm sm:text-base border border-slate-200 shadow-sm transition-all"
           >
             Đặt Hẹn Sửa Chữa Online
           </Link>

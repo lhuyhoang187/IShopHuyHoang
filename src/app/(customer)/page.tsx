@@ -38,8 +38,6 @@ import {
 import { IShopStore } from '@/lib/store';
 import { PhoneProduct, AccessoryProduct } from '@/lib/types';
 import { formatVND } from '@/lib/vietqr';
-import ThemeSwitcher from '@/components/common/ThemeSwitcher';
-
 function FadeInUp({
   children,
   delay = 0,
@@ -167,7 +165,7 @@ export default function CustomerHomePage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
 
-  const videoUrl = 'https://cdn.sceneai.art/Hero%20Section%20Video/50b4f304-cdca-4e12-8735-580d225834be.mp4';
+  const videoUrl = 'https://cdn.sceneai.art/Hero%20Section%20Video/1bcc8fa3-37f6-4c53-8591-0347e4c7f8ac.mp4';
 
   // Đảm bảo video nền luôn tự động phát (autoplay) mượt mà không bị chặn
   useEffect(() => {
@@ -345,21 +343,21 @@ export default function CustomerHomePage() {
             <source src={videoUrl} type="video/mp4" />
           </video>
           
-          {/* Lớp hòa sắc tối dịu nhẹ không làm mất ánh vàng đồng của video */}
-          <div className="absolute inset-0 bg-black/35 z-10" />
+          {/* Lớp phủ sáng nhẹ trong suốt, giữ trọn ánh sáng rực rỡ sắc nét của video */}
+          <div className="absolute inset-0 bg-slate-950/20 z-10" />
           
-          {/* Gradient tuyến tính hòa vào nền Titanium Obsidian */}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-[#0e0b08] pointer-events-none z-10" />
+          {/* Gradient mềm mại chuyển tiếp tự nhiên */}
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-950/35 via-transparent to-slate-950/50 pointer-events-none z-10" />
           
-          {/* Quầng sáng vàng sa mạc trung tâm (Desert Gold Ambient Aura) */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[450px] bg-amber-500/10 rounded-full blur-[140px] pointer-events-none z-10" />
+          {/* Quầng sáng đa sắc Apple Intelligence trung tâm (Luminous Aurora Ambient Aura) */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[750px] h-[500px] bg-gradient-to-r from-amber-400/20 via-sky-400/15 to-purple-400/20 rounded-full blur-[140px] pointer-events-none z-10" />
         </div>
 
         {/* Main Center Content with Word-By-Word Staggered Animation & Cỡ Chữ To Lớn */}
         <div className="relative z-20 flex-1 flex flex-col items-center justify-center text-center px-6 sm:px-12 py-16 max-w-5xl mx-auto my-auto">
           {/* Top Badge */}
           <FadeInUp delay={100}>
-            <div className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-gray-300 mb-8 backdrop-blur-sm inline-flex items-center gap-2">
+            <div className="px-4 py-2 rounded-full bg-slate-950/60 border border-white/20 text-xs font-bold text-slate-100 mb-8 backdrop-blur-md inline-flex items-center gap-2 shadow-lg">
               <Sparkles className="w-3.5 h-3.5 text-amber-400" />
               <span>✨ Showroom Flagship 2026 • iShop Huy Hoàng</span>
             </div>
@@ -367,10 +365,10 @@ export default function CustomerHomePage() {
 
           {/* Main Heading */}
           <FadeInUp delay={250}>
-            <h1 className="text-5xl md:text-7xl font-medium tracking-tight mb-6 text-center leading-[1.12] text-white">
+            <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight mb-6 text-center leading-[1.12] text-white drop-shadow-2xl">
               Đẳng cấp Apple <br className="hidden sm:inline" />
               cho những{' '}
-              <span className="font-serif italic font-normal text-gray-200 inline-block whitespace-nowrap">
+              <span className="font-serif italic font-normal text-amber-300 inline-block whitespace-nowrap drop-shadow-lg">
                 quyết định.
               </span>
             </h1>
@@ -378,7 +376,7 @@ export default function CustomerHomePage() {
 
           {/* Secondary Text */}
           <FadeInUp delay={400}>
-            <p className="text-[16px] text-gray-400 max-w-2xl text-center leading-relaxed mb-10 mx-auto">
+            <p className="text-[17px] text-slate-100 max-w-2xl text-center leading-relaxed mb-10 mx-auto drop-shadow-md font-medium">
               Hệ thống bán lẻ iPhone 16 Pro Max 100% nguyên seal chưa active, bảo hành 1 đổi 1 trong 30 ngày và dịch vụ sửa chữa iCare 30 phút lấy liền minh bạch số 1 TP.HCM.
             </p>
           </FadeInUp>
@@ -387,14 +385,14 @@ export default function CustomerHomePage() {
           <FadeInUp delay={550}>
             <div className="flex flex-wrap items-center justify-center gap-4">
               <Link
-                href="/"
-                className="bg-white text-black text-sm font-medium px-8 py-3.5 rounded-full hover:bg-gray-200 transition-colors shadow-[0_0_30px_rgba(255,255,255,0.3)]"
+                href="/phones"
+                className="bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white text-sm font-extrabold px-8 py-3.5 rounded-full shadow-[0_0_30px_rgba(245,158,11,0.4)] hover:scale-105 transition-all"
               >
                 Khám Phá iPhone 16
               </Link>
               <Link
                 href="/about"
-                className="bg-[#1F1F22] hover:bg-[#2A2A2D] text-white text-sm font-medium px-8 py-3.5 rounded-full border border-white/5 transition-colors"
+                className="bg-slate-950/80 hover:bg-slate-900 text-white text-sm font-bold px-8 py-3.5 rounded-full border border-white/20 backdrop-blur-md shadow-lg transition-all hover:scale-105"
               >
                 Tìm Hiểu Về Shop
               </Link>
@@ -404,7 +402,7 @@ export default function CustomerHomePage() {
           {/* Marquee: Được các nhà lãnh đạo ngành tin dùng */}
           <div className="w-full mt-20">
             <FadeInUp delay={700}>
-              <p className="text-sm text-gray-500 font-medium mb-8 text-center">
+              <p className="text-sm text-slate-200 font-bold mb-8 text-center drop-shadow-md">
                 Được các nhà lãnh đạo ngành & hơn 50.000 khách hàng tin dùng
               </p>
               <BrandMarquee />
@@ -415,46 +413,46 @@ export default function CustomerHomePage() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 mt-12 w-full max-w-4xl opacity-95">
             <Link
               href="/phones/iphone-16-pro-max"
-              className="p-4 rounded-2xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/15 hover:border-amber-500/50 backdrop-blur-md text-left transition-all group shadow-lg"
+              className="p-4 rounded-2xl bg-slate-950/60 hover:bg-slate-900/80 border border-white/20 hover:border-amber-400/80 backdrop-blur-md text-left transition-all group shadow-xl"
             >
               <div className="flex items-center gap-2 text-amber-400 mb-1.5">
                 <Smartphone className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                <span className="text-sm sm:text-base font-bold text-white">iPhone 16 Pro Max</span>
+                <span className="text-sm sm:text-base font-extrabold text-white">iPhone 16 Pro Max</span>
               </div>
-              <p className="text-xs sm:text-sm text-gray-300 font-medium">Titan Sa Mạc, 100% Seal</p>
+              <p className="text-xs sm:text-sm text-slate-200 font-medium">Titan Sa Mạc, 100% Seal</p>
             </Link>
 
             <Link
               href="/warranty"
-              className="p-4 rounded-2xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/15 hover:border-emerald-500/50 backdrop-blur-md text-left transition-all group shadow-lg"
+              className="p-4 rounded-2xl bg-slate-950/60 hover:bg-slate-900/80 border border-white/20 hover:border-emerald-400/80 backdrop-blur-md text-left transition-all group shadow-xl"
             >
               <div className="flex items-center gap-2 text-emerald-400 mb-1.5">
                 <ShieldCheck className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                <span className="text-sm sm:text-base font-bold text-white">Bảo Hành IMEI</span>
+                <span className="text-sm sm:text-base font-extrabold text-white">Bảo Hành IMEI</span>
               </div>
-              <p className="text-xs sm:text-sm text-gray-300 font-medium">12 tháng 1 đổi 1 tận nơi</p>
+              <p className="text-xs sm:text-sm text-slate-200 font-medium">12 tháng 1 đổi 1 tận nơi</p>
             </Link>
 
             <Link
               href="/repair"
-              className="p-4 rounded-2xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/15 hover:border-cyan-500/50 backdrop-blur-md text-left transition-all group shadow-lg"
+              className="p-4 rounded-2xl bg-slate-950/60 hover:bg-slate-900/80 border border-white/20 hover:border-cyan-400/80 backdrop-blur-md text-left transition-all group shadow-xl"
             >
               <div className="flex items-center gap-2 text-cyan-400 mb-1.5">
                 <Wrench className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                <span className="text-sm sm:text-base font-bold text-white">iCare 30 Phút</span>
+                <span className="text-sm sm:text-base font-extrabold text-white">iCare 30 Phút</span>
               </div>
-              <p className="text-xs sm:text-sm text-gray-300 font-medium">Xem trực tiếp, lấy liền</p>
+              <p className="text-xs sm:text-sm text-slate-200 font-medium">Xem trực tiếp, lấy liền</p>
             </Link>
 
             <Link
               href="/checkout"
-              className="p-4 rounded-2xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/15 hover:border-purple-500/50 backdrop-blur-md text-left transition-all group shadow-lg"
+              className="p-4 rounded-2xl bg-slate-950/60 hover:bg-slate-900/80 border border-white/20 hover:border-purple-400/80 backdrop-blur-md text-left transition-all group shadow-xl"
             >
               <div className="flex items-center gap-2 text-purple-400 mb-1.5">
                 <Zap className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                <span className="text-sm sm:text-base font-bold text-white">Napas 247</span>
+                <span className="text-sm sm:text-base font-extrabold text-white">Napas 247</span>
               </div>
-              <p className="text-xs sm:text-sm text-gray-300 font-medium">VietQR thanh toán 0% phí</p>
+              <p className="text-xs sm:text-sm text-slate-200 font-medium">VietQR thanh toán 0% phí</p>
             </Link>
           </div>
         </div>
@@ -499,20 +497,20 @@ export default function CustomerHomePage() {
         id="about-shop"
         className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 scroll-mt-28"
       >
-        <div className="glass-panel rounded-3xl p-8 sm:p-12 border-white/[0.12] relative overflow-hidden flex flex-col lg:flex-row items-center justify-between gap-8 shadow-2xl">
+        <div className="glass-panel rounded-3xl p-8 sm:p-12 border border-amber-300/70 relative overflow-hidden flex flex-col lg:flex-row items-center justify-between gap-8 shadow-xl">
           {/* Subtle Background Nebula */}
           <div className="absolute top-0 right-0 w-[450px] h-[450px] bg-amber-500/10 blur-[130px] rounded-full pointer-events-none" />
 
           <div className="space-y-4 max-w-2xl text-center lg:text-left">
             <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full badge-glow-gold text-xs sm:text-sm font-bold">
-              <Building2 className="w-4 h-4 text-amber-400" />
+              <Building2 className="w-4 h-4 text-amber-600" />
               <span>CÂU CHUYỆN THƯƠNG HIỆU • 10 NĂM TỪ 2016</span>
             </div>
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white leading-tight tracking-tight">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 leading-tight tracking-tight">
               Về iShop Huy Hoàng <br />
               <span className="text-gradient-gold">Đẳng Cấp Apple & Dịch Vụ iCare Số 1 TP.HCM</span>
             </h2>
-            <p className="text-base sm:text-lg text-gray-300 font-normal leading-relaxed">
+            <p className="text-base sm:text-lg text-slate-600 font-normal leading-relaxed">
               Hơn 10 năm phục vụ trên 50.000 khách hàng với tiêu chuẩn 100% nguyên seal chưa active, chính sách 1 đổi 1 trong 30 ngày và trung tâm kỹ thuật iCare sửa chữa minh bạch lấy liền trong 30 phút.
             </p>
           </div>
@@ -520,14 +518,14 @@ export default function CustomerHomePage() {
           <div className="flex flex-col sm:flex-row items-center gap-4 shrink-0">
             <Link
               href="/about"
-              className="px-8 py-4 rounded-full bg-white text-black font-black text-sm sm:text-base hover:bg-gray-200 transition-all shadow-xl hover:scale-105 inline-flex items-center gap-2"
+              className="btn-dark px-8 py-4 rounded-full bg-slate-900 text-white font-black text-sm sm:text-base hover:bg-black transition-all shadow-xl hover:scale-105 inline-flex items-center gap-2"
             >
-              <span>Xem Câu Chuyện & Showroom</span>
-              <ArrowRight className="w-4 h-4" />
+              <span className="text-white font-bold">Xem Câu Chuyện & Showroom</span>
+              <ArrowRight className="w-4 h-4 text-amber-400" />
             </Link>
             <Link
               href="/about"
-              className="px-6 py-4 rounded-full bg-white/10 hover:bg-white/20 text-white font-bold text-sm sm:text-base border border-white/15 transition-all"
+              className="px-6 py-4 rounded-full bg-white hover:bg-slate-50 text-slate-800 font-bold text-sm sm:text-base border border-slate-200 shadow-sm transition-all"
             >
               4 Cam Kết Vàng
             </Link>
@@ -552,26 +550,26 @@ export default function CustomerHomePage() {
             style={{ willChange: 'transform, opacity' }}
             className="space-y-6"
           >
-            <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-amber-400">
-              <Sparkles className="w-4 h-4 text-amber-400" />
+            <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-700 bg-amber-50 px-3.5 py-1.5 rounded-full border border-amber-200">
+              <Sparkles className="w-4 h-4 text-amber-600" />
               <span>✨ Showroom Số &amp; Trợ Lý Tư Vấn iShop</span>
             </div>
 
-            <h2 className="text-4xl md:text-5xl font-semibold tracking-tight text-white leading-tight">
+            <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900 leading-tight">
               Nơi công nghệ gặp gỡ trải nghiệm mua sắm đỉnh cao.
             </h2>
 
-            <p className="text-gray-300 text-base leading-relaxed">
+            <p className="text-slate-600 text-base leading-relaxed">
               Trợ lý thông minh giúp bạn lựa chọn phiên bản iPhone 16 Pro Max Titan Sa Mạc phù hợp nhất, so sánh dung lượng 256GB - 1TB, tính toán giá thu cũ đổi mới và kiểm tra tình trạng kho máy nguyên seal theo thời gian thực.
             </p>
 
             <div>
               <Link
                 href="/phones"
-                className="inline-flex items-center gap-2 bg-[#1F1F22] hover:bg-[#2A2A2D] text-white text-sm font-medium px-6 py-3 rounded-full border border-white/10 transition-colors group"
+                className="btn-dark inline-flex items-center gap-2 bg-slate-900 hover:bg-black text-white text-sm font-bold px-6 py-3.5 rounded-full shadow-lg transition-colors group"
               >
-                <span>Xem Kho Máy Nguyên Seal</span>
-                <ArrowRight className="w-4 h-4 text-gray-400 group-hover:translate-x-1 transition-transform" />
+                <span className="text-white font-bold">Xem Kho Máy Nguyên Seal</span>
+                <ArrowRight className="w-4 h-4 text-amber-400 group-hover:translate-x-1 transition-transform" />
               </Link>
             </div>
           </motion.div>
@@ -584,54 +582,54 @@ export default function CustomerHomePage() {
             transition={{ duration: 1.4, ease: [0.25, 1, 0.5, 1], delay: 0.15 }}
             style={{ willChange: 'transform, opacity' }}
           >
-            <div className="rounded-3xl overflow-hidden p-6 sm:p-8 border border-white/10 relative min-h-[420px] flex flex-col justify-end shadow-2xl">
+            <div className="rounded-3xl overflow-hidden p-6 sm:p-8 border border-amber-200/70 relative min-h-[420px] flex flex-col justify-end shadow-2xl">
               <video
                 autoPlay
                 loop
                 muted
                 playsInline
                 className="absolute inset-0 object-cover w-full h-full"
-                src="https://cdn.sceneai.art/Hero%20Section%20Video/1bcc8fa3-37f6-4c53-8591-0347e4c7f8ac.mp4"
+                src="https://cdn.sceneai.art/Hero%20Section%20Video/736fd4a0-70ac-4f44-9633-55769ead6aca.mp4"
               />
               <div className="absolute inset-0 bg-black/20" />
 
               {/* Thẻ phần tử UI nổi: Thẩm định giá thu cũ & Trợ giá lên đời trực tiếp */}
-              <div className="bg-[#1C1C1E]/92 backdrop-blur-xl border border-white/10 rounded-2xl p-5 shadow-2xl relative z-10 space-y-3.5">
+              <div className="bg-white/95 backdrop-blur-xl border border-amber-200/80 rounded-2xl p-5 shadow-2xl relative z-10 space-y-3.5 text-slate-800">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="px-3 py-1 rounded-full bg-white/10 text-xs text-gray-200 border border-white/5 font-semibold">
+                  <span className="px-3 py-1 rounded-full bg-amber-50 text-xs text-amber-800 border border-amber-200 font-bold">
                     ✨ Titan Sa Mạc 256GB
                   </span>
-                  <span className="px-3 py-1 rounded-full bg-white/10 text-xs text-gray-200 border border-white/5 font-semibold">
+                  <span className="px-3 py-1 rounded-full bg-emerald-50 text-xs text-emerald-800 border border-emerald-200 font-bold">
                     1 Đổi 1 trong 30 ngày
                   </span>
-                  <span className="px-3 py-1 rounded-full bg-white/10 text-xs text-gray-200 border border-white/5 font-semibold">
+                  <span className="px-3 py-1 rounded-full bg-blue-50 text-xs text-blue-800 border border-blue-200 font-bold">
                     Bảo Hành IMEI 12T
                   </span>
                 </div>
 
                 {/* Khối Thẩm Định Trợ Giá Thu Cũ & Trạng Thái Kho (Thay thế thanh tìm kiếm) */}
-                <div className="p-3.5 rounded-xl bg-black/50 border border-amber-500/25 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-inner">
+                <div className="p-3.5 rounded-xl bg-amber-50/50 border border-amber-300/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                      <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider">
+                      <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
+                      <span className="text-[11px] font-extrabold text-emerald-700 uppercase tracking-wider">
                         Kho Sẵn Hàng • Giao Hỏa Tốc 1H
                       </span>
                     </div>
                     <div className="flex items-baseline gap-2">
-                      <span className="text-xs text-gray-300 font-medium">Trợ giá lên đời:</span>
-                      <span className="text-amber-400 font-black text-base sm:text-lg">
+                      <span className="text-xs text-slate-600 font-semibold">Trợ giá lên đời:</span>
+                      <span className="text-amber-700 font-black text-base sm:text-lg">
                         +2.000.000₫
                       </span>
                     </div>
-                    <p className="text-[11px] text-gray-400">
+                    <p className="text-[11px] text-slate-500 font-medium">
                       Bù chênh lệch từ 15.990.000₫ khi đổi từ iPhone 15 Pro Max
                     </p>
                   </div>
 
                   <Link
                     href="/compare"
-                    className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-black text-xs shadow-md hover:scale-105 transition-all flex items-center justify-center gap-1.5 shrink-0"
+                    className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white font-black text-xs shadow-md hover:scale-105 transition-all flex items-center justify-center gap-1.5 shrink-0"
                   >
                     <Zap className="w-3.5 h-3.5" />
                     <span>Định Giá Máy Cũ</span>
@@ -657,7 +655,7 @@ export default function CustomerHomePage() {
             style={{ willChange: 'transform, opacity' }}
             className="order-2 lg:order-1"
           >
-            <div className="rounded-3xl overflow-hidden p-6 sm:p-8 border border-white/10 relative min-h-[420px] flex flex-col justify-end shadow-2xl">
+            <div className="rounded-3xl overflow-hidden p-6 sm:p-8 border border-amber-200/60 relative min-h-[420px] flex flex-col justify-end shadow-2xl">
               <video
                 autoPlay
                 loop
@@ -669,19 +667,19 @@ export default function CustomerHomePage() {
               <div className="absolute inset-0 bg-black/20" />
 
               {/* Thẻ Phiếu Kỹ Thuật Số & Tiến Độ Sửa Chữa Live iCare (Thay thế thanh ghi âm) */}
-              <div className="bg-[#1C1C1E]/92 backdrop-blur-xl border border-white/10 rounded-2xl p-5 shadow-2xl relative z-10 space-y-3.5">
+              <div className="bg-white/95 backdrop-blur-xl border border-amber-200/80 rounded-2xl p-5 shadow-2xl relative z-10 space-y-3.5 text-slate-800">
                 {/* Header phiếu: Mã phiếu & Trạng thái Live */}
-                <div className="flex items-center justify-between text-xs pb-2 border-b border-white/10">
+                <div className="flex items-center justify-between text-xs pb-2 border-b border-slate-200">
                   <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/35 text-emerald-300 font-bold text-[11px]">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-800 font-bold text-[11px]">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
                       <span>ĐANG THAO TÁC TRỰC TIẾP</span>
                     </span>
-                    <span className="font-mono font-bold text-gray-300">#iCare-9824</span>
+                    <span className="font-mono font-extrabold text-slate-700">#iCare-9824</span>
                   </div>
 
-                  <div className="flex items-center gap-1.5 text-amber-300 font-mono font-bold text-xs">
-                    <Clock className="w-3.5 h-3.5 text-amber-400" />
+                  <div className="flex items-center gap-1.5 text-amber-700 font-mono font-bold text-xs">
+                    <Clock className="w-3.5 h-3.5 text-amber-600" />
                     <span>22:45 / 30:00 Phút</span>
                   </div>
                 </div>
@@ -689,48 +687,48 @@ export default function CustomerHomePage() {
                 {/* Thông tin thiết bị & Kỹ thuật viên */}
                 <div className="space-y-1">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="font-bold text-white">iPhone 15 Pro Max (Titan Tự Nhiên)</span>
-                    <span className="text-[11px] text-gray-400">KTV: Chris (Phòng Lab 01)</span>
+                    <span className="font-extrabold text-slate-900">iPhone 15 Pro Max (Titan Tự Nhiên)</span>
+                    <span className="text-[11px] text-slate-500 font-medium">KTV: Chris (Phòng Lab 01)</span>
                   </div>
-                  <p className="text-[11px] text-emerald-300 font-medium">
+                  <p className="text-[11px] text-emerald-700 font-semibold">
                     Hạng mục: Ép kính OLED zin vô trùng &amp; Test áp suất kháng nước
                   </p>
                 </div>
 
                 {/* 4 Bước Tiến Độ Thực Tế (Visual Progress Tracker) */}
                 <div className="space-y-2 pt-1">
-                  <div className="flex items-center justify-between text-[10px] text-gray-400 font-medium">
-                    <span className="text-emerald-400 font-bold flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3 text-emerald-400" /> 1. Tiếp nhận
+                  <div className="flex items-center justify-between text-[10px] text-slate-500 font-semibold">
+                    <span className="text-emerald-700 font-bold flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600" /> 1. Tiếp nhận
                     </span>
-                    <span className="text-emerald-400 font-bold flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3 text-emerald-400" /> 2. Ký linh kiện
+                    <span className="text-emerald-700 font-bold flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600" /> 2. Ký linh kiện
                     </span>
-                    <span className="text-amber-300 font-bold flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" /> 3. Ép kính vô trùng
+                    <span className="text-amber-700 font-bold flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" /> 3. Ép kính vô trùng
                     </span>
-                    <span className="text-gray-500">4. Trả máy</span>
+                    <span className="text-slate-400">4. Trả máy</span>
                   </div>
 
                   {/* Thanh tiến độ đa sắc */}
-                  <div className="w-full h-1.5 bg-black/40 rounded-full overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-amber-400 rounded-full w-[75%] transition-all duration-500" />
+                  <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-emerald-500 via-teal-500 to-amber-500 rounded-full w-[75%] transition-all duration-500" />
                   </div>
                 </div>
 
                 {/* Dòng tóm tắt & Nút tra cứu QR phiếu K80 */}
                 <div className="flex items-center justify-between pt-1 text-xs">
-                  <div className="flex items-center gap-2 text-gray-300 text-[11px]">
-                    <QrCode className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <div className="flex items-center gap-2 text-slate-600 text-[11px] font-medium">
+                    <QrCode className="w-4 h-4 text-emerald-600 shrink-0" />
                     <span>In kèm mã QR phiếu nhiệt K80</span>
                   </div>
 
                   <Link
                     href="/repair/tracking"
-                    className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold text-[11px] transition-all hover:scale-105"
+                    className="btn-dark inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-black text-white font-bold text-[11px] transition-all hover:scale-105 shadow-sm"
                   >
-                    <span>Xem Live QR</span>
-                    <ArrowRight className="w-3 h-3" />
+                    <span className="text-white font-bold">Xem Live QR</span>
+                    <ArrowRight className="w-3 h-3 text-amber-400" />
                   </Link>
                 </div>
               </div>
@@ -746,26 +744,26 @@ export default function CustomerHomePage() {
             style={{ willChange: 'transform, opacity' }}
             className="space-y-6 order-1 lg:order-2"
           >
-            <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-emerald-400">
-              <Sparkles className="w-4 h-4 text-emerald-400" />
+            <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 px-3.5 py-1.5 rounded-full border border-emerald-200">
+              <Sparkles className="w-4 h-4 text-emerald-600" />
               <span>✨ Kỹ Thuật iCare &amp; QR Tracking 30 Phút</span>
             </div>
 
-            <h2 className="text-4xl md:text-5xl font-semibold tracking-tight text-white leading-tight">
+            <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900 leading-tight">
               Sửa chữa minh bạch, tốc độ và chính xác tuyệt đối.
             </h2>
 
-            <p className="text-gray-300 text-base leading-relaxed">
+            <p className="text-slate-600 text-base leading-relaxed">
               Tự động số hóa quy trình tiếp nhận trong 30 giây, in phiếu nhiệt K80 kèm mã QR tra cứu tiến độ thời gian thực. Khách hàng ngồi xem trực tiếp kỹ thuật viên thao tác, ký tên lên linh kiện và nhận máy ngay trong 30 phút.
             </p>
 
             <div>
               <Link
                 href="/repair"
-                className="inline-flex items-center gap-2 bg-[#1F1F22] hover:bg-[#2A2A2D] text-white text-sm font-medium px-6 py-3 rounded-full border border-white/10 transition-colors group"
+                className="btn-dark inline-flex items-center gap-2 bg-slate-900 hover:bg-black text-white text-sm font-bold px-6 py-3.5 rounded-full shadow-lg transition-colors group"
               >
-                <span>Đặt Lịch Sửa Chữa Ngay</span>
-                <ArrowRight className="w-4 h-4 text-gray-400 group-hover:translate-x-1 transition-transform" />
+                <span className="text-white font-bold">Đặt Lịch Sửa Chữa Ngay</span>
+                <ArrowRight className="w-4 h-4 text-amber-400 group-hover:translate-x-1 transition-transform" />
               </Link>
             </div>
           </motion.div>
@@ -774,37 +772,37 @@ export default function CustomerHomePage() {
 
       {/* 3. SHOWROOM 3D INTERACTIVE HERO CARD (Bên trái bay từ TRÁI, Thẻ máy bay từ PHẢI) */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center glass-panel rounded-3xl p-8 sm:p-14 border-white/[0.12] relative overflow-hidden shadow-2xl">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center glass-panel rounded-3xl p-8 sm:p-14 border border-amber-300/70 relative overflow-hidden shadow-xl">
           {/* Cột thông tin: Bay từ Trái sang */}
           <div className="lg:col-span-7 space-y-6 text-center lg:text-left reveal-fly-left">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full badge-glow-gold text-xs sm:text-sm font-bold">
-              <Sparkles className="w-4 h-4 text-amber-300 animate-spin" />
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-50 border border-amber-300 text-amber-900 text-xs sm:text-sm font-bold shadow-sm">
+              <Sparkles className="w-4 h-4 text-amber-600 animate-spin" />
               <span>TRẢI NGHIỆM ĐỔI MÀU MÁY THỰC TẾ</span>
             </div>
 
-            <h2 className="text-3xl sm:text-5xl lg:text-6xl font-black text-white leading-tight tracking-tight">
+            <h2 className="text-3xl sm:text-5xl lg:text-6xl font-black text-slate-900 leading-tight tracking-tight">
               iPhone 16 Pro Max <br />
               <span className="text-gradient-gold">Titan Sa Mạc Luxury 2026</span>
             </h2>
 
-            <p className="text-base sm:text-lg text-gray-200 font-normal leading-relaxed">
+            <p className="text-base sm:text-lg text-slate-600 font-normal leading-relaxed">
               Thiết kế viền mỏng nhất lịch sử Apple, màn hình Super Retina XDR 6.9 inch cùng hệ thống camera Fusion 48MP zoom quang học 5x. Bạn có thể bấm chọn màu vỏ máy bên dưới để chiêm ngưỡng ánh sáng phản chiếu trực tiếp!
             </p>
 
             <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 pt-3">
               <Link
                 href="/phones/iphone-16-pro-max"
-                className="btn-gold px-8 py-4 rounded-2xl text-sm sm:text-base flex items-center gap-2.5 font-black shadow-xl"
+                className="btn-gold px-8 py-4 rounded-2xl text-sm sm:text-base flex items-center gap-2.5 font-black shadow-xl hover:scale-105 transition-all text-white"
               >
-                <span>Xem Cấu Hình & Mua Ngay</span>
-                <ArrowRight className="w-5 h-5 text-black" />
+                <span className="text-white">Xem Cấu Hình & Mua Ngay</span>
+                <ArrowRight className="w-5 h-5 text-white" />
               </Link>
 
               <Link
                 href="/compare"
-                className="px-6 py-4 rounded-2xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.15] hover:border-cyan-400/40 text-white font-bold text-sm sm:text-base flex items-center gap-2.5 transition-all shadow-sm"
+                className="px-6 py-4 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 font-bold text-sm sm:text-base flex items-center gap-2.5 transition-all shadow-sm"
               >
-                <Scale className="w-5 h-5 text-cyan-400" />
+                <Scale className="w-5 h-5 text-sky-600" />
                 <span>So Sánh 3 Máy</span>
               </Link>
             </div>
@@ -817,41 +815,41 @@ export default function CustomerHomePage() {
                 style={{
                   boxShadow: `0 0 85px 12px ${
                     heroColorIdx === 0
-                      ? 'rgba(226, 183, 116, 0.35)'
-                      : 'rgba(59, 130, 246, 0.3)'
+                      ? 'rgba(226, 183, 116, 0.25)'
+                      : 'rgba(59, 130, 246, 0.2)'
                   }`,
                 }}
                 className="rounded-3xl transition-all duration-500"
               >
-                <div className="glass-card rounded-3xl p-7 border-white/[0.15] relative overflow-hidden backdrop-blur-2xl">
-                  <div className="relative aspect-square rounded-2xl overflow-hidden mb-6 bg-gradient-to-b from-[#151c36] to-[#0d1224] p-5 flex items-center justify-center">
+                <div className="glass-card rounded-3xl p-7 border border-amber-200/80 relative overflow-hidden backdrop-blur-2xl shadow-xl">
+                  <div className="relative aspect-square rounded-2xl overflow-hidden mb-6 bg-gradient-to-b from-slate-100 to-slate-200 border border-slate-200/80 p-5 flex items-center justify-center">
                     <img
                       key={activeHeroColor?.imageUrl}
                       src={activeHeroColor?.imageUrl}
                       alt={heroPhone?.name}
                       className="w-full h-full object-contain hover:scale-105 transition-all duration-500 animate-in fade-in"
                     />
-                    <div className="absolute top-3 left-3 px-3 py-1.5 rounded-full text-xs font-black bg-gradient-to-r from-amber-400 to-amber-500 text-black shadow-md shadow-amber-500/30">
+                    <div className="absolute top-3 left-3 px-3 py-1.5 rounded-full text-xs font-black bg-gradient-to-r from-amber-400 to-amber-500 text-white shadow-md">
                       HOT NHẤT 2026
                     </div>
                   </div>
 
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-xl font-black text-white">{heroPhone?.name}</h3>
-                      <p className="text-sm text-amber-300 font-semibold mt-0.5">
+                      <h3 className="text-xl font-black text-slate-900">{heroPhone?.name}</h3>
+                      <p className="text-sm text-amber-700 font-bold mt-0.5">
                         {activeHeroColor?.name} • 256GB
                       </p>
                     </div>
                     <div className="text-right">
-                      <span className="text-xs sm:text-sm text-gray-500 line-through block">36.990.000đ</span>
-                      <span className="text-2xl font-black text-amber-400">34.990.000đ</span>
+                      <span className="text-xs sm:text-sm text-slate-400 line-through block">36.990.000đ</span>
+                      <span className="text-2xl font-black text-amber-700">34.990.000đ</span>
                     </div>
                   </div>
 
                   {/* Interactive Color Switcher */}
-                  <div className="mt-6 pt-4 border-t border-white/[0.08] flex items-center justify-between text-sm text-gray-200">
-                    <span className="text-xs sm:text-sm text-gray-300 font-semibold">Bấm chọn màu vỏ máy:</span>
+                  <div className="mt-6 pt-4 border-t border-slate-200 flex items-center justify-between text-sm">
+                    <span className="text-xs sm:text-sm text-slate-600 font-bold">Bấm chọn màu vỏ máy:</span>
                     <div className="flex items-center gap-2.5">
                       {heroPhone?.colors.map((c, idx) => (
                         <button
@@ -861,8 +859,8 @@ export default function CustomerHomePage() {
                           style={{ backgroundColor: c.hex }}
                           className={`w-7 h-7 rounded-full border transition-all ${
                             heroColorIdx === idx
-                              ? 'border-amber-400 scale-125 shadow-[0_0_15px_rgba(226,183,116,0.85)]'
-                              : 'border-white/30 opacity-70 hover:opacity-100'
+                              ? 'border-amber-600 scale-125 shadow-[0_0_12px_rgba(217,119,6,0.5)] ring-2 ring-amber-400/40'
+                              : 'border-slate-300 opacity-80 hover:opacity-100'
                           }`}
                         />
                       ))}
@@ -877,26 +875,30 @@ export default function CustomerHomePage() {
 
       {/* 4. FLASH SALE BANNER NEON - Phóng to và phát sáng từ trung tâm */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 reveal-zoom-in">
-        <div className="relative rounded-3xl p-7 sm:p-11 bg-gradient-to-r from-[#380e18]/90 via-[#271440]/85 to-[#101630] border border-red-500/40 overflow-hidden shadow-[0_0_50px_rgba(239,68,68,0.25)]">
+        <div className="relative rounded-3xl p-7 sm:p-11 bg-gradient-to-r from-amber-50/90 via-orange-50/80 to-rose-50/90 border-2 border-amber-300/80 overflow-hidden shadow-[0_15px_40px_rgba(245,158,11,0.18)]">
+          {/* Vùng hiệu ứng ánh sáng nền dịu nhẹ */}
+          <div className="absolute -top-24 -left-24 w-72 h-72 bg-amber-400/20 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-24 -right-24 w-72 h-72 bg-rose-400/20 rounded-full blur-3xl pointer-events-none" />
+
           <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
             <div className="space-y-3 text-center md:text-left">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-red-500/25 text-red-200 font-black text-xs sm:text-sm border border-red-500/40 animate-pulse">
-                <Flame className="w-4 h-4 text-red-400 fill-red-400" />
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-rose-100/80 text-rose-700 font-black text-xs sm:text-sm border border-rose-300/80 animate-pulse">
+                <Flame className="w-4 h-4 text-rose-600 fill-rose-500" />
                 <span>FLASH SALE GIỜ VÀNG HÔM NAY</span>
               </div>
-              <h3 className="text-2xl sm:text-4xl font-black text-white leading-tight">
-                Giảm Đến 2.000.000đ Cho Khách Hàng Đặt Trước Qua VietQR
+              <h3 className="text-2xl sm:text-4xl font-black text-slate-900 leading-tight">
+                Giảm Đến <span className="text-amber-600">2.000.000đ</span> Cho Khách Hàng Đặt Trước Qua VietQR
               </h3>
-              <p className="text-sm sm:text-base text-gray-200 font-normal">
+              <p className="text-sm sm:text-base text-slate-600 font-medium">
                 Tặng kèm củ sạc GaN 65W + Kính cường lực KingKong + Voucher sửa chữa iCare trị giá 500.000đ.
               </p>
             </div>
 
             <Link
               href="/phones"
-              className="px-7 py-4 rounded-2xl bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white font-black text-sm sm:text-base shadow-xl shadow-red-600/35 shrink-0 transition-transform hover:scale-105"
+              className="btn-dark px-8 py-4 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 text-white font-black text-sm sm:text-base shadow-xl shadow-amber-500/30 shrink-0 transition-transform hover:scale-105 inline-flex items-center gap-2"
             >
-              Săn Deal Ngay ⚡
+              <span className="text-white font-bold">Săn Deal Ngay ⚡</span>
             </Link>
           </div>
         </div>
@@ -909,13 +911,13 @@ export default function CustomerHomePage() {
       >
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 reveal-fly-left">
           <div>
-            <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-amber-400">
+            <span className="inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider text-amber-800 bg-amber-50 border border-amber-200 mb-2">
               Showroom Apple Flagship
             </span>
-            <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight mt-1">
+            <h2 className="text-3xl sm:text-5xl font-black text-slate-900 tracking-tight">
               Kho Điện Thoại iPhone Mới 100%
             </h2>
-            <p className="text-sm sm:text-base text-gray-300 mt-1.5">
+            <p className="text-sm sm:text-base text-slate-600 mt-1.5 font-medium">
               Quản lý chính xác từng số IMEI cụ thể, tự động kích hoạt bảo hành điện tử 12 tháng.
             </p>
           </div>
@@ -925,10 +927,10 @@ export default function CustomerHomePage() {
               <button
                 key={brand}
                 onClick={() => setSelectedBrand(brand)}
-                className={`px-5 py-2.5 rounded-xl font-bold transition-all ${
+                className={`px-5 py-2.5 rounded-xl font-bold transition-all shadow-sm ${
                   selectedBrand === brand
-                    ? 'btn-gold'
-                    : 'bg-white/[0.05] text-gray-300 hover:bg-white/[0.1] hover:text-white'
+                    ? 'btn-gold text-white font-black shadow-md'
+                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100 hover:text-slate-900'
                 }`}
               >
                 {brand === 'All' ? 'Tất cả model' : brand}
@@ -947,28 +949,29 @@ export default function CustomerHomePage() {
               <div
                 key={phone.id}
                 style={{ transitionDelay: `${(idx % 3) * 150}ms` }}
-                className={`glass-card rounded-3xl p-7 border-white/[0.08] hover:border-amber-500/30 flex flex-col justify-between transition-all duration-300 group ${flyClass}`}
+                className={`glass-card rounded-3xl p-7 border border-amber-200/80 hover:border-amber-400/80 flex flex-col justify-between transition-all duration-300 group shadow-sm hover:shadow-xl ${flyClass}`}
               >
                 <div>
-                  <div className="relative aspect-square rounded-2xl overflow-hidden bg-gradient-to-b from-[#141b34] to-[#0d1224] mb-6 p-5 flex items-center justify-center">
+                  <div className="relative aspect-square rounded-2xl overflow-hidden bg-gradient-to-b from-slate-100 to-slate-200 border border-slate-200/80 mb-6 p-5 flex items-center justify-center">
                     <img
                       src={phone.colors[0]?.imageUrl}
                       alt={phone.name}
                       className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
                     />
-                    <div className="absolute top-3 left-3 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                    <div className="absolute top-3 left-3 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 shadow-sm">
                       Mới 100% Nguyên Seal
                     </div>
                   </div>
 
                   <div className="flex items-center justify-between text-sm mb-1.5">
-                    <span className="text-gray-300 font-semibold">{phone.brand}</span>
-                    <span className="font-mono text-emerald-400 font-bold">
-                      ● Sẵn hàng tại quầy
+                    <span className="text-slate-500 font-bold">{phone.brand}</span>
+                    <span className="font-mono text-emerald-700 font-bold flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
+                      Sẵn hàng tại quầy
                     </span>
                   </div>
 
-                  <h3 className="text-lg sm:text-xl font-black text-white group-hover:text-amber-300 transition-colors">
+                  <h3 className="text-lg sm:text-xl font-black text-slate-900 group-hover:text-amber-700 transition-colors">
                     {phone.name}
                   </h3>
 
@@ -977,20 +980,20 @@ export default function CustomerHomePage() {
                       <span
                         key={c.id}
                         style={{ backgroundColor: c.hex }}
-                        className="w-4 h-4 rounded-full border border-white/30"
+                        className="w-4 h-4 rounded-full border border-slate-300 shadow-sm"
                         title={c.name}
                       />
                     ))}
                   </div>
 
-                  <div className="mt-5 pt-4 border-t border-white/5 flex items-baseline justify-between">
+                  <div className="mt-5 pt-4 border-t border-slate-200 flex items-baseline justify-between">
                     <div>
-                      <span className="text-xs sm:text-sm text-gray-400 block">Giá niêm yết từ:</span>
-                      <span className="text-xl sm:text-2xl font-black text-amber-400">
+                      <span className="text-xs sm:text-sm text-slate-500 font-medium block">Giá niêm yết từ:</span>
+                      <span className="text-xl sm:text-2xl font-black text-amber-700">
                         {formatVND(phone.capacities[0]?.price || 0)}
                       </span>
                     </div>
-                    <span className="text-xs sm:text-sm text-gray-500 line-through">
+                    <span className="text-xs sm:text-sm text-slate-400 line-through font-medium">
                       {formatVND(phone.capacities[0]?.originalPrice || (phone.capacities[0]?.price || 0) * 1.08)}
                     </span>
                   </div>
@@ -1000,10 +1003,10 @@ export default function CustomerHomePage() {
                   <div className="grid grid-cols-2 gap-2.5">
                     <Link
                       href={`/phones/${phone.slug}`}
-                      className="btn-gold py-3 rounded-xl text-sm font-black text-center flex items-center justify-center gap-1.5 shadow-md"
+                      className="btn-gold py-3 rounded-xl text-sm font-black text-center flex items-center justify-center gap-1.5 shadow-md text-white hover:scale-105 transition-all"
                     >
-                      <span>Xem Chi Tiết</span>
-                      <ChevronRight className="w-4 h-4" />
+                      <span className="text-white">Xem Chi Tiết</span>
+                      <ChevronRight className="w-4 h-4 text-white" />
                     </Link>
 
                     <button
@@ -1013,8 +1016,8 @@ export default function CustomerHomePage() {
                       }}
                       className={`py-3 rounded-xl text-sm font-bold border transition-colors flex items-center justify-center gap-1.5 ${
                         isComparing
-                          ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 shadow-sm'
-                          : 'bg-white/[0.05] text-gray-200 border-white/10 hover:bg-white/[0.1]'
+                          ? 'bg-sky-100 text-sky-800 border-sky-300 font-bold shadow-sm'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100 hover:text-slate-900 shadow-sm'
                       }`}
                     >
                       <Scale className="w-4 h-4" />
@@ -1033,35 +1036,35 @@ export default function CustomerHomePage() {
         id="icare-desk"
         className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 scroll-mt-28"
       >
-        <div className="glass-panel rounded-3xl p-8 sm:p-14 border-white/[0.12] relative overflow-hidden shadow-2xl">
+        <div className="glass-panel rounded-3xl p-8 sm:p-14 border border-amber-300/70 relative overflow-hidden shadow-xl">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
             {/* Cột mô tả iCare: Bay từ TRÁI vào */}
             <div className="lg:col-span-6 space-y-6 reveal-fly-left">
-              <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full badge-glow-violet text-xs sm:text-sm font-bold">
-                <Wrench className="w-4 h-4 text-purple-300" />
+              <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-purple-50 border border-purple-200 text-purple-900 text-xs sm:text-sm font-bold shadow-sm">
+                <Wrench className="w-4 h-4 text-purple-700" />
                 <span>TRUNG TÂM KỸ THUẬT iCARE CHUYÊN SÂU</span>
               </div>
 
-              <h2 className="text-3xl sm:text-5xl font-black text-white leading-tight tracking-tight">
+              <h2 className="text-3xl sm:text-5xl font-black text-slate-900 leading-tight tracking-tight">
                 Sửa Chữa Lấy Ngay Trong 30 Phút <br />
                 <span className="text-gradient-amethyst">Theo Dõi Tiến Độ Bằng Mã QR</span>
               </h2>
 
-              <p className="text-base sm:text-lg text-gray-200 leading-relaxed font-normal">
+              <p className="text-base sm:text-lg text-slate-600 leading-relaxed font-normal">
                 Mỗi lượt sửa chữa đều được in một phiếu biên nhận nhiệt K80 có kèm **Mã QR Tra Cứu**. Khách hàng chỉ cần quét mã bằng điện thoại là có thể theo dõi từng bước thay màn hình, ép kính, thay pin theo thời gian thực!
               </p>
 
-              <div className="space-y-3 text-sm sm:text-base text-gray-200">
+              <div className="space-y-3 text-sm sm:text-base text-slate-700 font-medium">
                 <div className="flex items-center gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
                   <span>Linh kiện zin bóc máy / Pin Pisen chính hãng bảo hành 12 tháng.</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
                   <span>Xem trực tiếp quá trình tháo lắp, ký tên lên linh kiện an tâm 100%.</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
                   <span>Tuyệt đối không phát sinh phụ phí ngoài báo giá niêm yết.</span>
                 </div>
               </div>
@@ -1069,14 +1072,14 @@ export default function CustomerHomePage() {
               <div className="pt-4 flex flex-wrap items-center gap-4">
                 <Link
                   href="/repair"
-                  className="px-7 py-4 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-sm sm:text-base shadow-lg shadow-purple-600/30 transition-all hover:scale-105"
+                  className="px-7 py-4 rounded-2xl bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-600 hover:to-indigo-600 text-white font-bold text-sm sm:text-base shadow-lg shadow-purple-700/25 transition-all hover:scale-105"
                 >
                   Xem Bảng Giá & Đặt Hẹn
                 </Link>
 
                 <Link
                   href="/repair/tracking"
-                  className="px-7 py-4 rounded-2xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/15 text-white font-bold text-sm sm:text-base transition-all"
+                  className="px-7 py-4 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 font-bold text-sm sm:text-base shadow-sm transition-all"
                 >
                   Tra Cứu Mã Phiếu (QR)
                 </Link>
@@ -1084,13 +1087,13 @@ export default function CustomerHomePage() {
             </div>
 
             {/* Right Preview Card of Repair Cyber Stepper: Bay từ PHẢI vào */}
-            <div className="lg:col-span-6 bg-[#10162e] rounded-3xl p-7 border border-white/[0.12] shadow-2xl space-y-5 reveal-fly-right">
-              <div className="flex items-center justify-between pb-4 border-b border-white/[0.08] text-sm">
+            <div className="lg:col-span-6 bg-white rounded-3xl p-7 border border-amber-200/80 shadow-xl space-y-5 text-slate-800 reveal-fly-right">
+              <div className="flex items-center justify-between pb-4 border-b border-slate-200 text-sm">
                 <div className="flex items-center gap-2.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
-                  <span className="font-bold text-white">Phiếu Tiếp Nhận: SC-2608-001</span>
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 animate-ping" />
+                  <span className="font-extrabold text-slate-900">Phiếu Tiếp Nhận: SC-2608-001</span>
                 </div>
-                <span className="px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 font-bold text-xs border border-blue-500/30">
+                <span className="px-3 py-1 rounded-full bg-blue-50 text-blue-700 font-bold text-xs border border-blue-200">
                   Đang sửa chữa
                 </span>
               </div>
@@ -1108,10 +1111,10 @@ export default function CustomerHomePage() {
                       <span
                         className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
                           s.done
-                            ? 'bg-emerald-500 text-black shadow-[0_0_10px_rgba(16,185,129,0.5)]'
+                            ? 'bg-emerald-600 text-white shadow-sm'
                             : s.current
-                            ? 'bg-cyan-500 text-black font-black animate-pulse shadow-[0_0_10px_rgba(6,182,212,0.5)]'
-                            : 'bg-white/10 text-gray-500'
+                            ? 'bg-sky-600 text-white font-black animate-pulse shadow-sm'
+                            : 'bg-slate-100 text-slate-400'
                         }`}
                       >
                         ✓
@@ -1119,27 +1122,27 @@ export default function CustomerHomePage() {
                       <span
                         className={
                           s.current
-                            ? 'text-cyan-300 font-bold'
+                            ? 'text-sky-800 font-bold'
                             : s.done
-                            ? 'text-gray-200 font-medium'
-                            : 'text-gray-500'
+                            ? 'text-slate-800 font-semibold'
+                            : 'text-slate-400'
                         }
                       >
                         {s.step}
                       </span>
                     </div>
-                    <span className="text-xs sm:text-sm text-gray-400 font-mono">{s.time}</span>
+                    <span className="text-xs sm:text-sm text-slate-500 font-mono font-medium">{s.time}</span>
                   </div>
                 ))}
               </div>
 
-              <div className="pt-4 border-t border-white/[0.08] text-center">
+              <div className="pt-4 border-t border-slate-200 text-center">
                 <Link
                   href="/repair/tracking?code=SC-2608-001"
-                  className="text-sm text-cyan-400 hover:text-cyan-300 font-bold inline-flex items-center gap-1.5"
+                  className="text-sm text-sky-700 hover:text-sky-800 font-bold inline-flex items-center gap-1.5"
                 >
                   <span>Thử tra cứu trực tiếp phiếu này</span>
-                  <ArrowRight className="w-4 h-4" />
+                  <ArrowRight className="w-4 h-4 text-amber-600" />
                 </Link>
               </div>
             </div>
@@ -1156,12 +1159,12 @@ export default function CustomerHomePage() {
       >
         <FadeInUp>
           {/* Tiêu đề: Chúng tôi có câu trả lời */}
-          <h2 className="text-4xl md:text-5xl font-semibold mb-12 text-center tracking-tight text-white">
+          <h2 className="text-4xl md:text-5xl font-extrabold mb-12 text-center tracking-tight text-slate-900">
             Chúng tôi có câu trả lời
           </h2>
 
-          {/* Vùng chứa: border border-white/10 rounded-xl bg-transparent */}
-          <div className="border border-white/10 rounded-xl bg-transparent overflow-hidden">
+          {/* Vùng chứa: border border-slate-200 rounded-2xl bg-white shadow-md */}
+          <div className="border border-amber-200/80 rounded-2xl bg-white/95 shadow-md overflow-hidden">
             {[
               {
                 question: 'Dữ liệu và thiết bị của tôi có được bảo mật an toàn 100% không?',
@@ -1195,19 +1198,19 @@ export default function CustomerHomePage() {
               return (
                 <div
                   key={index}
-                  className={`${!isLast ? 'border-b border-white/10' : ''}`}
+                  className={`${!isLast ? 'border-b border-slate-100' : ''}`}
                 >
                   <button
                     onClick={() => setOpenFaqIndex(isOpen ? null : index)}
-                    className="w-full py-6 px-6 flex items-center justify-between text-left focus:outline-none group"
+                    className="w-full py-6 px-6 flex items-center justify-between text-left focus:outline-none group hover:bg-slate-50/70 transition-colors"
                   >
-                    <span className="text-base text-white font-medium group-hover:text-gray-200 transition-colors pr-4">
+                    <span className="text-base text-slate-800 font-bold group-hover:text-amber-700 transition-colors pr-4">
                       {faq.question}
                     </span>
 
                     <span
-                      className={`text-gray-400 transition-transform duration-300 transform shrink-0 ${
-                        isOpen ? 'rotate-45 text-white' : 'rotate-0'
+                      className={`transition-transform duration-300 transform shrink-0 ${
+                        isOpen ? 'rotate-45 text-amber-600' : 'rotate-0 text-slate-400'
                       }`}
                     >
                       <Plus className="w-5 h-5" />
@@ -1220,7 +1223,7 @@ export default function CustomerHomePage() {
                     }`}
                   >
                     <div className="overflow-hidden">
-                      <p className="text-gray-400 text-sm pb-6 px-6 leading-relaxed">
+                      <p className="text-slate-600 text-sm pb-6 px-6 leading-relaxed font-normal">
                         {faq.answer}
                       </p>
                     </div>
@@ -1233,11 +1236,11 @@ export default function CustomerHomePage() {
       </section>
 
       {/* =========================================================================
-          PHẦN CHÂN TRANG CTA (id="contact")
+          PHẦN CHÂN TRANG CTA (id="contact") - Giao diện Apple Flagship như Hero Hình 2
           ========================================================================= */}
       <section
         id="contact"
-        className="relative z-0 pt-32 pb-16 px-6 border-t border-white/5 overflow-hidden scroll-mt-28"
+        className="hero-theme-section relative z-0 pt-32 pb-24 px-6 overflow-hidden scroll-mt-28 bg-[#0a0d14] border-t border-slate-800/80 shadow-2xl"
       >
         <div className="absolute inset-0 overflow-hidden -z-10 pointer-events-none">
           <video
@@ -1245,33 +1248,50 @@ export default function CustomerHomePage() {
             loop
             muted
             playsInline
-            className="w-full h-full object-cover opacity-40"
-            src="https://cdn.sceneai.art/Hero%20Section%20Video/50b4f304-cdca-4e12-8735-580d225834be.mp4"
+            className="w-full h-full object-cover scale-105 opacity-90 transition-opacity duration-700"
+            src="https://cdn.sceneai.art/Hero%20Section%20Video/1bcc8fa3-37f6-4c53-8591-0347e4c7f8ac.mp4"
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-black via-black/60 to-black" />
+          {/* Lớp phủ sáng nhẹ trong suốt, giữ trọn ánh sáng rực rỡ sắc nét của video */}
+          <div className="absolute inset-0 bg-slate-950/20" />
+          
+          {/* Gradient mềm mại chuyển tiếp tự nhiên */}
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-950/40 via-transparent to-slate-950/60 pointer-events-none" />
+          
+          {/* Quầng sáng đa sắc Apple Intelligence trung tâm (Luminous Aurora Ambient Aura) */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[750px] h-[500px] bg-gradient-to-r from-amber-400/20 via-sky-400/15 to-purple-400/20 rounded-full blur-[140px] pointer-events-none" />
         </div>
 
-        <div className="max-w-4xl mx-auto text-center mb-16 relative z-10">
+        <div className="max-w-5xl mx-auto text-center relative z-10">
           <FadeInUp>
-            <h2 className="text-4xl md:text-6xl font-medium tracking-tight mb-8 text-white">
-              Sẵn sàng sở hữu thiết bị Apple{' '}
-              <span className="font-serif italic font-normal text-gray-200 inline-block whitespace-nowrap">
+            <div className="px-4 py-2 rounded-full bg-slate-950/60 border border-white/20 text-xs font-bold text-slate-100 mb-8 backdrop-blur-md inline-flex items-center gap-2 shadow-lg">
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              <span>✨ Showroom Flagship 2026 • iShop Huy Hoàng</span>
+            </div>
+
+            <h2 className="text-4xl md:text-6xl lg:text-7xl font-extrabold tracking-tight mb-6 text-white drop-shadow-2xl leading-[1.15]">
+              Sẵn sàng sở hữu thiết bị Apple <br className="hidden sm:inline" />
+              <span className="font-serif italic font-normal text-amber-300 inline-block whitespace-nowrap drop-shadow-lg">
                 đẳng cấp?
               </span>
             </h2>
 
+            <p className="text-[17px] text-slate-100 max-w-2xl text-center leading-relaxed mb-10 mx-auto drop-shadow-md font-medium">
+              Hệ thống bán lẻ iPhone 16 Pro Max 100% nguyên seal chưa active, bảo hành 1 đổi 1 trong 30 ngày và dịch vụ sửa chữa iCare 30 phút lấy liền minh bạch số 1 TP.HCM.
+            </p>
+
             <div className="flex flex-wrap items-center justify-center gap-4">
               <Link
-                href="/"
-                className="bg-white text-black text-sm font-medium px-8 py-3.5 rounded-full hover:bg-gray-200 transition-colors shadow-lg"
+                href="/phones"
+                className="bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white text-sm sm:text-base font-extrabold px-8 py-3.5 rounded-full shadow-[0_0_30px_rgba(245,158,11,0.4)] hover:scale-105 transition-all inline-flex items-center gap-2"
               >
-                Mua iPhone Ngay Hôm Nay
+                <span>Mua iPhone Ngay Hôm Nay</span>
+                <ArrowRight className="w-4 h-4 text-white" />
               </Link>
               <Link
                 href="/about"
-                className="bg-[#1F1F22] hover:bg-[#2A2A2D] text-white text-sm font-medium px-8 py-3.5 rounded-full border border-white/5 transition-colors"
+                className="btn-dark bg-slate-950/80 hover:bg-slate-900 text-white text-sm sm:text-base font-bold px-8 py-3.5 rounded-full border border-white/20 backdrop-blur-md shadow-lg transition-all hover:scale-105 inline-flex items-center gap-2"
               >
-                Khám Phá Showroom
+                <span className="text-white font-bold">Khám Phá Showroom</span>
               </Link>
             </div>
           </FadeInUp>
@@ -1279,34 +1299,32 @@ export default function CustomerHomePage() {
       </section>
 
       {/* 7. THANH ĐIỀU KHIỂN NỔI THÔNG MINH KHI CUỘN (Cyber Floating Scroll Cockpit) */}
+      {/* 8. Floating Action Bar: Scroll Progress + Jump Links + Back to Top */}
       {showScrollTop && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 p-2 rounded-full bg-[#120e0a]/92 border border-amber-500/30 backdrop-blur-2xl shadow-[0_12px_40px_rgba(0,0,0,0.75)] animate-in slide-in-from-bottom-5 duration-300">
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 p-2 rounded-full bg-white/95 border border-amber-200/80 backdrop-blur-2xl shadow-xl animate-in slide-in-from-bottom-5 duration-300 text-slate-800">
           {/* Scroll percentage badge */}
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-mono font-bold">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-xs font-mono font-bold">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
             <span>{scrollProgress}%</span>
           </div>
 
-          {/* Quick Theme Switcher (Mở hướng lên trên để không bị che khuất) */}
-          <ThemeSwitcher dropDirection="up" />
-
           {/* Quick Anchor Jumps */}
-          <div className="hidden sm:flex items-center gap-1 text-xs text-gray-300 font-semibold px-1">
+          <div className="hidden sm:flex items-center gap-1 text-xs text-slate-600 font-bold px-1">
             <a
               href="#about-shop"
-              className="px-2.5 py-1 rounded-full hover:bg-white/10 hover:text-white transition-colors"
+              className="px-2.5 py-1 rounded-full hover:bg-slate-100 hover:text-slate-900 transition-colors"
             >
               Về Shop
             </a>
             <a
               href="#phones-showroom"
-              className="px-2.5 py-1 rounded-full hover:bg-white/10 hover:text-white transition-colors"
+              className="px-2.5 py-1 rounded-full hover:bg-slate-100 hover:text-slate-900 transition-colors"
             >
               iPhone
             </a>
             <a
               href="#icare-desk"
-              className="px-2.5 py-1 rounded-full hover:bg-white/10 hover:text-white transition-colors"
+              className="px-2.5 py-1 rounded-full hover:bg-slate-100 hover:text-slate-900 transition-colors"
             >
               iCare
             </a>
@@ -1315,11 +1333,11 @@ export default function CustomerHomePage() {
           {/* Back to Top button */}
           <button
             onClick={scrollToTop}
-            className="p-2 sm:px-3 sm:py-1.5 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-black text-xs flex items-center gap-1 transition-all shadow-md shadow-amber-500/30 hover:scale-105 active:scale-95"
+            className="p-2 sm:px-3 sm:py-1.5 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white font-black text-xs flex items-center gap-1 transition-all shadow-md shadow-amber-500/25 hover:scale-105 active:scale-95 cursor-pointer"
             title="Cuộn lên đầu trang"
           >
-            <ArrowUp className="w-4 h-4" />
-            <span className="hidden sm:inline">Lên Đầu</span>
+            <ArrowUp className="w-4 h-4 text-white" />
+            <span className="hidden sm:inline text-white">Lên Đầu</span>
           </button>
         </div>
       )}

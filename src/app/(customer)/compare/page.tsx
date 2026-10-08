@@ -70,87 +70,87 @@ export default function ComparePage() {
       {/* Title Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <nav className="text-xs text-gray-400 mb-2 flex items-center gap-2">
-            <Link href="/" className="hover:text-white transition-colors">Trang chủ</Link>
-            <ChevronRight className="w-3 h-3 text-gray-600" />
-            <span className="text-amber-400 font-semibold">So Sánh Điện Thoại</span>
+          <nav className="text-xs text-slate-500 mb-2 flex items-center gap-2">
+            <Link href="/" className="hover:text-slate-900 transition-colors">Trang chủ</Link>
+            <ChevronRight className="w-3 h-3 text-slate-400" />
+            <span className="text-amber-700 font-bold">So Sánh Điện Thoại</span>
           </nav>
-          <h1 className="text-3xl sm:text-4xl font-black text-white flex items-center gap-3">
-            <Scale className="w-8 h-8 text-amber-400" />
+          <h1 className="text-3xl sm:text-4xl font-black text-slate-900 flex items-center gap-3">
+            <Scale className="w-8 h-8 text-amber-600" />
             <span>So Sánh Song Song 2 - 3 Điện Thoại</span>
           </h1>
-          <p className="text-xs sm:text-sm text-gray-400 mt-1">
+          <p className="text-xs sm:text-sm text-slate-600 mt-1">
             Đặt các siêu phẩm lên cùng bàn cân thông số kỹ thuật, màn hình, chip và giá bán.
           </p>
         </div>
 
-        {/* Action Toggle "Only Differences" with 2026 Neon Pill */}
+        {/* Action Toggle "Only Differences" */}
         <div className="flex items-center gap-3">
           <button
             onClick={() => setOnlyDifferences(!onlyDifferences)}
-            className={`px-5 py-3 rounded-2xl text-xs font-bold flex items-center gap-2 border transition-all ${
+            className={`px-5 py-3 rounded-2xl text-xs font-bold flex items-center gap-2 border transition-all shadow-sm ${
               onlyDifferences
-                ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300 shadow-[0_0_20px_rgba(6,182,212,0.3)]'
-                : 'bg-white/[0.04] border-white/[0.08] text-gray-300 hover:bg-white/[0.08]'
+                ? 'bg-sky-50 border-sky-400 text-sky-800 shadow-sm'
+                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
             }`}
           >
-            {onlyDifferences ? <EyeOff className="w-4 h-4 text-cyan-400" /> : <Eye className="w-4 h-4 text-gray-400" />}
+            {onlyDifferences ? <EyeOff className="w-4 h-4 text-sky-600" /> : <Eye className="w-4 h-4 text-slate-500" />}
             <span>{onlyDifferences ? 'Đang chỉ xem điểm khác biệt' : 'Chỉ xem điểm khác biệt'}</span>
           </button>
 
           {selectedPhones.length < 3 && (
             <button
               onClick={() => setShowAddPicker(true)}
-              className="btn-gold px-5 py-3 rounded-2xl text-xs font-black flex items-center gap-2"
+              className="btn-gold px-5 py-3 rounded-2xl text-xs font-black flex items-center gap-2 shadow-sm text-white"
             >
-              <Plus className="w-4 h-4 text-black" />
-              <span>Thêm máy thứ {selectedPhones.length + 1}</span>
+              <Plus className="w-4 h-4 text-white" />
+              <span className="text-white">Thêm máy thứ {selectedPhones.length + 1}</span>
             </button>
           )}
         </div>
       </div>
 
       {/* Comparison Matrix Table */}
-      <div className="glass-panel rounded-3xl border-white/[0.1] overflow-x-auto shadow-2xl">
+      <div className="bg-white rounded-3xl border border-slate-200 overflow-x-auto shadow-md">
         <table className="w-full text-left border-collapse min-w-[750px]">
           {/* Header Row with Phone Cards */}
           <thead>
-            <tr className="border-b border-white/[0.08] bg-[#070b14]/90">
-              <th className="p-5 sm:p-6 w-1/4 align-top text-xs text-gray-400 uppercase font-bold tracking-wider">
+            <tr className="border-b border-slate-200 bg-slate-50/90">
+              <th className="p-5 sm:p-6 w-1/4 align-top text-xs text-slate-700 uppercase font-black tracking-wider">
                 Sản phẩm so sánh
               </th>
               {selectedPhones.map((phone) => (
                 <th key={phone.id} className="p-5 sm:p-6 w-1/4 align-top text-center">
-                  <div className="relative glass-card p-5 rounded-3xl border-white/[0.08] group">
+                  <div className="relative bg-white p-5 rounded-3xl border border-slate-200 shadow-sm group">
                     <button
                       onClick={() => removePhone(phone.id)}
-                      className="absolute top-2.5 right-2.5 p-1.5 rounded-xl bg-black/60 text-gray-400 hover:text-red-400 hover:bg-black transition-colors"
+                      className="absolute top-2.5 right-2.5 p-1.5 rounded-xl bg-slate-100 text-slate-500 hover:text-red-600 hover:bg-slate-200 transition-colors"
                       title="Bỏ máy này"
                     >
                       <X className="w-4 h-4" />
                     </button>
 
                     <Link href={`/phones/${phone.slug}`}>
-                      <div className="w-32 h-32 mx-auto mb-3 bg-gradient-to-b from-[#0f172a] to-[#070a12] rounded-2xl p-2 flex items-center justify-center">
+                      <div className="w-32 h-32 mx-auto mb-3 bg-gradient-to-b from-slate-100 to-slate-200/80 border border-slate-200 rounded-2xl p-2 flex items-center justify-center">
                         <img
                           src={phone.colors[0]?.imageUrl}
                           alt={phone.name}
                           className="w-full h-full object-contain group-hover:scale-105 transition-transform"
                         />
                       </div>
-                      <h3 className="text-sm font-bold text-white group-hover:text-amber-300 transition-colors line-clamp-2 min-h-[40px]">
+                      <h3 className="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors line-clamp-2 min-h-[40px]">
                         {phone.name}
                       </h3>
                     </Link>
 
-                    <div className="mt-2 text-base font-black text-amber-400">
+                    <div className="mt-2 text-base font-black text-amber-700">
                       {formatVND(phone.capacities[0].price)}
                     </div>
 
                     <div className="mt-3">
                       <Link
                         href={`/phones/${phone.slug}`}
-                        className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs flex items-center justify-center gap-1 transition-all shadow-md"
+                        className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-1 transition-all shadow-sm"
                       >
                         <span>Mua ngay</span>
                         <ArrowRight className="w-3.5 h-3.5" />
@@ -165,9 +165,9 @@ export default function ComparePage() {
                 <th className="p-5 sm:p-6 w-1/4 align-top text-center">
                   <button
                     onClick={() => setShowAddPicker(true)}
-                    className="w-full h-[270px] rounded-3xl border-2 border-dashed border-white/10 hover:border-amber-400/50 flex flex-col items-center justify-center gap-2 text-gray-400 hover:text-amber-300 transition-all bg-white/[0.01] hover:bg-white/[0.04]"
+                    className="w-full h-[270px] rounded-3xl border-2 border-dashed border-slate-300 hover:border-amber-500 flex flex-col items-center justify-center gap-2 text-slate-500 hover:text-amber-700 transition-all bg-slate-50/50 hover:bg-amber-50/30"
                   >
-                    <Plus className="w-8 h-8 text-amber-400" />
+                    <Plus className="w-8 h-8 text-amber-600" />
                     <span className="text-xs font-bold">Thêm máy thứ {selectedPhones.length + 1}</span>
                   </button>
                 </th>
@@ -176,7 +176,7 @@ export default function ComparePage() {
           </thead>
 
           {/* Body Rows */}
-          <tbody className="divide-y divide-white/[0.05] text-xs sm:text-sm">
+          <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">
             {specRows.map((row) => {
               const values = selectedPhones.map((p) => row.getVal(p));
               const isDifferent = new Set(values).size > 1;
@@ -188,14 +188,14 @@ export default function ComparePage() {
               return (
                 <tr
                   key={row.key}
-                  className={`hover:bg-white/[0.02] transition-colors ${
-                    isDifferent ? 'bg-cyan-500/[0.04]' : ''
+                  className={`hover:bg-slate-50 transition-colors ${
+                    isDifferent ? 'bg-sky-50/40' : ''
                   }`}
                 >
-                  <td className="p-4 sm:p-5 font-bold text-gray-300 bg-black/25">
+                  <td className="p-4 sm:p-5 font-bold text-slate-800 bg-slate-50/80">
                     <div className="flex items-center gap-2">
                       {isDifferent && (
-                        <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(6,182,212,0.8)]" title="Điểm khác biệt" />
+                        <span className="w-2 h-2 rounded-full bg-sky-600 shadow-sm" title="Điểm khác biệt" />
                       )}
                       <span>{row.label}</span>
                     </div>
@@ -204,13 +204,13 @@ export default function ComparePage() {
                     <td
                       key={phone.id}
                       className={`p-4 sm:p-5 text-center ${
-                        isDifferent ? 'text-white font-bold' : 'text-gray-400'
+                        isDifferent ? 'text-slate-900 font-bold' : 'text-slate-600 font-medium'
                       }`}
                     >
                       {row.getVal(phone)}
                     </td>
                   ))}
-                  {selectedPhones.length < 3 && <td className="p-4 text-center text-gray-600">-</td>}
+                  {selectedPhones.length < 3 && <td className="p-4 text-center text-slate-400">-</td>}
                 </tr>
               );
             })}
@@ -220,13 +220,13 @@ export default function ComparePage() {
 
       {/* Modal Add Phone to Compare */}
       {showAddPicker && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="bg-[#0c121e] border border-white/15 rounded-3xl p-6 sm:p-8 max-w-xl w-full shadow-2xl">
-            <div className="flex items-center justify-between pb-4 border-b border-white/10 mb-4">
-              <h3 className="font-bold text-white text-base">Chọn Điện Thoại Để Đưa Lên Bàn Cân</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 max-w-xl w-full shadow-2xl">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
+              <h3 className="font-bold text-slate-900 text-base">Chọn Điện Thoại Để Đưa Lên Bàn Cân</h3>
               <button
                 onClick={() => setShowAddPicker(false)}
-                className="p-1.5 text-gray-400 hover:text-white rounded-xl bg-white/5"
+                className="p-1.5 text-slate-500 hover:text-slate-900 rounded-xl bg-slate-100 hover:bg-slate-200"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -239,24 +239,24 @@ export default function ComparePage() {
                   <div
                     key={phone.id}
                     onClick={() => addPhone(phone.id)}
-                    className="flex items-center justify-between p-3.5 rounded-2xl bg-white/[0.03] hover:bg-amber-500/15 border border-white/[0.06] hover:border-amber-400/40 cursor-pointer transition-all"
+                    className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 hover:bg-amber-50/60 border border-slate-200 hover:border-amber-300 cursor-pointer transition-all shadow-sm"
                   >
                     <div className="flex items-center gap-3">
                       <img
                         src={phone.colors[0]?.imageUrl}
                         alt={phone.name}
-                        className="w-12 h-12 object-contain rounded-xl bg-black/40 p-1"
+                        className="w-12 h-12 object-contain rounded-xl bg-gradient-to-b from-slate-100 to-slate-200 border border-slate-200 p-1"
                       />
                       <div>
-                        <h4 className="text-sm font-bold text-white">{phone.name}</h4>
-                        <p className="text-xs text-gray-400">{phone.specs.chip}</p>
+                        <h4 className="text-sm font-bold text-slate-900">{phone.name}</h4>
+                        <p className="text-xs text-slate-500">{phone.specs.chip}</p>
                       </div>
                     </div>
                     <div className="text-right">
-                      <span className="text-sm font-black text-amber-400">
+                      <span className="text-sm font-black text-amber-700">
                         {formatVND(phone.capacities[0].price)}
                       </span>
-                      <span className="block text-[11px] text-cyan-400 font-bold mt-0.5">+ Chọn So Sánh</span>
+                      <span className="block text-[11px] text-sky-700 font-bold mt-0.5">+ Chọn So Sánh</span>
                     </div>
                   </div>
                 ))}

@@ -1,27 +1,27 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0e0b08;
-  --foreground: #f8fafc;
-  --card-bg: rgba(26, 20, 15, 0.82);
-  --card-border: rgba(226, 183, 116, 0.2);
-  --desert-gold: #e2b774;
-  --desert-gold-light: #fef08a;
-  --cyber-cyan: #38bdf8;
-  --electric-blue: #60a5fa;
-  --hyper-emerald: #10b981;
-  --neon-violet: #a78bfa;
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --card-bg: rgba(255, 255, 255, 0.95);
+  --card-border: rgba(226, 232, 240, 0.9);
+  --desert-gold: #d97706;
+  --desert-gold-light: #f59e0b;
+  --cyber-cyan: #0284c7;
+  --electric-blue: #2563eb;
+  --hyper-emerald: #059669;
+  --neon-violet: #7c3aed;
 }
 
 body {
-  background-color: #0e0b08;
+  background-color: #f8fafc;
   background-image: 
-    radial-gradient(circle at 50% -10%, rgba(245, 158, 11, 0.28) 0%, transparent 60%),
-    radial-gradient(circle at 90% 25%, rgba(226, 183, 116, 0.2) 0%, transparent 45%),
-    radial-gradient(circle at 10% 60%, rgba(217, 119, 6, 0.15) 0%, transparent 45%),
-    radial-gradient(circle at 75% 85%, rgba(245, 158, 11, 0.15) 0%, transparent 50%);
+    radial-gradient(circle at 50% -10%, rgba(245, 158, 11, 0.09) 0%, transparent 60%),
+    radial-gradient(circle at 90% 20%, rgba(14, 165, 233, 0.07) 0%, transparent 45%),
+    radial-gradient(circle at 10% 60%, rgba(245, 158, 11, 0.06) 0%, transparent 45%),
+    radial-gradient(circle at 75% 85%, rgba(99, 102, 241, 0.05) 0%, transparent 50%);
   background-attachment: fixed;
-  color: #f8fafc;
+  color: #0f172a;
   font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
   overflow-x: hidden;
   min-height: 100vh;
@@ -33,252 +33,359 @@ body {
   letter-spacing: 0 !important;
 }
 
-/* 2026 Glassmorphism & Future Dusk Cyber-Luxe Components */
+/* Modern Luxury Warm Glassmorphism Components (Matching Screenshot Style) */
 .glass-panel {
-  background: rgba(24, 18, 13, 0.82);
+  background: linear-gradient(135deg, rgba(254, 243, 199, 0.45) 0%, rgba(255, 255, 255, 0.95) 50%, rgba(255, 247, 237, 0.55) 100%) !important;
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(226, 183, 116, 0.22);
-  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.55);
+  border: 1.5px solid rgba(245, 158, 11, 0.35) !important;
+  box-shadow: 0 15px 40px -5px rgba(245, 158, 11, 0.12), 0 4px 15px -2px rgba(15, 23, 42, 0.03) !important;
 }
 
 .glass-card {
-  background: linear-gradient(135deg, rgba(34, 26, 18, 0.72) 0%, rgba(18, 14, 10, 0.55) 100%);
+  background: rgba(255, 255, 255, 0.98);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
-  border: 1px solid rgba(226, 183, 116, 0.2);
-  box-shadow: 0 6px 25px rgba(0, 0, 0, 0.45);
+  border: 1.5px solid rgba(253, 230, 138, 0.75);
+  box-shadow: 0 8px 30px -2px rgba(15, 23, 42, 0.06), 0 0 15px rgba(245, 158, 11, 0.05);
   transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .glass-card:hover {
   transform: translateY(-3px);
-  border-color: rgba(226, 183, 116, 0.48);
-  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.65), 0 0 30px rgba(226, 183, 116, 0.22);
-}
-
-/* =========================================================================
-   2026 HOT COLOR PALETTES (THEME SYSTEM)
-   Titanium Desert Gold (Mặc định Apple 2026) | Cosmic Cobalt | Mocha | Teal | Cream | Dusk
-   ========================================================================= */
-
-/* 1. TITANIUM DESERT GOLD (KEY APPLE 2026 - Titan Sa Mạc hoàng kim sang trọng bậc nhất) */
-[data-theme="titanium"] body, body.theme-titanium {
-  background-color: #0e0b08 !important;
-  background-image: 
-    radial-gradient(circle at 50% -10%, rgba(245, 158, 11, 0.32) 0%, transparent 60%),
-    radial-gradient(circle at 90% 25%, rgba(226, 183, 116, 0.25) 0%, transparent 45%),
-    radial-gradient(circle at 10% 60%, rgba(217, 119, 6, 0.18) 0%, transparent 45%),
-    radial-gradient(circle at 75% 85%, rgba(245, 158, 11, 0.18) 0%, transparent 50%) !important;
-}
-
-[data-theme="titanium"] .glass-panel, body.theme-titanium .glass-panel {
-  background: rgba(24, 18, 13, 0.85) !important;
-  border-color: rgba(226, 183, 116, 0.28) !important;
-  box-shadow: 0 16px 45px rgba(12, 9, 6, 0.7) !important;
-}
-
-[data-theme="titanium"] .glass-card, body.theme-titanium .glass-card {
-  background: linear-gradient(135deg, rgba(34, 26, 18, 0.78) 0%, rgba(18, 14, 10, 0.6) 100%) !important;
-  border-color: rgba(226, 183, 116, 0.22) !important;
-}
-
-[data-theme="titanium"] header, body.theme-titanium header {
-  background-color: rgba(14, 11, 8, 0.9) !important;
-  border-bottom-color: rgba(226, 183, 116, 0.22) !important;
-}
-
-/* 1. TRANSFORMATIVE TEAL (WGSN KEY COLOR 2026 - Xanh ngọc biển sâu rực rỡ) */
-[data-theme="teal"] body, body.theme-teal {
-  background-color: #0a2e35 !important;
-  background-image: 
-    radial-gradient(circle at 50% -10%, rgba(20, 184, 166, 0.35) 0%, transparent 60%),
-    radial-gradient(circle at 90% 25%, rgba(56, 189, 248, 0.28) 0%, transparent 45%),
-    radial-gradient(circle at 10% 60%, rgba(232, 192, 130, 0.18) 0%, transparent 45%),
-    radial-gradient(circle at 75% 85%, rgba(16, 185, 129, 0.22) 0%, transparent 50%) !important;
-}
-
-[data-theme="teal"] .glass-panel, body.theme-teal .glass-panel {
-  background: rgba(14, 54, 62, 0.85) !important;
-  border-color: rgba(45, 212, 191, 0.25) !important;
-  box-shadow: 0 15px 45px rgba(8, 38, 44, 0.6) !important;
-}
-
-[data-theme="teal"] .glass-card, body.theme-teal .glass-card {
-  background: linear-gradient(135deg, rgba(18, 68, 78, 0.75) 0%, rgba(10, 44, 51, 0.55) 100%) !important;
-  border-color: rgba(45, 212, 191, 0.22) !important;
-}
-
-[data-theme="teal"] header, body.theme-teal header {
-  background-color: rgba(10, 46, 53, 0.92) !important;
-  border-bottom-color: rgba(45, 212, 191, 0.25) !important;
-}
-
-/* 2. COSMIC ROYAL COBALT (Sapphire Vũ Trụ 2026 - Xanh lam hoàng gia nổi bật) */
-[data-theme="cobalt"] body, body.theme-cobalt {
-  background-color: #111c44 !important;
-  background-image: 
-    radial-gradient(circle at 50% -10%, rgba(99, 102, 241, 0.4) 0%, transparent 60%),
-    radial-gradient(circle at 90% 25%, rgba(56, 189, 248, 0.3) 0%, transparent 45%),
-    radial-gradient(circle at 10% 60%, rgba(232, 192, 130, 0.2) 0%, transparent 45%),
-    radial-gradient(circle at 75% 85%, rgba(167, 139, 250, 0.2) 0%, transparent 50%) !important;
-}
-
-[data-theme="cobalt"] .glass-panel, body.theme-cobalt .glass-panel {
-  background: rgba(22, 36, 82, 0.85) !important;
-  border-color: rgba(99, 102, 241, 0.3) !important;
-  box-shadow: 0 15px 45px rgba(10, 16, 42, 0.6) !important;
-}
-
-[data-theme="cobalt"] .glass-card, body.theme-cobalt .glass-card {
-  background: linear-gradient(135deg, rgba(29, 46, 104, 0.75) 0%, rgba(17, 28, 68, 0.55) 100%) !important;
-  border-color: rgba(99, 102, 241, 0.25) !important;
-}
-
-[data-theme="cobalt"] header, body.theme-cobalt header {
-  background-color: rgba(17, 28, 68, 0.92) !important;
-  border-bottom-color: rgba(99, 102, 241, 0.3) !important;
-}
-
-/* 3. MOCHA VELVET (Nâu Cà Phê Velvet 2026 - Sang trọng, ấm cúng) */
-[data-theme="mocha"] body, body.theme-mocha {
-  background-color: #2d1a25 !important;
-  background-image: 
-    radial-gradient(circle at 50% -10%, rgba(244, 63, 94, 0.25) 0%, transparent 60%),
-    radial-gradient(circle at 90% 25%, rgba(245, 158, 11, 0.25) 0%, transparent 45%),
-    radial-gradient(circle at 10% 60%, rgba(232, 192, 130, 0.2) 0%, transparent 45%),
-    radial-gradient(circle at 75% 85%, rgba(251, 113, 133, 0.18) 0%, transparent 50%) !important;
-}
-
-[data-theme="mocha"] .glass-panel, body.theme-mocha .glass-panel {
-  background: rgba(58, 34, 48, 0.85) !important;
-  border-color: rgba(244, 63, 94, 0.28) !important;
-  box-shadow: 0 15px 45px rgba(32, 16, 26, 0.6) !important;
-}
-
-[data-theme="mocha"] .glass-card, body.theme-mocha .glass-card {
-  background: linear-gradient(135deg, rgba(72, 42, 60, 0.75) 0%, rgba(45, 26, 37, 0.55) 100%) !important;
-  border-color: rgba(244, 63, 94, 0.25) !important;
-}
-
-[data-theme="mocha"] header, body.theme-mocha header {
-  background-color: rgba(45, 26, 37, 0.92) !important;
-  border-bottom-color: rgba(244, 63, 94, 0.3) !important;
-}
-
-/* 4. TITANIUM DESERT CREAM (Kem Sa Mạc Ánh Kim - Giao Diện Sáng Siêu Sang 2026) */
-[data-theme="cream"] body, body.theme-cream {
-  background-color: #f6f3ed !important;
-  color: #0f172a !important;
-  background-image: 
-    radial-gradient(circle at 50% -10%, rgba(226, 183, 116, 0.35) 0%, transparent 60%),
-    radial-gradient(circle at 90% 25%, rgba(245, 158, 11, 0.2) 0%, transparent 45%),
-    radial-gradient(circle at 10% 60%, rgba(14, 165, 233, 0.12) 0%, transparent 45%),
-    radial-gradient(circle at 75% 85%, rgba(217, 119, 6, 0.15) 0%, transparent 50%) !important;
-}
-
-[data-theme="cream"] .glass-panel, body.theme-cream .glass-panel {
-  background: rgba(255, 255, 255, 0.92) !important;
-  border-color: rgba(226, 183, 116, 0.4) !important;
-  box-shadow: 0 15px 45px rgba(180, 150, 100, 0.16) !important;
-}
-
-[data-theme="cream"] .glass-card, body.theme-cream .glass-card {
-  background: rgba(255, 255, 255, 0.95) !important;
-  border-color: rgba(226, 183, 116, 0.35) !important;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08) !important;
-}
-
-[data-theme="cream"] header, body.theme-cream header {
-  background-color: rgba(246, 243, 237, 0.96) !important;
-  border-bottom-color: rgba(226, 183, 116, 0.35) !important;
-  box-shadow: 0 8px 32px rgba(180, 150, 100, 0.15) !important;
-}
-
-[data-theme="cream"] .text-white, body.theme-cream .text-white {
-  color: #0f172a !important;
-}
-
-[data-theme="cream"] .text-gray-200, 
-[data-theme="cream"] .text-gray-300, 
-body.theme-cream .text-gray-200, 
-body.theme-cream .text-gray-300 {
-  color: #334155 !important;
-}
-
-[data-theme="cream"] .text-gray-400, body.theme-cream .text-gray-400 {
-  color: #64748b !important;
-}
-
-/* 5. FUTURE DUSK (Xanh Đêm Vũ Trụ - Tối Mềm Mại Sáng Hơn) */
-[data-theme="dusk"] body, body.theme-dusk {
-  background-color: #121a33 !important;
-  background-image: 
-    radial-gradient(circle at 50% -10%, rgba(99, 102, 241, 0.28) 0%, transparent 60%),
-    radial-gradient(circle at 90% 25%, rgba(232, 192, 130, 0.2) 0%, transparent 45%),
-    radial-gradient(circle at 10% 60%, rgba(56, 189, 248, 0.15) 0%, transparent 45%) !important;
-}
-
-[data-theme="dusk"] .glass-panel, body.theme-dusk .glass-panel {
-  background: rgba(24, 35, 68, 0.85) !important;
-  border-color: rgba(255, 255, 255, 0.18) !important;
-}
-
-[data-theme="dusk"] .glass-card, body.theme-dusk .glass-card {
-  background: linear-gradient(135deg, rgba(32, 46, 90, 0.75) 0%, rgba(18, 27, 54, 0.6) 100%) !important;
-  border-color: rgba(148, 163, 184, 0.2) !important;
-}
-
-[data-theme="dusk"] header, body.theme-dusk header {
-  background-color: rgba(18, 27, 54, 0.92) !important;
-}
-
-/* Dynamic Hero Section Theming */
-.hero-theme-section {
-  background: linear-gradient(180deg, rgba(14, 20, 40, 0.92) 0%, rgba(10, 14, 28, 0.96) 100%);
-}
-[data-theme="teal"] .hero-theme-section {
-  background: linear-gradient(180deg, rgba(10, 46, 53, 0.92) 0%, rgba(7, 34, 39, 0.96) 100%) !important;
-}
-[data-theme="cobalt"] .hero-theme-section {
-  background: linear-gradient(180deg, rgba(17, 28, 68, 0.92) 0%, rgba(12, 19, 48, 0.96) 100%) !important;
-}
-[data-theme="mocha"] .hero-theme-section {
-  background: linear-gradient(180deg, rgba(45, 26, 37, 0.92) 0%, rgba(32, 18, 26, 0.96) 100%) !important;
-}
-[data-theme="cream"] .hero-theme-section {
-  background: linear-gradient(180deg, rgba(246, 243, 237, 0.94) 0%, rgba(235, 229, 219, 0.96) 100%) !important;
-  color: #0f172a !important;
-}
-
-.hero-trust-line {
-  background-color: rgba(13, 18, 38, 0.6);
-}
-[data-theme="teal"] .hero-trust-line {
-  background-color: rgba(10, 46, 53, 0.75) !important;
-}
-[data-theme="cobalt"] .hero-trust-line {
-  background-color: rgba(17, 28, 68, 0.75) !important;
-}
-[data-theme="mocha"] .hero-trust-line {
-  background-color: rgba(45, 26, 37, 0.75) !important;
-}
-[data-theme="cream"] .hero-trust-line {
-  background-color: rgba(246, 243, 237, 0.85) !important;
-  color: #334155 !important;
+  border-color: rgba(245, 158, 11, 0.65) !important;
+  box-shadow: 0 16px 35px -5px rgba(15, 23, 42, 0.1), 0 0 25px rgba(245, 158, 11, 0.2) !important;
 }
 
 .glass-card-cyber {
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.08) 0%, rgba(99, 102, 241, 0.04) 100%);
+  background: rgba(255, 255, 255, 0.96);
   backdrop-filter: blur(18px);
-  border: 1px solid rgba(56, 189, 248, 0.22);
+  border: 1px solid rgba(14, 165, 233, 0.25);
+  box-shadow: 0 4px 20px -2px rgba(14, 165, 233, 0.06);
   transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .glass-card-cyber:hover {
   transform: translateY(-3px);
-  border-color: rgba(56, 189, 248, 0.5);
-  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.55), 0 0 30px rgba(56, 189, 248, 0.2);
+  border-color: rgba(14, 165, 233, 0.6);
+  box-shadow: 0 16px 35px -5px rgba(14, 165, 233, 0.12), 0 0 25px rgba(56, 189, 248, 0.2);
+}
+
+/* Header, Hero & Trust line */
+header {
+  background-color: rgba(255, 255, 255, 0.96) !important;
+  border-bottom-color: rgba(226, 232, 240, 0.9) !important;
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.04) !important;
+}
+
+.hero-theme-section {
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  color: #0f172a;
+}
+
+.hero-trust-line {
+  background-color: rgba(241, 245, 249, 0.9);
+  color: #334155;
+}
+
+/* Universal Light Mode Transformations for Dark Container Backgrounds (Exempting Footer) */
+main [class*="bg-[#0"]:not([class*="bg-slate-900"]):not([class*="bg-slate-950"]), 
+main [class*="bg-[#10"], 
+main [class*="bg-[#11"], 
+main [class*="bg-[#12"], 
+main [class*="bg-[#14"], 
+main [class*="bg-[#16"],
+main [class*="bg-[#080c18]"],
+main [class*="bg-[#0c0906]"],
+main [class*="bg-[#0e0b08]"],
+main [class*="bg-[#140e0a]"],
+main [class*="bg-[#121826]"],
+main [class*="bg-[#0d1326]"] {
+  background-color: rgba(255, 255, 255, 0.96) !important;
+  color: #0f172a;
+  border-color: rgba(226, 232, 240, 0.9);
+}
+
+/* Light styling for tables, inputs, and selects */
+table thead[class*="bg-[#"], 
+table thead {
+  background-color: #f1f5f9 !important;
+  color: #334155 !important;
+  border-color: #e2e8f0 !important;
+}
+
+input[class*="bg-[#"], select[class*="bg-[#"], textarea[class*="bg-[#"],
+input[class*="bg-white/"], select[class*="bg-white/"], textarea[class*="bg-white/"] {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+input::placeholder, textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* =========================================================================
+   HIGH-CONTRAST LIGHT TYPOGRAPHY & VISUAL ENHANCEMENT SYSTEM
+   ========================================================================= */
+
+/* Hero Video Section Over Dark Media */
+.hero-theme-section {
+  position: relative;
+}
+
+.hero-theme-section h1,
+.hero-theme-section .text-white {
+  color: #ffffff !important;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.7);
+}
+
+.hero-theme-section .text-gray-200,
+.hero-theme-section .text-gray-300 {
+  color: #f1f5f9 !important;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
+}
+
+.hero-theme-section .text-gray-400 {
+  color: #e2e8f0 !important;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
+}
+
+.hero-theme-section .hero-trust-line {
+  background-color: rgba(15, 23, 42, 0.85) !important;
+  backdrop-filter: blur(16px) !important;
+  color: #f8fafc !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.15) !important;
+}
+
+/* Headings default to Deep Obsidian Slate */
+h1:not(.hero-theme-section *):not(footer *):not(.dark-testimonial-card *),
+h2:not(.hero-theme-section *):not(footer *):not(.dark-testimonial-card *),
+h3:not(.hero-theme-section *):not(footer *):not(.dark-testimonial-card *),
+h4:not(.hero-theme-section *):not(footer *):not(.dark-testimonial-card *),
+h5:not(.hero-theme-section *):not(footer *):not(.dark-testimonial-card *),
+h6:not(.hero-theme-section *):not(footer *):not(.dark-testimonial-card *) {
+  color: #0f172a;
+  letter-spacing: -0.025em;
+}
+
+/* Warm Luxury Amber-Cream Footer (Matching Flash Sale Card Palette) */
+footer.app-footer,
+.app-footer {
+  background: linear-gradient(135deg, rgba(254, 243, 199, 0.75) 0%, rgba(255, 247, 237, 0.85) 50%, rgba(255, 241, 242, 0.75) 100%) !important;
+  background-color: #fffbeb !important;
+  color: #475569 !important;
+  border-top: 2px solid rgba(245, 158, 11, 0.5) !important;
+  box-shadow: 0 -15px 40px rgba(245, 158, 11, 0.12) !important;
+}
+
+.app-footer h1, .app-footer h2, .app-footer h3, .app-footer h4, .app-footer h5, .app-footer h6,
+footer h1, footer h2, footer h3, footer h4, footer h5, footer h6 {
+  color: #0f172a !important;
+}
+
+.app-footer a {
+  color: #475569 !important;
+}
+
+.app-footer a:hover {
+  color: #d97706 !important;
+}
+
+.app-footer .footer-card {
+  background-color: rgba(255, 255, 255, 0.92) !important;
+  border: 1px solid rgba(245, 158, 11, 0.28) !important;
+  color: #334155 !important;
+  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.07) !important;
+}
+
+.app-footer .footer-card:hover {
+  border-color: rgba(245, 158, 11, 0.6) !important;
+  background-color: #ffffff !important;
+  box-shadow: 0 8px 25px rgba(245, 158, 11, 0.15) !important;
+}
+
+.app-footer .footer-card h4 {
+  color: #0f172a !important;
+}
+
+.app-footer .footer-card p {
+  color: #64748b !important;
+}
+
+.app-footer .footer-bottom-bar {
+  background-color: rgba(254, 243, 199, 0.7) !important;
+  border-top: 1px solid rgba(245, 158, 11, 0.25) !important;
+  color: #64748b !important;
+}
+
+/* Hide Next.js dev indicator & devtools button in bottom-left corner */
+nextjs-portal,
+#nextjs-dev-tools,
+div[data-nextjs-dev-tools],
+[data-nextjs-dev-tools-button],
+[data-nextjs-toast-wrapper],
+[data-nextjs-dialog] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* ALL Dark Buttons, Links, Badges, and Pill CTAs must ALWAYS have pure, high-contrast white text */
+a[class*="bg-slate-900"],
+a[class*="bg-slate-900"] *,
+a[class*="bg-slate-950"],
+a[class*="bg-slate-950"] *,
+a[class*="bg-black"],
+a[class*="bg-black"] *,
+button[class*="bg-slate-900"],
+button[class*="bg-slate-900"] *,
+button[class*="bg-slate-950"],
+button[class*="bg-slate-950"] *,
+button[class*="bg-black"],
+button[class*="bg-black"] *,
+.btn-dark,
+.btn-dark * {
+  color: #ffffff !important;
+}
+
+.btn-dark {
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+}
+
+.btn-dark:hover {
+  background-color: #020617 !important;
+}
+
+.btn-dark span {
+  color: #ffffff !important;
+}
+
+/* Light text adaptations across light surfaces */
+.glass-panel .text-white:not(button):not(button *):not(a):not(a *):not(.btn-gold):not(.btn-gold *):not([class*="bg-slate-900"]):not([class*="bg-slate-900"] *):not([class*="bg-black"]):not([class*="bg-black"] *):not([class*="bg-blue-600"] *):not([class*="bg-emerald-600"] *):not([class*="bg-red-600"] *):not([class*="badge-glow-"]),
+.glass-card .text-white:not(button):not(button *):not(a):not(a *):not(.btn-gold):not(.btn-gold *):not([class*="bg-slate-900"]):not([class*="bg-slate-900"] *):not([class*="bg-black"]):not([class*="bg-black"] *):not([class*="bg-blue-600"] *):not([class*="bg-emerald-600"] *):not([class*="bg-red-600"] *):not([class*="badge-glow-"]),
+.glass-card-cyber .text-white:not(button):not(button *):not(a):not(a *):not(.btn-gold):not(.btn-gold *):not([class*="bg-slate-900"]):not([class*="bg-slate-900"] *):not([class*="bg-black"]):not([class*="bg-black"] *):not([class*="bg-blue-600"] *):not([class*="bg-emerald-600"] *):not([class*="bg-red-600"] *):not([class*="badge-glow-"]),
+main .text-white:not(.hero-theme-section *):not(.dark-testimonial-card *):not(button *):not(button):not(a *):not(a):not(.btn-gold *):not([class*="bg-slate-900"]):not([class*="bg-slate-900"] *):not([class*="bg-black"]):not([class*="bg-black"] *):not([class*="bg-blue-600"] *):not([class*="bg-amber-600"] *):not([class*="bg-emerald-600"] *):not([class*="bg-red-600"] *):not([class*="bg-purple-600"] *):not([class*="badge-glow-"]) {
+  color: #0f172a !important;
+}
+
+/* Dark Testimonial & Showcase Carousel High-Contrast Typography */
+.dark-testimonial-card,
+.dark-testimonial-card * {
+  color: #ffffff;
+}
+
+.dark-testimonial-card .testimonial-quote,
+.dark-testimonial-card p.testimonial-quote,
+.dark-testimonial-card p {
+  color: #ffffff !important;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.95), 0 1px 4px rgba(0, 0, 0, 0.9) !important;
+}
+
+.dark-testimonial-card .testimonial-author,
+.dark-testimonial-card h4.testimonial-author,
+.dark-testimonial-card h4 {
+  color: #ffffff !important;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.95) !important;
+}
+
+.dark-testimonial-card .testimonial-role,
+.dark-testimonial-card p.testimonial-role {
+  color: #fde68a !important; /* amber-200 / radiant luxury gold */
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9) !important;
+}
+
+/* Legible high-contrast text adaptations for light background */
+.text-gray-100:not(.hero-theme-section *):not(button *):not([class*="bg-slate-900"] *):not([class*="bg-black"] *):not([class*="bg-blue-600"] *):not([class*="bg-emerald-600"] *):not([class*="bg-red-600"] *),
+.text-gray-200:not(.hero-theme-section *):not(button *):not([class*="bg-slate-900"] *):not([class*="bg-black"] *):not([class*="bg-blue-600"] *):not([class*="bg-emerald-600"] *):not([class*="bg-red-600"] *),
+.text-slate-200:not(.hero-theme-section *):not(button *):not([class*="bg-slate-900"] *):not([class*="bg-black"] *):not([class*="bg-blue-600"] *):not([class*="bg-emerald-600"] *):not([class*="bg-red-600"] *) {
+  color: #1e293b !important; /* Slate 800 - crisp, deep readable text */
+}
+
+.text-gray-300:not(.hero-theme-section *):not(button *):not([class*="bg-slate-900"] *):not([class*="bg-black"] *):not([class*="bg-blue-600"] *):not([class*="bg-emerald-600"] *):not([class*="bg-red-600"] *),
+.text-slate-300:not(.hero-theme-section *):not(button *):not([class*="bg-slate-900"] *):not([class*="bg-black"] *):not([class*="bg-blue-600"] *):not([class*="bg-emerald-600"] *):not([class*="bg-red-600"] *),
+.text-zinc-300:not(.hero-theme-section *):not(button *):not([class*="bg-slate-900"] *):not([class*="bg-black"] *):not([class*="bg-blue-600"] *):not([class*="bg-emerald-600"] *):not([class*="bg-red-600"] *) {
+  color: #334155 !important; /* Slate 700 - rich and clear */
+}
+
+.text-gray-400:not(.hero-theme-section *):not(button *):not([class*="bg-slate-900"] *):not([class*="bg-black"] *):not([class*="bg-blue-600"] *):not([class*="bg-emerald-600"] *):not([class*="bg-red-600"] *),
+.text-slate-400:not(.hero-theme-section *):not(button *):not([class*="bg-slate-900"] *):not([class*="bg-black"] *):not([class*="bg-blue-600"] *):not([class*="bg-emerald-600"] *):not([class*="bg-red-600"] *),
+.text-zinc-400:not(.hero-theme-section *):not(button *):not([class*="bg-slate-900"] *):not([class*="bg-black"] *):not([class*="bg-blue-600"] *):not([class*="bg-emerald-600"] *):not([class*="bg-red-600"] *) {
+  color: #475569 !important; /* Slate 600 - prominent secondary info */
+}
+
+.text-gray-500:not(.hero-theme-section *):not(button *):not([class*="bg-slate-900"] *):not([class*="bg-black"] *):not([class*="bg-blue-600"] *):not([class*="bg-emerald-600"] *):not([class*="bg-red-600"] *),
+.text-slate-500:not(.hero-theme-section *):not(button *):not([class*="bg-slate-900"] *):not([class*="bg-black"] *):not([class*="bg-blue-600"] *):not([class*="bg-emerald-600"] *):not([class*="bg-red-600"] *),
+.text-zinc-500:not(.hero-theme-section *):not(button *):not([class*="bg-slate-900"] *):not([class*="bg-black"] *):not([class*="bg-blue-600"] *):not([class*="bg-emerald-600"] *):not([class*="bg-red-600"] *) {
+  color: #64748b !important; /* Slate 500 - legible metadata / dates */
+}
+
+/* Saturated High-Contrast Accents for Light Mode */
+.text-amber-400:not(.hero-theme-section *):not(button *):not([class*="bg-slate-900"] *):not([class*="bg-black"] *):not(.btn-gold *),
+.text-amber-300:not(.hero-theme-section *):not(button *):not([class*="bg-slate-900"] *):not([class*="bg-black"] *):not(.btn-gold *) {
+  color: #b45309 !important; /* Amber 700 - Deep Honey Gold */
+  font-weight: 700;
+}
+
+.text-emerald-400:not(.hero-theme-section *):not(button *):not([class*="bg-slate-900"] *):not([class*="bg-black"] *),
+.text-emerald-300:not(.hero-theme-section *):not(button *):not([class*="bg-slate-900"] *):not([class*="bg-black"] *) {
+  color: #047857 !important; /* Emerald 700 - Deep Rich Green */
+  font-weight: 700;
+}
+
+.text-cyan-400:not(.hero-theme-section *):not(button *):not([class*="bg-slate-900"] *):not([class*="bg-black"] *),
+.text-cyan-300:not(.hero-theme-section *):not(button *):not([class*="bg-slate-900"] *):not([class*="bg-black"] *) {
+  color: #0369a1 !important; /* Sky 700 - Vivid Technical Blue */
+  font-weight: 700;
+}
+
+.text-purple-400:not(.hero-theme-section *):not(button *):not([class*="bg-slate-900"] *):not([class*="bg-black"] *),
+.text-purple-300:not(.hero-theme-section *):not(button *):not([class*="bg-slate-900"] *):not([class*="bg-black"] *) {
+  color: #6d28d9 !important; /* Purple 700 - Royal Violet */
+  font-weight: 700;
+}
+
+.text-red-400:not(.hero-theme-section *):not(button *):not([class*="bg-slate-900"] *):not([class*="bg-black"] *),
+.text-red-300:not(.hero-theme-section *):not(button *):not([class*="bg-slate-900"] *):not([class*="bg-black"] *) {
+  color: #dc2626 !important; /* Red 600 - Bold Alert/Flash Sale Red */
+  font-weight: 700;
+}
+
+.text-blue-400:not(.hero-theme-section *):not(button *):not([class*="bg-slate-900"] *):not([class*="bg-black"] *),
+.text-blue-300:not(.hero-theme-section *):not(button *):not([class*="bg-slate-900"] *):not([class*="bg-black"] *) {
+  color: #1d4ed8 !important; /* Blue 700 */
+  font-weight: 700;
+}
+
+/* Card Pedestal / Studio Display for Products */
+.glass-card [class*="bg-gradient-to-b from-[#1"],
+.glass-card [class*="bg-[#14"],
+.glass-card [class*="bg-[#15"],
+.glass-card [class*="bg-[#0f172a]"],
+.glass-card [class*="bg-black/40"],
+[class*="bg-black/40"]:not(video *):not(.hero-theme-section *) {
+  background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%) !important;
+  border: 1px solid rgba(226, 232, 240, 0.9) !important;
+}
+
+/* Option chips, pills, unselected button states */
+button[class*="bg-white/5"]:not(.hero-theme-section *),
+button[class*="bg-white/10"]:not(.hero-theme-section *),
+button[class*="bg-white/[0.0"]:not(.hero-theme-section *),
+div[class*="bg-white/5"]:not(.hero-theme-section *),
+div[class*="bg-white/10"]:not(.hero-theme-section *),
+div[class*="bg-white/[0.0"]:not(.hero-theme-section *) {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #1e293b !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+
+/* Border adjustments for light cards */
+.border-white\/5, .border-white\/10, .border-white\/15, .border-white\/20, .border-white\/\[0\.06\], .border-white\/\[0\.08\], .border-white\/\[0\.1\] {
+  border-color: rgba(226, 232, 240, 0.9) !important;
 }
 
 /* Infinite Marquee Animation for Industry Leaders Logos */
@@ -301,92 +408,96 @@ body.theme-cream .text-gray-300 {
   animation-play-state: paused;
 }
 
-/* 2026 Glowing Badges & Accents */
+/* Modern Glowing Badges & Accents (Light Palette) */
 .badge-glow-gold {
-  background: rgba(232, 192, 130, 0.15);
-  color: #fef08a;
-  border: 1px solid rgba(232, 192, 130, 0.35);
-  box-shadow: 0 0 14px rgba(232, 192, 130, 0.25);
+  background: rgba(254, 243, 199, 0.95);
+  color: #92400e;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.15);
 }
 
 .badge-glow-cyan {
-  background: rgba(56, 189, 248, 0.15);
-  color: #7dd3fc;
-  border: 1px solid rgba(56, 189, 248, 0.35);
-  box-shadow: 0 0 14px rgba(56, 189, 248, 0.25);
+  background: rgba(224, 242, 254, 0.95);
+  color: #0369a1;
+  border: 1px solid rgba(14, 165, 233, 0.4);
+  box-shadow: 0 2px 8px rgba(14, 165, 233, 0.15);
 }
 
 .badge-glow-emerald {
-  background: rgba(16, 185, 129, 0.15);
-  color: #6ee7b7;
-  border: 1px solid rgba(16, 185, 129, 0.35);
-  box-shadow: 0 0 14px rgba(16, 185, 129, 0.25);
+  background: rgba(209, 250, 229, 0.95);
+  color: #065f46;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.15);
 }
 
 .badge-glow-violet {
-  background: rgba(167, 139, 250, 0.15);
-  color: #c4b5fd;
-  border: 1px solid rgba(167, 139, 250, 0.35);
-  box-shadow: 0 0 14px rgba(167, 139, 250, 0.25);
+  background: rgba(237, 233, 254, 0.95);
+  color: #5b21b6;
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.15);
 }
 
-/* Gradient Text */
+/* Gradient Text - Ultra Crisp on Light Theme */
 .text-gradient-gold {
-  background: linear-gradient(135deg, #ffffff 0%, #fde047 50%, #e2b774 100%);
+  background: linear-gradient(135deg, #b45309 0%, #d97706 45%, #f59e0b 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
 .text-gradient-titanium {
-  background: linear-gradient(135deg, #ffffff 20%, #cbd5e1 60%, #94a3b8 100%);
+  background: linear-gradient(135deg, #0f172a 0%, #334155 50%, #64748b 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
 .text-gradient-cyber {
-  background: linear-gradient(135deg, #67e8f9 0%, #38bdf8 50%, #818cf8 100%);
+  background: linear-gradient(135deg, #0284c7 0%, #2563eb 50%, #7c3aed 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
 /* Floating Capsule Bar */
 .capsule-bar {
-  background: rgba(11, 16, 28, 0.85);
+  background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.6), 0 0 20px rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  box-shadow: 0 10px 40px -10px rgba(15, 23, 42, 0.1), 0 2px 10px rgba(0, 0, 0, 0.03);
 }
 
-/* Iridescent Button */
+/* Radiant Gold Button */
 .btn-gold {
-  background: linear-gradient(135deg, #e2b774 0%, #c59b58 100%);
-  color: #06080f;
-  font-weight: 800;
-  box-shadow: 0 4px 20px rgba(226, 183, 116, 0.35);
-  transition: all 0.2s ease;
+  background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%) !important;
+  color: #ffffff !important;
+  font-weight: 800 !important;
+  box-shadow: 0 6px 22px rgba(245, 158, 11, 0.35) !important;
+  transition: all 0.25s ease !important;
+}
+
+.btn-gold, .btn-gold * {
+  color: #ffffff !important;
 }
 
 .btn-gold:hover {
-  background: linear-gradient(135deg, #ebd09c 0%, #d4aa67 100%);
-  box-shadow: 0 6px 28px rgba(226, 183, 116, 0.5);
-  transform: translateY(-1px);
+  background: linear-gradient(135deg, #fbbf24 0%, #d97706 100%) !important;
+  box-shadow: 0 8px 28px rgba(245, 158, 11, 0.5) !important;
+  transform: translateY(-1px) !important;
 }
 
-/* Custom Scrollbar */
+/* Custom Scrollbar for Light Theme */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #0b0f1e;
+  background: #f1f5f9;
 }
 ::-webkit-scrollbar-thumb {
-  background: #243054;
+  background: #cbd5e1;
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #e8c082;
+  background: #94a3b8;
 }
 
 /* 2026 Scroll-Driven Animations & Dynamic Directional Fly-In */

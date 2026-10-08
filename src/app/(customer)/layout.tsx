@@ -11,7 +11,7 @@ export default function CustomerLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen flex flex-col bg-transparent text-slate-100 selection:bg-amber-400 selection:text-black">
+    <div className="min-h-screen flex flex-col bg-transparent text-slate-800 selection:bg-amber-400 selection:text-black">
       <Header />
       <main className="flex-1">{children}</main>
       <ComparisonFloatingBar />
