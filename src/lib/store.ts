@@ -471,6 +471,16 @@ export const IShopStore = {
     const clean = imei.trim();
     return this.getPhoneStock().find((item) => item.imei === clean);
   },
+  lookupWarranty(query: string): PhoneStockItem[] {
+    const clean = query.trim();
+    const cleanLower = clean.toLowerCase();
+    return this.getPhoneStock().filter(
+      (item) =>
+        item.imei.toLowerCase() === cleanLower ||
+        (item.soldToCustomerPhone && item.soldToCustomerPhone.includes(clean)) ||
+        (item.soldInvoiceId && item.soldInvoiceId.toLowerCase() === cleanLower)
+    );
+  },
   updatePhoneStockItemPrice(imei: string, newSellingPrice: number): void {
     const stock = this.getPhoneStock();
     const updated = stock.map((item) =>

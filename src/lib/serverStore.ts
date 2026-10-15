@@ -143,14 +143,51 @@ class ServerStoreManager {
   }
 
   // Warranty API
-  checkWarranty(imei: string) {
-    const cleanImei = imei.trim();
-    const phone = this.phoneStock.find((p) => p.imei === cleanImei);
+  checkWarranty(query: string) {
+    const clean = query.trim();
+    const cleanLower = clean.toLowerCase();
+    const phone = this.phoneStock.find(
+      (p) =>
+        p.imei.toLowerCase() === cleanLower ||
+        (p.soldToCustomerPhone && p.soldToCustomerPhone.includes(clean)) ||
+        (p.soldInvoiceId && p.soldInvoiceId.toLowerCase() === cleanLower)
+    );
 
     if (!phone) {
+      const rep = this.repairs.find(
+        (r) =>
+          r.ticketCode.toLowerCase() === cleanLower ||
+          r.customerPhone.includes(clean) ||
+          (r.imeiOrSerial && r.imeiOrSerial.toLowerCase() === cleanLower)
+      );
+
+      if (rep) {
+        return {
+          found: true,
+          type: 'repair',
+          id: rep.ticketCode,
+          ticketCode: rep.ticketCode,
+          phoneName: rep.deviceModel,
+          imei: rep.imeiOrSerial || 'N/A',
+          color: 'Máy sửa chữa',
+          capacity: 'Dịch vụ',
+          status: rep.status,
+          condition: 'Bảo hành sửa chữa & thay thế linh kiện',
+          warrantyMonths: 6,
+          soldToCustomerName: rep.customerName,
+          soldToCustomerPhone: rep.customerPhone,
+          soldAt: rep.receivedAt,
+          soldInvoiceId: rep.ticketCode,
+          warrantyExpiryDate: '6 tháng kể từ ngày hoàn tất',
+          isExpired: false,
+          daysLeft: 180,
+          serviceCenter: 'Trung Tâm Kỹ Thuật iCare Service - 168 Đường 3/2, Q.10 & 45 Lê Văn Việt, TP. Thủ Đức',
+        };
+      }
+
       return {
         found: false,
-        message: 'Không tìm thấy thông tin số IMEI này trong hệ thống iShop Huy Hoàng.',
+        message: 'Không tìm thấy thông tin bảo hành trong hệ thống iShop Huy Hoàng.',
       };
     }
 

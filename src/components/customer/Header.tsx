@@ -101,7 +101,7 @@ export default function Header() {
       badge: null,
     },
     {
-      name: 'Bảo Hành IMEI',
+      name: 'Tra Cứu Bảo Hành',
       href: '/warranty',
       icon: ShieldCheck,
       badge: null,
