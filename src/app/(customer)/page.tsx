@@ -33,7 +33,11 @@ import {
   ShoppingCart,
   Compass,
   Plus,
+  Minus,
+  Check,
   Mic,
+  AlertCircle,
+  AlertTriangle,
 } from 'lucide-react';
 import { IShopStore } from '@/lib/store';
 import { PhoneProduct, AccessoryProduct } from '@/lib/types';
@@ -151,6 +155,8 @@ export default function CustomerHomePage() {
   const [selectedBrand, setSelectedBrand] = useState<string>('All');
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [heroColorIdx, setHeroColorIdx] = useState<number>(0);
+  const [phoneQuantities, setPhoneQuantities] = useState<Record<string, number>>({});
+  const [toastMessage, setToastMessage] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   // Scroll Motion & Direction State
   const [scrollProgress, setScrollProgress] = useState<number>(0);
@@ -997,33 +1003,125 @@ export default function CustomerHomePage() {
                       {formatVND(phone.capacities[0]?.originalPrice || (phone.capacities[0]?.price || 0) * 1.08)}
                     </span>
                   </div>
+
+                  {/* Hiển thị điểm thưởng theo giá sản phẩm */}
+                  <div className="mt-3 flex items-center justify-between bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-xl">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-amber-700">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Tích lũy điểm:</span>
+                    </div>
+                    <span className="text-xs font-black text-amber-900 bg-amber-100 px-2 py-0.5 rounded-lg border border-amber-300">
+                      +{Math.floor(((phone.capacities[0]?.price || 0) * (phoneQuantities[phone.id] || 1)) / 10000).toLocaleString('vi-VN')} pts
+                    </span>
+                  </div>
                 </div>
 
-                <div className="pt-6 mt-4 space-y-2.5">
-                  <div className="grid grid-cols-2 gap-2.5">
+                <div className="pt-4 mt-3 border-t border-slate-200 space-y-2.5">
+                  {/* Bộ nút dấu cộng (+) và trừ (-) để tiện đặt 1 lần nhiều máy */}
+                  <div className="flex items-center justify-between bg-slate-50 p-2 rounded-xl border border-slate-200">
+                    <span className="text-xs font-bold text-slate-700">Số lượng đặt:</span>
+                    <div className="flex items-center gap-2 bg-white px-2 py-1 rounded-lg border border-slate-300 shadow-sm">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPhoneQuantities((prev) => ({
+                            ...prev,
+                            [phone.id]: Math.max(1, (prev[phone.id] || 1) - 1),
+                          }));
+                        }}
+                        className="p-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors cursor-pointer"
+                        title="Giảm số lượng"
+                      >
+                        <Minus className="w-3.5 h-3.5" />
+                      </button>
+                      <span className="text-xs font-black text-slate-900 w-6 text-center">
+                        {phoneQuantities[phone.id] || 1}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const current = phoneQuantities[phone.id] || 1;
+                          const availableStock = IShopStore.getProductAvailableStock({
+                            productId: phone.id,
+                            type: 'phone',
+                            color: phone.colors[0]?.name,
+                            capacity: phone.capacities[0]?.size,
+                          });
+                          if (current >= availableStock) {
+                            setToastMessage({
+                              message: `Kho hiện chỉ còn ${availableStock} máy. Không thể chọn thêm!`,
+                              type: 'error',
+                            });
+                            setTimeout(() => setToastMessage(null), 3000);
+                            return;
+                          }
+                          setPhoneQuantities((prev) => ({
+                            ...prev,
+                            [phone.id]: current + 1,
+                          }));
+                        }}
+                        className="p-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors cursor-pointer"
+                        title="Tăng số lượng"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const qty = phoneQuantities[phone.id] || 1;
+                        const cap = phone.capacities[0];
+                        const col = phone.colors[0];
+                        const result = IShopStore.addToCart({
+                          productId: phone.id,
+                          type: 'phone',
+                          name: phone.name,
+                          slug: phone.slug,
+                          imageUrl: col?.imageUrl,
+                          color: col?.name,
+                          capacity: cap?.size,
+                          price: cap?.price || 0,
+                          originalPrice: cap?.originalPrice || cap?.price || 0,
+                          quantity: qty,
+                        });
+                        setToastMessage({
+                          message: result.message,
+                          type: result.success ? 'success' : 'error',
+                        });
+                        setTimeout(() => setToastMessage(null), 3000);
+                      }}
+                      className="py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all hover:scale-[1.02] cursor-pointer"
+                    >
+                      <ShoppingCart className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Thêm Giỏ</span>
+                    </button>
+
                     <Link
                       href={`/phones/${phone.slug}`}
-                      className="btn-gold py-3 rounded-xl text-sm font-black text-center flex items-center justify-center gap-1.5 shadow-md text-white hover:scale-105 transition-all"
+                      className="btn-gold py-2.5 px-3 rounded-xl text-xs font-black text-center flex items-center justify-center gap-1 shadow-md text-white hover:scale-[1.02] transition-all"
                     >
-                      <span className="text-white">Xem Chi Tiết</span>
-                      <ChevronRight className="w-4 h-4 text-white" />
+                      <span className="text-white">Chi Tiết</span>
+                      <ChevronRight className="w-3.5 h-3.5 text-white" />
                     </Link>
-
-                    <button
-                      onClick={() => {
-                        IShopStore.toggleComparison(phone.id);
-                        setCompareIds(IShopStore.getComparisonList());
-                      }}
-                      className={`py-3 rounded-xl text-sm font-bold border transition-colors flex items-center justify-center gap-1.5 ${
-                        isComparing
-                          ? 'bg-sky-100 text-sky-800 border-sky-300 font-bold shadow-sm'
-                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100 hover:text-slate-900 shadow-sm'
-                      }`}
-                    >
-                      <Scale className="w-4 h-4" />
-                      <span>{isComparing ? 'Đang so sánh' : 'So sánh'}</span>
-                    </button>
                   </div>
+
+                  <button
+                    onClick={() => {
+                      IShopStore.toggleComparison(phone.id);
+                      setCompareIds(IShopStore.getComparisonList());
+                    }}
+                    className={`w-full py-2 rounded-xl text-xs font-bold border transition-colors flex items-center justify-center gap-1.5 ${
+                      isComparing
+                        ? 'bg-sky-100 text-sky-800 border-sky-300 font-bold shadow-sm'
+                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100 hover:text-slate-900 shadow-sm'
+                    }`}
+                  >
+                    <Scale className="w-3.5 h-3.5" />
+                    <span>{isComparing ? 'Đang so sánh' : 'So sánh model này'}</span>
+                  </button>
                 </div>
               </div>
             );
@@ -1339,6 +1437,24 @@ export default function CustomerHomePage() {
             <ArrowUp className="w-4 h-4 text-white" />
             <span className="hidden sm:inline text-white">Lên Đầu</span>
           </button>
+        </div>
+      )}
+
+      {/* Toast thông báo đặt hàng & cảnh báo tồn kho */}
+      {toastMessage && (
+        <div
+          className={`fixed bottom-6 right-6 z-50 p-4 rounded-2xl shadow-2xl flex items-center gap-3 border animate-in slide-in-from-bottom duration-200 max-w-md ${
+            toastMessage.type === 'error'
+              ? 'bg-red-950/95 text-red-100 border-red-500/80 shadow-red-950/50'
+              : 'bg-slate-900/95 text-white border-amber-400/40 shadow-slate-950/50'
+          }`}
+        >
+          {toastMessage.type === 'error' ? (
+            <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
+          ) : (
+            <Check className="w-5 h-5 text-emerald-400 shrink-0" />
+          )}
+          <span className="text-xs font-bold leading-relaxed">{toastMessage.message}</span>
         </div>
       )}
     </div>

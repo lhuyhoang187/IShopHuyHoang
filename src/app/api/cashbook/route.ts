@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import {
+  isValidAmount,
+  sanitizeString,
+} from '@/lib/validation';
 
 export async function GET(request: NextRequest) {
   try {
@@ -38,15 +42,40 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    if (!body.type || !body.amount || !body.category || !body.description) {
+    const type = body.type === 'receipt' || body.type === 'payment' ? body.type : null;
+    if (!type) {
       return NextResponse.json(
-        { error: 'Vui lòng cung cấp đầy đủ loại phiếu, số tiền, hạng mục và mô tả' },
+        { error: 'Loại phiếu không hợp lệ. Chỉ chấp nhận "receipt" (Thu) hoặc "payment" (Chi)' },
         { status: 400 }
       );
     }
 
+    const amount = Number(body.amount);
+    if (!isValidAmount(amount, false)) {
+      return NextResponse.json(
+        { error: 'Số tiền phiếu thu/chi phải là số dương lớn hơn 0' },
+        { status: 400 }
+      );
+    }
+
+    const category = sanitizeString(body.category, 50);
+    const description = sanitizeString(body.description, 1000);
+
+    if (!category || !description) {
+      return NextResponse.json(
+        { error: 'Vui lòng cung cấp đầy đủ hạng mục và mô tả nội dung thu/chi' },
+        { status: 400 }
+      );
+    }
+
+    const paymentMethod = body.paymentMethod === 'transfer' ? 'transfer' : 'cash';
+    const categoryLabel = sanitizeString(
+      body.categoryLabel || (type === 'receipt' ? 'Thu tiền mặt / chuyển khoản' : 'Chi tiền mặt / chuyển khoản'),
+      100
+    );
+
     const count = await prisma.cashbookEntry.count();
-    const prefix = body.type === 'receipt' ? 'PT' : 'PC';
+    const prefix = type === 'receipt' ? 'PT' : 'PC';
     const now = new Date();
     const code = `${prefix}-2608-${String(count + 1).padStart(3, '0')}`;
     const dateStr = now.toISOString().split('T')[0];
@@ -56,14 +85,14 @@ export async function POST(request: NextRequest) {
         id: 'cb-' + Date.now(),
         code,
         date: dateStr,
-        type: body.type, // 'receipt' | 'payment'
-        category: body.category,
-        categoryLabel: body.categoryLabel || (body.type === 'receipt' ? 'Thu tiền' : 'Chi tiền'),
-        amount: Number(body.amount),
-        paymentMethod: body.paymentMethod || 'cash',
-        referenceCode: body.referenceCode || null,
-        description: body.description,
-        creator: body.creator || 'Lê Huy Hoàng (Chủ Shop)',
+        type,
+        category,
+        categoryLabel,
+        amount,
+        paymentMethod,
+        referenceCode: body.referenceCode ? sanitizeString(body.referenceCode, 50) : null,
+        description,
+        creator: sanitizeString(body.creator || 'Lê Huy Hoàng (Chủ Shop)', 100),
       },
     });
 
@@ -71,7 +100,7 @@ export async function POST(request: NextRequest) {
       {
         success: true,
         source: 'mysql_database',
-        message: `Tạo ${body.type === 'receipt' ? 'Phiếu Thu' : 'Phiếu Chi'} thành công`,
+        message: `Tạo ${type === 'receipt' ? 'Phiếu Thu' : 'Phiếu Chi'} thành công`,
         data: newEntry,
       },
       { status: 201 }

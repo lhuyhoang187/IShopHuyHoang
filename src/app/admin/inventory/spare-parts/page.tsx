@@ -104,20 +104,20 @@ export default function InventorySparePartsPage() {
       </div>
 
       {/* Spare Parts Table */}
-      <div className="glass-panel rounded-3xl border border-white/10 overflow-hidden shadow-2xl">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs sm:text-sm">
-            <thead className="bg-[#0d1320] text-gray-400 uppercase text-[11px] border-b border-white/10">
+      <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
+        <div className="overflow-x-auto max-h-[calc(100vh-270px)] overflow-y-auto">
+          <table className="w-full text-left text-xs sm:text-sm border-collapse">
+            <thead className="bg-slate-100/95 backdrop-blur-md text-slate-700 uppercase text-[11px] font-bold border-b border-slate-200 sticky top-0 z-20 shadow-sm">
               <tr>
-                <th className="p-4">Mã Linh Kiện</th>
-                <th className="p-4">Tên Linh Kiện & Loại</th>
-                <th className="p-4">Dòng Máy Tương Thích</th>
-                <th className="p-4 text-right">
+                <th className="p-4 whitespace-nowrap bg-slate-100">Mã Linh Kiện</th>
+                <th className="p-4 whitespace-nowrap bg-slate-100">Tên Linh Kiện &amp; Loại</th>
+                <th className="p-4 whitespace-nowrap bg-slate-100">Dòng Máy Tương Thích</th>
+                <th className="p-4 text-right whitespace-nowrap bg-slate-100">
                   {isCashier ? 'Giá Vốn' : 'Giá Vốn Nhập'}
                 </th>
-                <th className="p-4 text-right">Giá Thay Cho Khách</th>
-                <th className="p-4 text-center">Tồn Kho</th>
-                <th className="p-4">Bảo Hành</th>
+                <th className="p-4 text-right whitespace-nowrap bg-slate-100">Giá Thay Cho Khách</th>
+                <th className="p-4 text-center whitespace-nowrap bg-slate-100">Tồn Kho</th>
+                <th className="p-4 whitespace-nowrap bg-slate-100">Bảo Hành</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">

@@ -19,6 +19,7 @@ import {
   UserCheck,
   User,
   Sparkles,
+  Tag,
   Bell,
   CheckCircle2,
   AlertCircle,
@@ -79,6 +80,10 @@ export default function AdminLayout({
     window.addEventListener('ishop_data_changed', listener);
     return () => window.removeEventListener('ishop_data_changed', listener);
   }, []);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, [pathname]);
 
   const handleStaffLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -425,6 +430,7 @@ export default function AdminLayout({
   const navItems: { name: string; href: string; icon: any; permissionKey?: string; adminOnly?: boolean }[] = [
     { name: 'Tổng Quan Cockpit', href: '/admin', icon: Store },
     { name: 'Bán Hàng (POS)', href: '/admin/pos', icon: ShoppingCart, permissionKey: 'pos' },
+    { name: 'Giá & Khuyến Mãi', href: '/admin/promotions', icon: Tag, permissionKey: 'promotions' },
     { name: 'Bàn Sửa Chữa (iCare)', href: '/admin/repairs', icon: Wrench, permissionKey: 'repairs' },
     { name: 'Kho Hàng', href: '/admin/inventory/phones', icon: Package },
     { name: 'Mua Hàng NCC', href: '/admin/restock', icon: Truck, permissionKey: 'restock' },

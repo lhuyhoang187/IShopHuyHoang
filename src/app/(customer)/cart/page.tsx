@@ -10,6 +10,9 @@ import {
   ArrowRight,
   ShieldCheck,
   Zap,
+  Sparkles,
+  AlertCircle,
+  Check,
 } from 'lucide-react';
 import { IShopStore } from '@/lib/store';
 import { CartItem } from '@/lib/types';
@@ -17,6 +20,7 @@ import { formatVND } from '@/lib/vietqr';
 
 export default function CartPage() {
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [toastMessage, setToastMessage] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   const loadCart = () => {
     setCart(IShopStore.getCart());
@@ -105,21 +109,34 @@ export default function CartPage() {
                   {/* Quantity Control */}
                   <div className="flex items-center gap-2 bg-slate-100 px-2 py-1 rounded-xl border border-slate-200">
                     <button
-                      onClick={() => IShopStore.updateCartQuantity(item.id, item.quantity - 1)}
-                      className="p-1 text-slate-500 hover:text-slate-900"
+                      onClick={() => {
+                        IShopStore.updateCartQuantity(item.id, item.quantity - 1);
+                      }}
+                      className="p-1 text-slate-500 hover:text-slate-900 cursor-pointer"
+                      title="Giảm số lượng"
                     >
                       <Minus className="w-3.5 h-3.5" />
                     </button>
                     <span className="text-xs font-bold text-slate-900 px-2">{item.quantity}</span>
                     <button
-                      onClick={() => IShopStore.updateCartQuantity(item.id, item.quantity + 1)}
-                      className="p-1 text-slate-500 hover:text-slate-900"
+                      onClick={() => {
+                        const res = IShopStore.updateCartQuantity(item.id, item.quantity + 1);
+                        if (!res.success) {
+                          setToastMessage({
+                            message: res.message,
+                            type: 'error',
+                          });
+                          setTimeout(() => setToastMessage(null), 3500);
+                        }
+                      }}
+                      className="p-1 text-slate-500 hover:text-slate-900 cursor-pointer"
+                      title="Tăng số lượng"
                     >
                       <Plus className="w-3.5 h-3.5" />
                     </button>
                   </div>
 
-                  {/* Price */}
+                  {/* Price & Points */}
                   <div className="text-right">
                     <span className="text-base font-black text-amber-700">
                       {formatVND(item.price * item.quantity)}
@@ -129,12 +146,16 @@ export default function CartPage() {
                         {formatVND(item.price)}/cái
                       </span>
                     )}
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 mt-1">
+                      <Sparkles className="w-3 h-3 text-amber-500" />
+                      +{Math.floor((item.price * item.quantity) / 10000).toLocaleString('vi-VN')} pts
+                    </span>
                   </div>
 
                   {/* Remove */}
                   <button
                     onClick={() => IShopStore.updateCartQuantity(item.id, 0)}
-                    className="p-2 text-slate-400 hover:text-red-600 transition-colors"
+                    className="p-2 text-slate-400 hover:text-red-600 transition-colors cursor-pointer"
                     title="Xóa món này"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -146,7 +167,7 @@ export default function CartPage() {
             <div className="flex justify-between items-center pt-2">
               <button
                 onClick={() => IShopStore.clearCart()}
-                className="text-xs text-slate-500 hover:text-red-600 font-medium"
+                className="text-xs text-slate-500 hover:text-red-600 font-medium cursor-pointer"
               >
                 Xóa toàn bộ giỏ hàng
               </button>
@@ -181,6 +202,17 @@ export default function CartPage() {
                   <span className="text-slate-500">Phí giao hàng:</span>
                   <span className="text-emerald-700 font-bold">Miễn phí toàn quốc</span>
                 </div>
+
+                {/* Điểm thưởng tích lũy theo tỷ lệ 100k = 10 điểm */}
+                <div className="flex items-center justify-between p-3 rounded-2xl bg-amber-500/10 border border-amber-300">
+                  <span className="font-bold text-amber-800 flex items-center gap-1.5 text-xs">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-600" /> Tích lũy đơn hàng:
+                  </span>
+                  <span className="font-black text-amber-900 bg-amber-100 px-2 py-0.5 rounded-lg border border-amber-300 text-xs">
+                    +{Math.floor(totalAmount / 10000).toLocaleString('vi-VN')} điểm
+                  </span>
+                </div>
+
                 <div className="flex justify-between border-t border-slate-100 pt-3 text-sm">
                   <span className="font-bold text-slate-900">Tổng cộng:</span>
                   <span className="text-xl font-black text-amber-700">
@@ -210,6 +242,23 @@ export default function CartPage() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+      {/* Toast cảnh báo số lượng tồn kho */}
+      {toastMessage && (
+        <div
+          className={`fixed bottom-6 right-6 z-50 p-4 rounded-2xl shadow-2xl flex items-center gap-3 border animate-in slide-in-from-bottom duration-200 max-w-md ${
+            toastMessage.type === 'error'
+              ? 'bg-red-950/95 text-red-100 border-red-500/80 shadow-red-950/50'
+              : 'bg-emerald-800/95 text-white border-emerald-400/40 shadow-emerald-950/50'
+          }`}
+        >
+          {toastMessage.type === 'error' ? (
+            <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
+          ) : (
+            <Check className="w-5 h-5 text-emerald-200 shrink-0" />
+          )}
+          <span className="text-xs font-bold leading-relaxed">{toastMessage.message}</span>
         </div>
       )}
     </div>

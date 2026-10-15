@@ -162,6 +162,9 @@ export default function SmartSearchModal({ isOpen, onClose }: Props) {
                           <span className="text-sm font-black text-amber-600 block">
                             {formatVND(phone.capacities[0].price)}
                           </span>
+                          <span className="text-[10px] text-amber-700 font-bold block">
+                            +{Math.floor(phone.capacities[0].price / 10000).toLocaleString('vi-VN')} pts
+                          </span>
                           <span className="flex items-center text-xs text-slate-500 group-hover:text-amber-600 justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity font-medium">
                             Xem máy <ArrowRight className="w-3 h-3" />
                           </span>
@@ -201,8 +204,11 @@ export default function SmartSearchModal({ isOpen, onClose }: Props) {
                           </div>
                         </div>
                         <div className="text-right">
-                          <span className="text-sm font-black text-emerald-600">
+                          <span className="text-sm font-black text-emerald-600 block">
                             {formatVND(acc.sellingPrice)}
+                          </span>
+                          <span className="text-[10px] text-emerald-700 font-bold block">
+                            +{Math.floor(acc.sellingPrice / 10000).toLocaleString('vi-VN')} pts
                           </span>
                         </div>
                       </Link>

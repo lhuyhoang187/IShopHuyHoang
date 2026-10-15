@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import {
+  normalizePhone,
+  isValidPhone,
+  isValidEmail,
+  sanitizeString,
+} from '@/lib/validation';
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,7 +21,7 @@ export async function POST(request: NextRequest) {
 
     // Find user in database
     const user = await prisma.user.findFirst({
-      where: id ? { id } : { username: username.toLowerCase() },
+      where: id ? { id } : { username: String(username).toLowerCase() },
     });
 
     if (!user) {
@@ -33,7 +39,7 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
-      if (newPassword.length < 6) {
+      if (String(newPassword).length < 6) {
         return NextResponse.json(
           { error: 'Mật khẩu mới phải có tối thiểu 6 ký tự' },
           { status: 400 }
@@ -43,11 +49,32 @@ export async function POST(request: NextRequest) {
 
     // Prepare update data
     const updateData: any = {};
-    if (name) updateData.name = name.trim();
-    if (phone !== undefined) updateData.phone = phone ? phone.trim() : null;
-    if (email !== undefined) updateData.email = email ? email.trim().toLowerCase() : null;
+    if (name) updateData.name = sanitizeString(name, 100);
+
+    if (phone !== undefined) {
+      const cleanPhone = normalizePhone(phone);
+      if (cleanPhone && !isValidPhone(cleanPhone)) {
+        return NextResponse.json(
+          { error: 'Số điện thoại cá nhân không đúng định dạng số ĐT Việt Nam' },
+          { status: 400 }
+        );
+      }
+      updateData.phone = cleanPhone || null;
+    }
+
+    if (email !== undefined) {
+      const cleanEmail = email ? sanitizeString(email, 100).toLowerCase() : '';
+      if (cleanEmail && !isValidEmail(cleanEmail)) {
+        return NextResponse.json(
+          { error: 'Địa chỉ email không đúng định dạng chuẩn' },
+          { status: 400 }
+        );
+      }
+      updateData.email = cleanEmail || null;
+    }
+
     if (avatar !== undefined) updateData.avatar = avatar;
-    if (newPassword) updateData.password = newPassword;
+    if (newPassword) updateData.password = String(newPassword);
 
     const updated = await prisma.user.update({
       where: { id: user.id },

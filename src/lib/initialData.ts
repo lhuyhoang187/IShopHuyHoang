@@ -317,6 +317,48 @@ export const initialPhoneStock: PhoneStockItem[] = [
     status: 'in_stock',
     warrantyMonths: 12,
   },
+  {
+    imei: '358921104829108',
+    phoneId: 'p-1',
+    phoneName: 'iPhone 16 Pro Max 256GB',
+    color: 'Titan Đen (Black Titanium)',
+    capacity: '256GB',
+    costPrice: 32500000,
+    sellingPrice: 34990000,
+    supplierId: 'sup-1',
+    supplierName: 'FPT Synnex Việt Nam',
+    importDate: '2026-08-23',
+    status: 'in_stock',
+    warrantyMonths: 12,
+  },
+  {
+    imei: '358921104829109',
+    phoneId: 'p-1',
+    phoneName: 'iPhone 16 Pro Max 256GB',
+    color: 'Titan Trắng (White Titanium)',
+    capacity: '256GB',
+    costPrice: 32500000,
+    sellingPrice: 34990000,
+    supplierId: 'sup-1',
+    supplierName: 'FPT Synnex Việt Nam',
+    importDate: '2026-08-23',
+    status: 'in_stock',
+    warrantyMonths: 12,
+  },
+  {
+    imei: '358921104829110',
+    phoneId: 'p-1',
+    phoneName: 'iPhone 16 Pro Max 1TB',
+    color: 'Titan Sa Mạc (Desert Titanium)',
+    capacity: '1TB',
+    costPrice: 43500000,
+    sellingPrice: 46990000,
+    supplierId: 'sup-1',
+    supplierName: 'FPT Synnex Việt Nam',
+    importDate: '2026-08-24',
+    status: 'in_stock',
+    warrantyMonths: 12,
+  },
   // Sold unit with active warranty for testing IMEI lookup!
   {
     imei: '358921104999888',
@@ -365,6 +407,20 @@ export const initialPhoneStock: PhoneStockItem[] = [
     status: 'in_stock',
     warrantyMonths: 12,
   },
+  {
+    imei: '359144208391003',
+    phoneId: 'p-2',
+    phoneName: 'iPhone 16 Pro 512GB',
+    color: 'Titan Đen',
+    capacity: '512GB',
+    costPrice: 34500000,
+    sellingPrice: 37490000,
+    supplierId: 'sup-1',
+    supplierName: 'FPT Synnex Việt Nam',
+    importDate: '2026-08-22',
+    status: 'in_stock',
+    warrantyMonths: 12,
+  },
   // Samsung S24 Ultra
   {
     imei: '357288102948201',
@@ -394,6 +450,34 @@ export const initialPhoneStock: PhoneStockItem[] = [
     status: 'in_stock',
     warrantyMonths: 12,
   },
+  {
+    imei: '357288102948203',
+    phoneId: 'p-3',
+    phoneName: 'Samsung Galaxy S24 Ultra 5G 512GB',
+    color: 'Tím Titan',
+    capacity: '512GB',
+    costPrice: 29000000,
+    sellingPrice: 31990000,
+    supplierId: 'sup-3',
+    supplierName: 'Petrosetco (PSD)',
+    importDate: '2026-08-19',
+    status: 'in_stock',
+    warrantyMonths: 12,
+  },
+  {
+    imei: '357288102948204',
+    phoneId: 'p-3',
+    phoneName: 'Samsung Galaxy S24 Ultra 5G 1TB',
+    color: 'Xám Titan',
+    capacity: '1TB',
+    costPrice: 35500000,
+    sellingPrice: 38990000,
+    supplierId: 'sup-3',
+    supplierName: 'Petrosetco (PSD)',
+    importDate: '2026-08-20',
+    status: 'in_stock',
+    warrantyMonths: 12,
+  },
   // iPhone 15 Pro Max
   {
     imei: '356711092847291',
@@ -409,6 +493,34 @@ export const initialPhoneStock: PhoneStockItem[] = [
     status: 'in_stock',
     warrantyMonths: 12,
   },
+  {
+    imei: '356711092847292',
+    phoneId: 'p-4',
+    phoneName: 'iPhone 15 Pro Max 256GB',
+    color: 'Titan Xanh',
+    capacity: '256GB',
+    costPrice: 26500000,
+    sellingPrice: 28990000,
+    supplierId: 'sup-2',
+    supplierName: 'Digiworld (DGW)',
+    importDate: '2026-08-11',
+    status: 'in_stock',
+    warrantyMonths: 12,
+  },
+  {
+    imei: '356711092847293',
+    phoneId: 'p-4',
+    phoneName: 'iPhone 15 Pro Max 512GB',
+    color: 'Titan Tự Nhiên',
+    capacity: '512GB',
+    costPrice: 31000000,
+    sellingPrice: 33990000,
+    supplierId: 'sup-2',
+    supplierName: 'Digiworld (DGW)',
+    importDate: '2026-08-12',
+    status: 'in_stock',
+    warrantyMonths: 12,
+  },
   // Xiaomi 14 Ultra
   {
     imei: '869201092837492',
@@ -421,6 +533,20 @@ export const initialPhoneStock: PhoneStockItem[] = [
     supplierId: 'sup-2',
     supplierName: 'Digiworld (DGW)',
     importDate: '2026-08-12',
+    status: 'in_stock',
+    warrantyMonths: 18,
+  },
+  {
+    imei: '869201092837493',
+    phoneId: 'p-5',
+    phoneName: 'Xiaomi 14 Ultra 5G 512GB',
+    color: 'Trắng Gốm',
+    capacity: '512GB',
+    costPrice: 27100000,
+    sellingPrice: 29990000,
+    supplierId: 'sup-2',
+    supplierName: 'Digiworld (DGW)',
+    importDate: '2026-08-13',
     status: 'in_stock',
     warrantyMonths: 18,
   },
@@ -445,6 +571,7 @@ export const initialAccessories: AccessoryProduct[] = [
     specs: 'Công suất 20W, Cổng ra Type-C, Chân cắm tròn/dẹt EU/US',
     compatibleWith: 'iPhone, iPad, AirPods',
     discountWhenBoughtWithPhone: 15,
+    pointsToRedeem: 520, // 520 điểm đổi củ sạc 20W
   },
   {
     id: 'acc-2',
@@ -464,6 +591,7 @@ export const initialAccessories: AccessoryProduct[] = [
     specs: '65W Max, Hỗ trợ PD3.0, QC4+, PPS, 2 cổng Type-C + 1 cổng USB-A',
     compatibleWith: 'Laptop, Smartphone, Tablet',
     discountWhenBoughtWithPhone: 15,
+    pointsToRedeem: 650, // 650 điểm đổi củ sạc GaN 65W
   },
   {
     id: 'acc-3',
@@ -483,6 +611,7 @@ export const initialAccessories: AccessoryProduct[] = [
     specs: '100W (20V/5A), Dài 1.8m, Tốc độ dữ liệu 480Mbps',
     compatibleWith: 'iPhone 15, iPhone 16, iPad, MacBook, Android Type-C',
     discountWhenBoughtWithPhone: 15,
+    pointsToRedeem: 320, // 320 điểm đổi cáp Anker 100W
   },
   {
     id: 'acc-4',
@@ -502,6 +631,7 @@ export const initialAccessories: AccessoryProduct[] = [
     specs: '5.000mAh, Không dây 7.5W, Có dây Type-C 12W',
     compatibleWith: 'iPhone 12 đến iPhone 16 series',
     discountWhenBoughtWithPhone: 15,
+    pointsToRedeem: 890, // 890 điểm đổi pin MagSafe Anker
   },
   {
     id: 'acc-5',
@@ -521,6 +651,7 @@ export const initialAccessories: AccessoryProduct[] = [
     specs: 'Kính Asahi Nhật Bản, Độ dày 0.33mm, Phủ nano Oleophobic chống bám vân tay',
     compatibleWith: 'iPhone 13 / 14 / 15 / 16 Series',
     discountWhenBoughtWithPhone: 20,
+    pointsToRedeem: 150, // 150 điểm đổi kính KingKong
   },
   {
     id: 'acc-6',
@@ -540,6 +671,7 @@ export const initialAccessories: AccessoryProduct[] = [
     specs: 'Thời lượng pin 6h (30h với hộp sạc), Cổng USB-C, Loa tìm kiếm Find My trên hộp',
     compatibleWith: 'iOS, iPadOS, macOS, Android',
     discountWhenBoughtWithPhone: 10,
+    pointsToRedeem: 4500, // 4.500 điểm đổi AirPods Pro 2
   },
   {
     id: 'acc-7',
@@ -559,6 +691,7 @@ export const initialAccessories: AccessoryProduct[] = [
     specs: 'Viền TPU dẻo + Lưng PC cứng chịu lực rơi 2m, gờ bảo vệ camera nhô cao',
     compatibleWith: 'iPhone 15 Pro Max, iPhone 16 Pro Max',
     discountWhenBoughtWithPhone: 15,
+    pointsToRedeem: 350, // 350 điểm đổi ốp lưng MagSafe
   },
 ];
 

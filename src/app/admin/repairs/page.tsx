@@ -132,12 +132,27 @@ export default function AdminRepairsPage() {
 
   const handleUpdateStep = (newStatus: RepairStatus) => {
     if (!selectedTicket) return;
+    const actor = 'KTV ' + (selectedTicket.technicianName || 'Nghĩa');
     IShopStore.updateRepairStatus(
       selectedTicket.id,
       newStatus,
       stepNote,
-      'KTV ' + (selectedTicket.technicianName || 'Nghĩa')
+      actor
     );
+
+    // Sync to MySQL Database via PUT /api/repairs
+    fetch('/api/repairs', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: selectedTicket.id,
+        ticketCode: selectedTicket.ticketCode,
+        status: newStatus,
+        note: stepNote,
+        actor,
+      }),
+    }).catch((err) => console.warn('Failed to sync repair status to MySQL:', err));
+
     setStepNote('');
     // Refresh active ticket view
     const updated = IShopStore.getRepairByCode(selectedTicket.ticketCode);
@@ -147,11 +162,24 @@ export default function AdminRepairsPage() {
   const handleUseSparePart = () => {
     if (!selectedTicket || !selectedPartId) return;
     try {
-      // eslint-disable-next-line react-hooks/rules-of-hooks
-      IShopStore.useSparePart(selectedTicket.id, selectedPartId, 1);
+      IShopStore.consumeSparePart(selectedTicket.id, selectedPartId, 1);
       setSelectedPartId('');
       const updated = IShopStore.getRepairByCode(selectedTicket.ticketCode);
-      if (updated) setSelectedTicket(updated);
+      if (updated) {
+        setSelectedTicket(updated);
+
+        // Sync to MySQL Database with partsUsed
+        fetch('/api/repairs', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: updated.id,
+            ticketCode: updated.ticketCode,
+            partsUsed: updated.partsUsed,
+            laborFee: updated.laborFee,
+          }),
+        }).catch((err) => console.warn('Failed to sync partsUsed to MySQL:', err));
+      }
     } catch (err: any) {
       alert(err.message || 'Lỗi khi xuất linh kiện');
     }

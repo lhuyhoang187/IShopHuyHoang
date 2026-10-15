@@ -1,16 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import {
+  normalizePhone,
+  isValidPhone,
+  isValidEmail,
+  sanitizeString,
+} from '@/lib/validation';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search')?.trim();
 
+    const normalized = search ? normalizePhone(search) : '';
+
     const where = search
       ? {
           OR: [
             { name: { contains: search } },
             { phone: { contains: search } },
+            ...(normalized ? [{ phone: { contains: normalized } }] : []),
           ],
         }
       : {};
@@ -37,26 +46,48 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, phone, email, address } = body;
+    const rawName = body.name;
+    const rawPhone = body.phone;
+    const rawEmail = body.email;
+    const rawAddress = body.address;
 
-    if (!phone || !name) {
+    const name = sanitizeString(rawName, 100);
+    const phone = normalizePhone(rawPhone);
+    const email = rawEmail ? sanitizeString(rawEmail, 100).toLowerCase() : null;
+    const address = rawAddress ? sanitizeString(rawAddress, 191) : null;
+
+    if (!name || name.length < 2) {
       return NextResponse.json(
-        { error: 'Tên và Số điện thoại khách hàng là bắt buộc' },
+        { error: 'Họ tên khách hàng không được để trống (tối thiểu 2 ký tự)' },
+        { status: 400 }
+      );
+    }
+
+    if (!isValidPhone(phone)) {
+      return NextResponse.json(
+        { error: 'Số điện thoại khách hàng không đúng định dạng số điện thoại Việt Nam 10 số' },
+        { status: 400 }
+      );
+    }
+
+    if (email && !isValidEmail(email)) {
+      return NextResponse.json(
+        { error: 'Địa chỉ email không đúng định dạng chuẩn (ví dụ: khachhang@gmail.com)' },
         { status: 400 }
       );
     }
 
     const existing = await prisma.customer.findUnique({
-      where: { phone: phone.trim() },
+      where: { phone },
     });
 
     if (existing) {
       const updated = await prisma.customer.update({
-        where: { phone: phone.trim() },
+        where: { phone },
         data: {
-          name: name.trim(),
-          email: email?.trim() || existing.email,
-          address: address?.trim() || existing.address,
+          name,
+          email: email || existing.email,
+          address: address || existing.address,
         },
       });
       return NextResponse.json({
@@ -66,13 +97,16 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    const points = Math.max(0, Math.floor(Number(body.points) || 0));
+
     const created = await prisma.customer.create({
       data: {
-        name: name.trim(),
-        phone: phone.trim(),
-        email: email?.trim() || null,
-        address: address?.trim() || null,
-        points: Number(body.points) || 0,
+        id: 'cust-' + Date.now(),
+        name,
+        phone,
+        email,
+        address,
+        points,
       },
     });
 

@@ -10,6 +10,11 @@ import {
   ShoppingCart,
   Zap,
   ChevronRight,
+  Plus,
+  Minus,
+  Sparkles,
+  AlertCircle,
+  Check,
 } from 'lucide-react';
 import { IShopStore } from '@/lib/store';
 import { AccessoryProduct } from '@/lib/types';
@@ -22,7 +27,8 @@ export default function AccessoryDetailPage() {
 
   const [accessory, setAccessory] = useState<AccessoryProduct | null>(null);
   const [isVietQROpen, setIsVietQROpen] = useState(false);
-  const [addedToast, setAddedToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [quantity, setQuantity] = useState(1);
   const [orderCode] = useState(() => `PK${Date.now().toString().slice(-6)}`);
 
   useEffect(() => {
@@ -43,7 +49,7 @@ export default function AccessoryDetailPage() {
   }
 
   const handleAddToCart = () => {
-    IShopStore.addToCart({
+    const result = IShopStore.addToCart({
       productId: accessory.id,
       type: 'accessory',
       name: accessory.name,
@@ -51,11 +57,17 @@ export default function AccessoryDetailPage() {
       imageUrl: accessory.imageUrl,
       price: accessory.sellingPrice,
       originalPrice: accessory.originalPrice,
-      quantity: 1,
+      quantity: quantity,
     });
-    setAddedToast(true);
-    setTimeout(() => setAddedToast(false), 2500);
+
+    setToastMessage({
+      message: result.message,
+      type: result.success ? 'success' : 'error',
+    });
+    setTimeout(() => setToastMessage(null), 3000);
   };
+
+  const pointsEarned = Math.floor((accessory.sellingPrice * quantity) / 10000);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
@@ -118,22 +130,40 @@ export default function AccessoryDetailPage() {
           </div>
 
           {/* Pricing Box */}
-          <div className="glass-panel p-5 rounded-2xl border border-emerald-500/20 bg-gradient-to-r from-emerald-500/[0.07] to-transparent flex items-baseline justify-between">
-            <div>
-              <span className="text-xs text-gray-400 line-through block">
-                {formatVND(accessory.originalPrice)}
-              </span>
-              <span className="text-3xl font-black text-emerald-400">
-                {formatVND(accessory.sellingPrice)}
-              </span>
-            </div>
-            <div className="text-right">
-              <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                Giảm 15% khi mua kèm điện thoại
-              </span>
-              <div className="text-xs text-gray-400 mt-1">
-                Tồn kho sẵn có: <strong className="text-white">{accessory.stock} cái</strong>
+          <div className="glass-panel p-5 rounded-2xl border border-emerald-500/20 bg-gradient-to-r from-emerald-500/[0.07] to-transparent space-y-3">
+            <div className="flex items-baseline justify-between">
+              <div>
+                <span className="text-xs text-gray-400 line-through block">
+                  {formatVND(accessory.originalPrice * quantity)}
+                </span>
+                <span className="text-3xl font-black text-emerald-400">
+                  {formatVND(accessory.sellingPrice * quantity)}
+                </span>
+                {quantity > 1 && (
+                  <span className="text-xs text-gray-400 block mt-0.5">
+                    Đơn giá: {formatVND(accessory.sellingPrice)}/cái
+                  </span>
+                )}
               </div>
+              <div className="text-right">
+                <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  Giảm 15% khi mua kèm điện thoại
+                </span>
+                <div className="text-xs text-gray-400 mt-1">
+                  Tồn kho sẵn có: <strong className="text-white">{accessory.stock} cái</strong>
+                </div>
+              </div>
+            </div>
+
+            {/* Hiển thị điểm thưởng theo tỷ lệ 100k = 10 điểm */}
+            <div className="flex items-center justify-between bg-emerald-500/10 border border-emerald-500/30 px-3.5 py-2 rounded-xl">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-300">
+                <Sparkles className="w-4 h-4 text-emerald-400" />
+                <span>Điểm tích lũy khi mua:</span>
+              </div>
+              <span className="text-sm font-black text-emerald-300 bg-emerald-500/20 px-2.5 py-0.5 rounded-lg border border-emerald-500/40">
+                +{pointsEarned.toLocaleString('vi-VN')} điểm
+              </span>
             </div>
           </div>
 
@@ -149,12 +179,69 @@ export default function AccessoryDetailPage() {
             </div>
           </div>
 
+          {/* Bộ chọn số lượng đặt mua dấu cộng (+) và trừ (-) */}
+          <div className="flex items-center justify-between p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 text-white">
+            <div>
+              <span className="text-xs font-bold block">Số lượng sản phẩm:</span>
+              <span className="text-[11px] text-gray-400">Đặt 1 lần nhiều món thuận tiện</span>
+            </div>
+            <div className="flex items-center gap-2.5 bg-black/40 px-3 py-1.5 rounded-xl border border-white/20">
+              <button
+                type="button"
+                onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                className="p-1 text-gray-300 hover:text-white rounded-lg transition-colors cursor-pointer"
+                title="Giảm số lượng"
+              >
+                <Minus className="w-4 h-4" />
+              </button>
+              <span className="text-sm font-black text-white w-8 text-center">{quantity}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  const available = accessory.stock ?? 0;
+                  if (quantity >= available) {
+                    setToastMessage({
+                      message: `Kho hiện chỉ còn ${available} sản phẩm. Không thể chọn thêm!`,
+                      type: 'error',
+                    });
+                    setTimeout(() => setToastMessage(null), 3000);
+                    return;
+                  }
+                  setQuantity((q) => q + 1);
+                }}
+                className="p-1 text-gray-300 hover:text-white rounded-lg transition-colors cursor-pointer"
+                title="Tăng số lượng"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
           {/* Action CTA Buttons */}
           <div className="space-y-3 pt-2">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <button
-                onClick={() => setIsVietQROpen(true)}
-                className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-sm shadow-xl shadow-emerald-600/25 flex items-center justify-center gap-2"
+                onClick={() => {
+                  const available = accessory.stock ?? 0;
+                  if (available <= 0) {
+                    setToastMessage({
+                      message: `Sản phẩm "${accessory.name}" hiện đã hết hàng trong kho!`,
+                      type: 'error',
+                    });
+                    setTimeout(() => setToastMessage(null), 3000);
+                    return;
+                  }
+                  if (quantity > available) {
+                    setToastMessage({
+                      message: `Kho hiện chỉ còn ${available} sản phẩm. Vui lòng giảm số lượng đặt mua!`,
+                      type: 'error',
+                    });
+                    setTimeout(() => setToastMessage(null), 3000);
+                    return;
+                  }
+                  setIsVietQROpen(true);
+                }}
+                className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-sm shadow-xl shadow-emerald-600/25 flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Zap className="w-4 h-4 text-amber-300 fill-current" />
                 <span>MUA NGAY (VIETQR)</span>
@@ -162,16 +249,27 @@ export default function AccessoryDetailPage() {
 
               <button
                 onClick={handleAddToCart}
-                className="w-full py-3.5 px-4 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-semibold text-sm border border-white/15 flex items-center justify-center gap-2"
+                className="w-full py-3.5 px-4 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-semibold text-sm border border-white/15 flex items-center justify-center gap-2 cursor-pointer"
               >
                 <ShoppingCart className="w-4 h-4 text-emerald-400" />
-                <span>Thêm Vào Giỏ Hàng</span>
+                <span>Thêm Vào Giỏ ({quantity})</span>
               </button>
             </div>
 
-            {addedToast && (
-              <div className="p-3 bg-emerald-600 text-white text-xs font-semibold rounded-xl text-center shadow-lg animate-in fade-in duration-200">
-                ✓ Đã thêm {accessory.name} vào giỏ hàng thành công!
+            {toastMessage && (
+              <div
+                className={`p-3.5 text-xs font-semibold rounded-xl text-center shadow-lg flex items-center justify-center gap-2 border animate-in fade-in duration-200 ${
+                  toastMessage.type === 'error'
+                    ? 'bg-red-950 text-red-100 border-red-500'
+                    : 'bg-emerald-600 text-white border-emerald-400'
+                }`}
+              >
+                {toastMessage.type === 'error' ? (
+                  <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+                ) : (
+                  <Check className="w-4 h-4 text-emerald-200 shrink-0" />
+                )}
+                <span>{toastMessage.message}</span>
               </div>
             )}
           </div>
@@ -181,7 +279,7 @@ export default function AccessoryDetailPage() {
       <VietQRModal
         isOpen={isVietQROpen}
         onClose={() => setIsVietQROpen(false)}
-        amount={accessory.sellingPrice}
+        amount={accessory.sellingPrice * quantity}
         orderCode={orderCode}
         onPaymentSuccess={() => {
           alert('Cảm ơn quý khách! iShop Huy Hoàng đã ghi nhận thanh toán phụ kiện.');

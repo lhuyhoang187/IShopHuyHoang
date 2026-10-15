@@ -14,6 +14,11 @@ import {
   Check,
   Download,
   Smartphone,
+  Sparkles,
+  AlertCircle,
+  ShoppingBag,
+  FileText,
+  ExternalLink,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { IShopStore } from '@/lib/store';
@@ -36,10 +41,15 @@ export default function CheckoutPage() {
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
+    email: '',
     address: '',
     city: 'TP. Hồ Chí Minh',
     notes: '',
   });
+
+  // Pre-Order & Đặt Cọc % giá trị
+  const [isPreOrder, setIsPreOrder] = useState(false);
+  const [depositPercent, setDepositPercent] = useState<number>(10); // 10%, 20%, 100%
 
   useEffect(() => {
     const currentCart = IShopStore.getCart();
@@ -52,6 +62,7 @@ export default function CheckoutPage() {
         ...prev,
         name: cust.name,
         phone: cust.phone,
+        email: cust.email || '',
       }));
     }
   }, []);
@@ -77,9 +88,32 @@ export default function CheckoutPage() {
 
   const totalAmount = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
+  const [stockError, setStockError] = useState<string | null>(null);
+
   const handleSubmitOrder = (e: React.FormEvent) => {
     e.preventDefault();
     if (cart.length === 0) return;
+    setStockError(null);
+
+    // Kiểm tra ràng buộc tồn kho cho cả điện thoại và phụ kiện trước khi chốt đơn
+    for (const item of cart) {
+      const available = IShopStore.getProductAvailableStock({
+        productId: item.productId,
+        type: item.type,
+        color: item.color,
+        capacity: item.capacity,
+      });
+
+      if (available <= 0) {
+        setStockError(`Sản phẩm "${item.name}" hiện đã hết hàng trong kho. Vui lòng quay lại giỏ hàng để cập nhật!`);
+        return;
+      }
+
+      if (item.quantity > available) {
+        setStockError(`Sản phẩm "${item.name}" hiện chỉ còn ${available} trong kho (bạn đang đặt ${item.quantity}). Vui lòng điều chỉnh lại số lượng!`);
+        return;
+      }
+    }
 
     // Check if any phone in cart has available in-stock IMEI
     const availablePhones = IShopStore.getAvailablePhones();
@@ -105,16 +139,43 @@ export default function CheckoutPage() {
       };
     });
 
+    const isLarge =
+      totalAmount >= 100000000 ||
+      cart.filter((c) => c.type === 'phone').reduce((s, c) => s + c.quantity, 0) >= 5;
+
+    const depositAmountVal = isPreOrder
+      ? Math.round(totalAmount * (depositPercent / 100))
+      : undefined;
+    const remainingBalanceVal = isPreOrder
+      ? Math.max(0, totalAmount - (depositAmountVal || 0))
+      : undefined;
+    const estimatedDelivery = isPreOrder
+      ? new Date(Date.now() + 5 * 24 * 3600 * 1000).toLocaleDateString('vi-VN')
+      : undefined;
+
+    const totalEarnedPoints = Math.floor(totalAmount / 10000);
+
     const newInvoice = IShopStore.createInvoice({
       customerName: formData.name,
       customerPhone: formData.phone,
+      customerEmail: formData.email.trim() || undefined,
       items: invoiceItems,
       subtotal: totalAmount,
       discount: 0,
       totalAmount: totalAmount,
+      pointsEarned: totalEarnedPoints,
       paymentMethod: paymentMethod,
       cashierName: 'Online Web Store',
-      warrantyNote: 'Bảo hành chính hãng 12 tháng tại hệ thống iShop Huy Hoàng.',
+      warrantyNote: isPreOrder
+        ? `Đơn đặt cọc giữ máy đợt 1 (Cọc ${depositPercent}%). Dự kiến giao ngày ${estimatedDelivery}.`
+        : 'Bảo hành chính hãng 12 tháng tại hệ thống iShop Huy Hoàng.',
+      isLargeOrder: isLarge,
+      status: isLarge ? 'pending_admin_approval' : 'completed',
+      isPreOrder,
+      depositPercent: isPreOrder ? depositPercent : undefined,
+      depositAmount: depositAmountVal,
+      remainingBalance: remainingBalanceVal,
+      estimatedDeliveryDate: estimatedDelivery,
     });
 
     // Sync order to MySQL Database via /api/orders
@@ -128,6 +189,7 @@ export default function CheckoutPage() {
         subtotal: totalAmount,
         discount: 0,
         totalAmount: totalAmount,
+        earnedPoints: totalEarnedPoints,
         paymentMethod: paymentMethod,
         cashierName: 'Online Web Store',
       }),
@@ -152,12 +214,26 @@ export default function CheckoutPage() {
   };
 
   if (completedInvoice) {
-    const qrUrl = generateVietQRUrl(completedInvoice.totalAmount, completedInvoice.invoiceCode);
+    const isApprovalPending = completedInvoice.status === 'pending_admin_approval';
+    const qrAmount = completedInvoice.isPreOrder && completedInvoice.depositAmount
+      ? completedInvoice.depositAmount
+      : completedInvoice.totalAmount;
+    const qrUrl = generateVietQRUrl(qrAmount, completedInvoice.invoiceCode);
 
     return (
       <div className="max-w-2xl mx-auto px-4 py-12 space-y-6 text-center animate-in fade-in duration-300">
-        <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-700 mx-auto flex items-center justify-center border border-emerald-300 shadow-md">
-          <CheckCircle2 className="w-10 h-10" />
+        <div
+          className={`w-16 h-16 rounded-full mx-auto flex items-center justify-center border shadow-md ${
+            isApprovalPending
+              ? 'bg-amber-100 text-amber-700 border-amber-300'
+              : 'bg-emerald-100 text-emerald-700 border-emerald-300'
+          }`}
+        >
+          {isApprovalPending ? (
+            <AlertCircle className="w-10 h-10" />
+          ) : (
+            <CheckCircle2 className="w-10 h-10" />
+          )}
         </div>
 
         <div>
@@ -165,11 +241,59 @@ export default function CheckoutPage() {
             MÃ ĐƠN HÀNG: {completedInvoice.invoiceCode}
           </span>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2">
-            Đặt Hàng Thành Công!
+            {isApprovalPending
+              ? 'Đơn Hàng Đang Chờ Admin Phê Duyệt!'
+              : completedInvoice.isPreOrder
+              ? 'Đặt Cọc Giữ Máy Pre-Order Thành Công!'
+              : 'Đặt Hàng Thành Công!'}
           </h1>
           <p className="text-xs sm:text-sm text-slate-600 mt-1">
-            Cảm ơn quý khách <strong className="text-slate-900">{completedInvoice.customerName}</strong>. Đơn hàng đã được lưu trữ trên hệ thống bán lẻ và chuẩn bị đóng gói.
+            Cảm ơn quý khách <strong className="text-slate-900">{completedInvoice.customerName}</strong>.
+            {isApprovalPending
+              ? ' Đơn hàng giá trị cao (>100 triệu) đã được chuyển đến Ban Giám Đốc phê duyệt hạn mức kho để tránh thất thoát.'
+              : completedInvoice.isPreOrder
+              ? ' Biên nhận cọc đã được tạo và gửi về email khách hàng. Máy sẽ được ưu tiên bàn giao đợt 1.'
+              : ' Đơn hàng đã được lưu trữ trên hệ thống bán lẻ và chuẩn bị đóng gói.'}
           </p>
+        </div>
+
+        {/* Banner Cảnh Báo Phê Duyệt Đơn Hàng Lớn */}
+        {isApprovalPending && (
+          <div className="p-4 rounded-2xl bg-amber-50 border-2 border-amber-400 text-amber-900 text-xs text-left max-w-lg mx-auto shadow-sm space-y-1">
+            <div className="flex items-center gap-2 font-black text-amber-950">
+              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>RÀNG BUỘC KIỂM SOÁT THẤT THOÁT (&gt;100.000.000đ):</span>
+            </div>
+            <p className="leading-relaxed">
+              Theo quy định nội bộ, đơn hàng sỉ hoặc giá trị trên 100 triệu cần <strong>Admin / Giám Đốc duyệt hạn mức</strong>. Bộ phận CSKH sẽ gọi xác nhận trong 15 phút.
+            </p>
+          </div>
+        )}
+
+        {/* Chi Tiết Đặt Cọc Nếu Là Pre-Order */}
+        {completedInvoice.isPreOrder && (
+          <div className="p-4 rounded-2xl bg-indigo-50 border border-indigo-200 text-xs text-left max-w-lg mx-auto shadow-sm space-y-1.5">
+            <div className="flex justify-between font-bold text-indigo-900">
+              <span>Số tiền cọc cần thanh toán ({completedInvoice.depositPercent}%):</span>
+              <span className="font-mono text-sm text-amber-700">{formatVND(completedInvoice.depositAmount || 0)}</span>
+            </div>
+            <div className="flex justify-between text-slate-600 text-[11px]">
+              <span>Số tiền còn lại thanh toán khi nhận máy:</span>
+              <span className="font-mono font-bold text-slate-900">{formatVND(completedInvoice.remainingBalance || 0)}</span>
+            </div>
+            <div className="flex justify-between text-emerald-700 font-bold text-[11px] pt-1 border-t border-indigo-100">
+              <span>Dự kiến nhận máy:</span>
+              <span>{completedInvoice.estimatedDeliveryDate || 'Sau 3-5 ngày'}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Loyalty Points Earned Notification */}
+        <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-amber-50 border border-amber-300 text-amber-900 font-bold text-xs sm:text-sm shadow-sm">
+          <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
+          <span>
+            Bạn đã tích lũy thành công +{(completedInvoice.pointsEarned ?? Math.floor(completedInvoice.totalAmount / 10000)).toLocaleString('vi-VN')} điểm thưởng thành viên!
+          </span>
         </div>
 
         {/* Real-time Zalo ZNS / SMS simulation banner */}
@@ -216,12 +340,77 @@ export default function CheckoutPage() {
           </div>
         )}
 
+        {/* Chi tiết các sản phẩm vừa đặt */}
+        <div className="bg-white rounded-3xl p-6 border border-slate-200 text-left space-y-4 shadow-md max-w-xl mx-auto">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <h3 className="font-black text-slate-900 text-sm flex items-center gap-2">
+              <ShoppingBag className="w-4 h-4 text-amber-600" />
+              <span>Sản Phẩm Trong Đơn Hàng</span>
+            </h3>
+            <span className="text-xs font-mono font-bold text-slate-500">
+              {completedInvoice.items.length} món
+            </span>
+          </div>
+
+          <div className="divide-y divide-slate-100 max-h-60 overflow-y-auto pr-1">
+            {completedInvoice.items.map((item, idx) => (
+              <div key={idx} className="py-2.5 flex items-center justify-between gap-3 text-xs">
+                <div>
+                  <p className="font-bold text-slate-900">{item.name}</p>
+                  <p className="text-[11px] text-slate-500">
+                    {item.variant && <span>Phân loại: {item.variant} • </span>}
+                    Số lượng: <strong className="text-slate-800">x{item.quantity}</strong>
+                  </p>
+                  {item.imei && (
+                    <span className="inline-block mt-1 px-2 py-0.5 rounded font-mono font-bold text-[10px] bg-amber-50 text-amber-800 border border-amber-200">
+                      IMEI: {item.imei}
+                    </span>
+                  )}
+                </div>
+                <div className="text-right shrink-0">
+                  <span className="font-black text-amber-700 font-mono">
+                    {formatVND(item.total)}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="pt-3 border-t border-slate-200 space-y-1.5 text-xs">
+            <div className="flex justify-between text-slate-600">
+              <span>Phương thức thanh toán:</span>
+              <span className="font-bold text-slate-900">
+                {completedInvoice.paymentMethod === 'vietqr' ? 'Chuyển khoản VietQR Napas 247' : 'Tiền mặt khi nhận hàng (COD)'}
+              </span>
+            </div>
+            <div className="flex justify-between text-slate-600">
+              <span>Họ tên người nhận:</span>
+              <span className="font-bold text-slate-900">{completedInvoice.customerName}</span>
+            </div>
+            <div className="flex justify-between text-slate-600">
+              <span>Số điện thoại:</span>
+              <span className="font-mono font-bold text-slate-900">{completedInvoice.customerPhone}</span>
+            </div>
+            <div className="flex justify-between text-slate-600">
+              <span>Ghi chú bảo hành:</span>
+              <span className="text-emerald-700 font-semibold">{completedInvoice.warrantyNote || 'Chính hãng 12 tháng'}</span>
+            </div>
+            <div className="flex justify-between items-center pt-2 border-t border-slate-100 text-sm">
+              <span className="font-bold text-slate-900">Tổng thanh toán:</span>
+              <span className="text-lg font-black text-amber-700 font-mono">
+                {formatVND(completedInvoice.totalAmount)}
+              </span>
+            </div>
+          </div>
+        </div>
+
         <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
           <Link
-            href="/"
-            className="w-full sm:w-auto px-6 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 font-bold text-xs transition-colors"
+            href="/account?tab=orders"
+            className="w-full sm:w-auto px-6 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs transition-all shadow-md flex items-center justify-center gap-2"
           >
-            Quay về trang chủ
+            <FileText className="w-4 h-4 text-amber-400" />
+            <span>Xem Đơn Hàng &amp; Hóa Đơn Chi Tiết</span>
           </Link>
           <Link
             href="/warranty"
@@ -229,6 +418,12 @@ export default function CheckoutPage() {
           >
             <ShieldCheck className="w-4 h-4 text-white" />
             <span className="text-white">Tra Cứu Bảo Hành Điện Tử IMEI</span>
+          </Link>
+          <Link
+            href="/"
+            className="w-full sm:w-auto px-6 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 font-bold text-xs transition-colors"
+          >
+            Về trang chủ
           </Link>
         </div>
       </div>
@@ -377,6 +572,23 @@ export default function CheckoutPage() {
             </div>
 
             <div className="text-xs">
+              <label className="text-slate-700 font-bold mb-1 block">
+                Email nhận hóa đơn điện tử &amp; phiếu bảo hành *:
+              </label>
+              <input
+                type="email"
+                required
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                placeholder="VD: huyhoang@gmail.com"
+                className="w-full p-3 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-blue-500 shadow-sm placeholder:text-slate-400"
+              />
+              <p className="text-[11px] text-slate-500 mt-1">
+                ⚡ Hóa đơn mua hàng, phiếu đặt cọc và thông báo bảo hành sẽ được gửi tự động về hòm thư này.
+              </p>
+            </div>
+
+            <div className="text-xs">
               <label className="text-slate-700 font-bold mb-1 block">Ghi chú giao hàng (Tùy chọn):</label>
               <textarea
                 rows={2}
@@ -386,6 +598,76 @@ export default function CheckoutPage() {
                 className="w-full p-3 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-blue-500 shadow-sm placeholder:text-slate-400"
               />
             </div>
+          </div>
+
+          {/* Pre-Order & Đặt Cọc % Giá Trị */}
+          <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-amber-500" />
+                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+                  Đặt Trước (Pre-Order) &amp; Đặt Cọc Giữ Máy Mới
+                </h3>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isPreOrder}
+                  onChange={(e) => setIsPreOrder(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+              </label>
+            </div>
+
+            {isPreOrder && (
+              <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 space-y-3 animate-in fade-in duration-200 text-xs">
+                <p className="text-amber-900 font-semibold leading-relaxed">
+                  Quý khách đang chọn chế độ <strong>Đặt Trước Giữ Máy Đợt 1</strong>. Theo quy định thực tế các chuỗi bán lẻ Apple Flagship (TopZone, FPT Shop), quý khách có thể chọn tỷ lệ đặt cọc:
+                </p>
+
+                <div className="grid grid-cols-3 gap-2 pt-1">
+                  {[
+                    { pct: 10, label: 'Cọc 10% (Tiêu Chuẩn)' },
+                    { pct: 20, label: 'Cọc 20% (Ưu Tiên Đợt 1)' },
+                    { pct: 100, label: 'Cọc 100% (Toàn Bộ)' },
+                  ].map((tier) => (
+                    <button
+                      key={tier.pct}
+                      type="button"
+                      onClick={() => setDepositPercent(tier.pct)}
+                      className={`p-2.5 rounded-xl border font-bold text-center transition cursor-pointer ${
+                        depositPercent === tier.pct
+                          ? 'border-amber-500 bg-amber-500 text-white shadow-sm'
+                          : 'border-amber-200 bg-white text-slate-800 hover:bg-amber-100/50'
+                      }`}
+                    >
+                      <div className="text-sm font-black">{tier.pct}%</div>
+                      <div className="text-[10px] opacity-90">{tier.label}</div>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="p-3 bg-white rounded-xl border border-amber-200/80 space-y-1.5 text-slate-700">
+                  <div className="flex justify-between">
+                    <span>Số tiền đặt cọc thanh toán ngay:</span>
+                    <strong className="text-amber-700 font-mono text-sm">
+                      {formatVND(Math.round(totalAmount * (depositPercent / 100)))}
+                    </strong>
+                  </div>
+                  <div className="flex justify-between text-slate-500">
+                    <span>Số tiền còn lại thanh toán khi nhận máy:</span>
+                    <strong className="text-slate-900 font-mono">
+                      {formatVND(Math.max(0, totalAmount - Math.round(totalAmount * (depositPercent / 100))))}
+                    </strong>
+                  </div>
+                  <div className="flex justify-between text-emerald-700 font-medium pt-1 border-t border-slate-100 text-[11px]">
+                    <span>Dự kiến bàn giao máy:</span>
+                    <strong>Sau 3 - 5 ngày làm việc</strong>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Payment Method Selector */}
@@ -493,17 +775,67 @@ export default function CheckoutPage() {
                 <span className="text-slate-500">Phí giao hàng:</span>
                 <span className="text-emerald-700 font-bold">Miễn phí 100%</span>
               </div>
+
+              {/* Tích lũy điểm thưởng theo tỷ lệ 100k = 10 điểm */}
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-amber-500/10 border border-amber-300">
+                <span className="font-bold text-amber-800 flex items-center gap-1.5 text-xs">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-600" /> Tích lũy đơn này:
+                </span>
+                <span className="font-black text-amber-900 bg-amber-100 px-2 py-0.5 rounded-lg border border-amber-300 text-xs">
+                  +{Math.floor(totalAmount / 10000).toLocaleString('vi-VN')} điểm
+                </span>
+              </div>
+
               <div className="flex justify-between text-sm pt-2 border-t border-slate-100">
                 <span className="font-bold text-slate-900">Tổng thanh toán:</span>
                 <span className="text-2xl font-black text-amber-700">
                   {formatVND(totalAmount)}
                 </span>
               </div>
+
+              {/* Thông tin số tiền cọc nếu Pre-order */}
+              {isPreOrder && (
+                <div className="p-3 bg-indigo-50/80 rounded-xl border border-indigo-200 text-xs space-y-1">
+                  <div className="flex justify-between font-bold text-indigo-900">
+                    <span>Số tiền cọc cần thanh toán ({depositPercent}%):</span>
+                    <span className="font-mono text-amber-700">
+                      {formatVND(Math.round(totalAmount * (depositPercent / 100)))}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-slate-600 text-[11px]">
+                    <span>Còn lại thanh toán khi nhận máy:</span>
+                    <span className="font-mono font-bold text-slate-900">
+                      {formatVND(Math.max(0, totalAmount - Math.round(totalAmount * (depositPercent / 100))))}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Ràng buộc đơn hàng giá trị lớn trên 100 triệu */}
+              {(totalAmount >= 100000000 ||
+                cart.filter((c) => c.type === 'phone').reduce((sum, c) => sum + c.quantity, 0) >= 5) && (
+                <div className="p-3.5 bg-amber-50 border-2 border-amber-400 rounded-2xl space-y-1 text-xs text-amber-900 shadow-sm animate-in fade-in duration-200">
+                  <div className="flex items-center gap-1.5 font-black text-amber-950">
+                    <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>ĐƠN HÀNG GIÁ TRỊ LỚN (&gt;100.000.000đ)</span>
+                  </div>
+                  <p className="text-[11px] leading-relaxed text-amber-800">
+                    Đơn hàng cần được <strong>Ban Giám Đốc / Admin iShop duyệt hạn mức kho</strong> trước khi xuất hàng để tránh thất thoát.
+                  </p>
+                </div>
+              )}
             </div>
+
+            {stockError && (
+              <div className="p-3.5 bg-red-50 border border-red-300 rounded-2xl flex items-start gap-2.5 text-xs text-red-800 font-bold animate-in fade-in duration-200">
+                <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                <span className="leading-relaxed">{stockError}</span>
+              </div>
+            )}
 
             <button
               type="submit"
-              className="w-full py-4 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-sm shadow-lg shadow-blue-600/25 flex items-center justify-center gap-2 transition-transform hover:scale-[1.02]"
+              className="w-full py-4 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-sm shadow-lg shadow-blue-600/25 flex items-center justify-center gap-2 transition-transform hover:scale-[1.02] cursor-pointer"
             >
               <CheckCircle2 className="w-4 h-4" />
               <span>XÁC NHẬN ĐẶT HÀNG NGAY</span>

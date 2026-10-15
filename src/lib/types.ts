@@ -114,6 +114,7 @@ export interface AccessoryProduct {
   compatibleWith: string;
   discountWhenBoughtWithPhone: number; // e.g. 15 for 15% off
   rewardPoints?: number;
+  pointsToRedeem?: number; // Số điểm thưởng cần thiết để đổi phụ kiện này (VD: 390 pts)
 }
 
 export interface SparePartItem {
@@ -213,6 +214,19 @@ export interface Invoice {
   cashierName: string;
   createdAt: string;
   warrantyNote: string;
+  // Trạng thái đơn hàng & Phê duyệt đơn hàng lớn (>100 triệu)
+  status?: 'completed' | 'pending_admin_approval' | 'approved' | 'rejected';
+  isLargeOrder?: boolean; // Đơn hàng > 100.000.000 VNĐ hoặc số lượng lớn
+  adminApprovalNote?: string;
+  approvedBy?: string;
+  approvedAt?: string;
+  // Đặt trước (Pre-order) & Đặt cọc % giá trị
+  isPreOrder?: boolean;
+  depositPercent?: number; // Ví dụ 10% hoặc 20%
+  depositAmount?: number; // Số tiền cọc đã trả
+  remainingBalance?: number; // Số tiền còn lại thanh toán khi nhận máy
+  estimatedDeliveryDate?: string;
+  customerEmail?: string;
 }
 
 export interface SupplierOrder {
@@ -289,6 +303,9 @@ export interface CartItem {
   originalPrice: number;
   quantity: number;
   isComboDiscount?: boolean;
+  isPreOrder?: boolean;
+  depositPercent?: number; // Tỷ lệ cọc (10%, 20%, 100%)
+  depositAmount?: number; // Số tiền cọc cần thanh toán trước
 }
 
 export interface PermissionItem {
@@ -300,3 +317,90 @@ export interface PermissionItem {
   tech: boolean;
   cashier: boolean;
 }
+
+// 1. Mã QR Khuyến Mãi có thời gian bắt đầu, kết thúc & đếm ngược hiệu lực
+export interface PromoQRCode {
+  id: string;
+  code: string; // VD: FLASH-APPLE-500K, TECHFEST-10
+  title: string;
+  description: string;
+  discountType: 'percentage' | 'fixed_amount';
+  discountValue: number; // 10 (%) hoặc 500.000 (VND)
+  minOrderValue: number; // Đơn tối thiểu áp dụng
+  startDate: string; // ISO date string
+  endDate: string; // ISO date string
+  isActive: boolean;
+  qrPayload: string; // Dữ liệu mã hóa trong QR
+  bannerColor?: string;
+}
+
+// 1.1 Chiến Dịch Khuyến Mãi & Flash Sale Cửa Hàng
+export interface PromotionCampaign {
+  id: string;
+  title: string;
+  description: string;
+  badgeText?: string;
+  discountType: 'percentage' | 'fixed_amount';
+  discountValue: number; // 15 (%) hoặc 1.000.000 (VND)
+  startDate: string; // ISO string
+  endDate: string; // ISO string
+  isActive: boolean;
+  targetCategory: 'all' | 'phones' | 'accessories' | 'repairs';
+  bannerGradient?: string;
+}
+
+
+// 2. Hệ Thống Thông Báo Email Khách Hàng (Tất cả dịch vụ)
+export interface EmailNotification {
+  id: string;
+  toEmail: string;
+  customerName: string;
+  customerPhone?: string;
+  subject: string;
+  type:
+    | 'deposit_invoice'        // Hóa đơn đặt cọc Pre-order
+    | 'purchase_invoice'       // Hóa đơn mua hàng điện tử
+    | 'repair_receipt'         // Hóa đơn/biên nhận sửa chữa iCare
+    | 'repair_status_update'   // Cập nhật tiến độ sửa chữa máy
+    | 'reward_redeem';         // Thông báo đổi phụ kiện từ điểm thưởng
+  title: string;
+  contentSummary: string;
+  htmlContent: string;
+  sentAt: string;
+  referenceCode: string; // Mã HD-xxx hoặc SC-xxx
+  isRead?: boolean;
+}
+
+// 3. Quản Lý Mã Sản Phẩm / Thiết Bị Vòng Đời Thống Nhất (Chung mã IMEI khi mua và khi sửa)
+export interface RegisteredDevice {
+  id: string;
+  imei: string; // Mã IMEI/Serial thống nhất xuyên suốt (mua & sửa)
+  productName: string;
+  phoneId?: string;
+  color?: string;
+  capacity?: string;
+  customerPhone: string;
+  customerName: string;
+  customerEmail?: string;
+  purchaseInvoiceCode: string; // Mã hóa đơn mua
+  purchaseDate: string;
+  warrantyExpiryDate: string;
+  purchasePrice: number;
+  repairHistoryCodes: string[]; // Danh sách mã phiếu SC-xxx đã sửa chữa chiếc máy này
+}
+
+// 4. Danh Sách Quà / Phụ Kiện Đã Đổi Bằng Điểm Thưởng
+export interface RedeemedGiftItem {
+  id: string;
+  giftCode: string; // VD: GIFT-2608-001
+  customerId: string;
+  customerPhone: string;
+  customerName: string;
+  accessoryId: string;
+  accessoryName: string;
+  accessoryImage: string;
+  pointsRedeemed: number; // Số điểm đã trừ
+  redeemedAt: string;
+  status: 'active' | 'used' | 'delivered';
+}
+

@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { isValidUsername, sanitizeString } from '@/lib/validation';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { username, password, name } = body;
+    const rawUsername = body.username;
+    const rawPassword = body.password;
+    const rawName = body.name;
+
+    const username = sanitizeString(rawUsername, 50).toLowerCase();
+    const password = String(rawPassword || '');
+    const name = sanitizeString(rawName, 100);
 
     if (!username || !password || !name) {
       return NextResponse.json(
@@ -13,10 +20,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const cleanUsername = username.trim().toLowerCase();
+    if (!isValidUsername(username)) {
+      return NextResponse.json(
+        { error: 'Tên đăng nhập không hợp lệ (cần từ 3-30 ký tự chữ, số hoặc dấu gạch dưới, không chứa dấu tiếng Việt hay khoảng trắng)' },
+        { status: 400 }
+      );
+    }
+
+    if (password.length < 6) {
+      return NextResponse.json(
+        { error: 'Mật khẩu phải có tối thiểu 6 ký tự để đảm bảo an toàn' },
+        { status: 400 }
+      );
+    }
+
+    if (name.length < 2) {
+      return NextResponse.json(
+        { error: 'Họ tên nhân viên phải có tối thiểu 2 ký tự' },
+        { status: 400 }
+      );
+    }
 
     const exists = await prisma.user.findUnique({
-      where: { username: cleanUsername },
+      where: { username },
     });
 
     if (exists) {
@@ -29,11 +55,12 @@ export async function POST(request: NextRequest) {
     // New staff registers with pending role awaiting Admin approval
     const newUser = await prisma.user.create({
       data: {
-        username: cleanUsername,
-        password: password,
-        name: name.trim(),
+        username,
+        password,
+        name,
         role: 'pending',
         avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400&auto=format&fit=crop&q=80',
+        isActive: true,
       },
     });
 

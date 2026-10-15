@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   CheckCircle2,
   Download,
+  Tag,
 } from 'lucide-react';
 import { IShopStore } from '@/lib/store';
 import { PhoneStockItem, Role } from '@/lib/types';
@@ -64,144 +65,158 @@ export default function InventoryPhonesPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/10">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-blue-400 uppercase">Phân hệ Kho Hàng</span>
-            <span className="text-gray-500">•</span>
-            <span className="text-xs text-gray-400">Quản lý theo IMEI từng cây</span>
+            <span className="text-xs font-bold text-amber-700 uppercase tracking-wide">Phân hệ Kho Hàng</span>
+            <span className="text-slate-300">•</span>
+            <span className="text-xs text-slate-500 font-medium">Quản lý theo IMEI từng cây</span>
           </div>
-          <h1 className="text-xl sm:text-2xl font-extrabold text-white flex items-center gap-2 mt-1">
-            <Smartphone className="w-6 h-6 text-blue-400" />
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2 mt-1">
+            <Smartphone className="w-6 h-6 text-amber-600" />
             <span>Kho Máy Mới 100% (Theo Từng Số IMEI)</span>
           </h1>
-          <p className="text-xs text-gray-400 mt-0.5">
-            Tổng tồn kho: <strong className="text-emerald-400">{inStockCount} cây còn hàng</strong> • Đã xuất bán:{' '}
-            <strong className="text-amber-400">{soldCount} cây</strong>
+          <p className="text-xs text-slate-600 mt-0.5">
+            Tổng tồn kho: <strong className="text-emerald-700 font-bold">{inStockCount} cây còn hàng</strong> • Đã xuất bán:{' '}
+            <strong className="text-amber-700 font-bold">{soldCount} cây</strong>
           </p>
         </div>
 
         <div className="flex items-center gap-2">
+          <Link
+            href="/admin/promotions"
+            className="px-3.5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-black font-black text-xs flex items-center gap-2 transition-transform hover:scale-105 shadow-sm"
+          >
+            <Tag className="w-4 h-4 text-black" />
+            <span>Điều Chỉnh Giá &amp; Khuyến Mãi</span>
+          </Link>
           <button
             onClick={() => exportPhoneStockCsv(filtered)}
-            className="px-3.5 py-2.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.1] text-gray-200 hover:text-white font-bold text-xs flex items-center gap-2 transition-all shadow-md"
+            className="px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 font-bold text-xs flex items-center gap-2 transition-all shadow-sm cursor-pointer"
             title="Xuất danh sách tồn kho IMEI ra file Excel CSV"
           >
-            <Download className="w-4 h-4 text-emerald-400" />
+            <Download className="w-4 h-4 text-emerald-600" />
             <span>Xuất Excel</span>
           </button>
           <Link
             href="/admin/restock"
-            className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg shadow-blue-600/20 flex items-center gap-2 transition-transform hover:scale-105"
+            className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-md flex items-center gap-2 transition-transform hover:scale-105"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4 text-amber-400" />
             <span>Nhập Lô IMEI Từ Nhà Cung Cấp</span>
           </Link>
         </div>
       </div>
 
       {/* Subnav 3 inventory groups */}
-      <div className="flex items-center gap-2 border-b border-white/10 pb-2">
+      <div className="flex items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto text-xs">
         <Link
           href="/admin/inventory/phones"
-          className="px-4 py-2 rounded-xl text-xs font-bold bg-blue-600 text-white"
+          className="px-4 py-2 rounded-xl font-bold bg-slate-900 text-white shadow-sm whitespace-nowrap"
         >
           Kho Máy Mới (IMEI)
         </Link>
         <Link
           href="/admin/inventory/accessories"
-          className="px-4 py-2 rounded-xl text-xs font-semibold text-gray-400 hover:text-white hover:bg-white/5"
+          className="px-4 py-2 rounded-xl font-bold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-colors whitespace-nowrap"
         >
           Kho Phụ Kiện (Barcode)
         </Link>
         <Link
           href="/admin/inventory/spare-parts"
-          className="px-4 py-2 rounded-xl text-xs font-semibold text-gray-400 hover:text-white hover:bg-white/5"
+          className="px-4 py-2 rounded-xl font-bold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-colors whitespace-nowrap"
         >
           Kho Linh Kiện Sửa Chữa
+        </Link>
+        <Link
+          href="/admin/promotions"
+          className="px-4 py-2 rounded-xl font-bold text-amber-800 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-300 transition-colors whitespace-nowrap flex items-center gap-1.5 ml-auto"
+        >
+          <Tag className="w-3.5 h-3.5 text-amber-600" />
+          <span>Cấu Hình Giá &amp; Flash Sale</span>
         </Link>
       </div>
 
       {/* Search and Filters */}
-      <div className="glass-panel p-4 rounded-2xl border border-white/10 flex flex-wrap items-center justify-between gap-4">
+      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-4">
         <div className="relative flex-1 min-w-[260px]">
-          <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             value={searchImei}
             onChange={(e) => setSearchImei(e.target.value)}
             placeholder="Tìm theo số IMEI (15 số), tên máy, SĐT người mua..."
-            className="w-full pl-9 pr-4 py-2 bg-white/5 border border-white/10 rounded-xl text-xs sm:text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 font-mono"
+            className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-amber-500 focus:bg-white font-mono transition-colors"
           />
         </div>
 
         <div className="flex items-center gap-2 text-xs">
-          <span className="text-gray-400">Trạng thái:</span>
+          <span className="text-slate-500 font-medium">Trạng thái:</span>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="bg-white/5 border border-white/10 text-white rounded-xl px-3 py-2 text-xs focus:outline-none"
+            className="bg-slate-50 border border-slate-200 text-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-amber-500 font-medium"
           >
-            <option value="all" className="bg-[#121826]">Tất cả ({stock.length})</option>
-            <option value="in_stock" className="bg-[#121826]">Còn hàng ({inStockCount})</option>
-            <option value="sold" className="bg-[#121826]">Đã bán ({soldCount})</option>
+            <option value="all">Tất cả ({stock.length})</option>
+            <option value="in_stock">Còn hàng ({inStockCount})</option>
+            <option value="sold">Đã bán ({soldCount})</option>
           </select>
         </div>
       </div>
 
-      {/* IMEI Stock Table */}
-      <div className="glass-panel rounded-3xl border border-white/10 overflow-hidden shadow-2xl">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs sm:text-sm">
-            <thead className="bg-[#0d1320] text-gray-400 uppercase text-[11px] border-b border-white/10">
+      {/* IMEI Stock Table - Scrollable Container with Sticky Thead to prevent header clipping */}
+      <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
+        <div className="overflow-x-auto max-h-[calc(100vh-270px)] overflow-y-auto">
+          <table className="w-full text-left text-xs sm:text-sm border-collapse">
+            <thead className="bg-slate-100/95 backdrop-blur-md text-slate-700 uppercase text-[11px] font-bold border-b border-slate-200 sticky top-0 z-20 shadow-sm">
               <tr>
-                <th className="p-4">Số IMEI (15 Chữ Số)</th>
-                <th className="p-4">Dòng Máy & Dung Lượng</th>
-                <th className="p-4">Màu Sắc</th>
-                <th className="p-4 text-right">
+                <th className="p-4 whitespace-nowrap bg-slate-100">Số IMEI (15 Chữ Số)</th>
+                <th className="p-4 whitespace-nowrap bg-slate-100">Dòng Máy &amp; Dung Lượng</th>
+                <th className="p-4 whitespace-nowrap bg-slate-100">Màu Sắc</th>
+                <th className="p-4 text-right whitespace-nowrap bg-slate-100">
                   {canViewCostPrice ? 'Giá Vốn Nhập' : 'Giá Vốn'}
                 </th>
-                <th className="p-4 text-right">Giá Bán Niêm Yết</th>
-                <th className="p-4">Trạng Thái</th>
-                <th className="p-4">Thông Tin Xuất Bán</th>
+                <th className="p-4 text-right whitespace-nowrap bg-slate-100">Giá Bán Niêm Yết</th>
+                <th className="p-4 whitespace-nowrap bg-slate-100">Trạng Thái</th>
+                <th className="p-4 whitespace-nowrap bg-slate-100">Thông Tin Xuất Bán</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
+            <tbody className="divide-y divide-slate-100 text-xs">
               {filtered.map((unit) => (
-                <tr key={unit.imei} className="hover:bg-white/[0.02] transition-colors">
+                <tr key={unit.imei} className="hover:bg-amber-50/50 transition-colors">
                   <td className="p-4 font-mono">
-                    <span className="font-bold text-amber-400 block">{unit.imei}</span>
-                    <span className="text-[10px] text-gray-500">Nhập: {unit.importDate}</span>
+                    <span className="font-bold text-amber-800 block text-xs">{unit.imei}</span>
+                    <span className="text-[10px] text-slate-500">Nhập: {unit.importDate}</span>
                   </td>
 
                   <td className="p-4">
-                    <span className="font-bold text-white block">{unit.phoneName}</span>
-                    <span className="text-[11px] text-gray-400 font-medium">
+                    <span className="font-bold text-slate-900 block">{unit.phoneName}</span>
+                    <span className="text-[11px] text-slate-500 font-medium">
                       NCC: {unit.supplierName}
                     </span>
                   </td>
 
-                  <td className="p-4 text-gray-300">{unit.color}</td>
+                  <td className="p-4 text-slate-700 font-medium">{unit.color}</td>
 
-                  <td className="p-4 text-right font-medium">
+                  <td className="p-4 text-right font-mono font-medium text-slate-700">
                     {canViewCostPrice ? (
                       formatVND(unit.costPrice)
                     ) : (
-                      <span className="text-gray-500 italic">*** Ẩn</span>
+                      <span className="text-slate-400 italic">*** Ẩn</span>
                     )}
                   </td>
 
-                  <td className="p-4 text-right font-bold text-emerald-400">
+                  <td className="p-4 text-right font-black text-emerald-700 font-mono text-sm">
                     {formatVND(unit.sellingPrice)}
                   </td>
 
                   <td className="p-4">
                     {unit.status === 'in_stock' ? (
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 whitespace-nowrap">
                         ● Còn hàng
                       </span>
                     ) : (
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-gray-500/20 text-gray-400 border border-gray-500/30">
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200 whitespace-nowrap">
                         ✓ Đã bán
                       </span>
                     )}
@@ -210,20 +225,20 @@ export default function InventoryPhonesPage() {
                   <td className="p-4 text-xs">
                     {unit.status === 'sold' ? (
                       <div className="space-y-0.5">
-                        <span className="font-bold text-white block">{unit.soldToCustomerName}</span>
-                        <span className="text-[11px] text-gray-400 font-mono">
+                        <span className="font-bold text-slate-900 block">{unit.soldToCustomerName}</span>
+                        <span className="text-[11px] text-slate-500 font-mono">
                           {unit.soldToCustomerPhone} ({unit.soldAt})
                         </span>
                         <Link
                           href={`/warranty?imei=${unit.imei}`}
-                          className="text-[10px] text-blue-400 hover:underline block"
+                          className="text-[10px] text-amber-700 hover:text-amber-800 font-bold hover:underline block"
                           target="_blank"
                         >
                           Xem tra cứu bảo hành ↗
                         </Link>
                       </div>
                     ) : (
-                      <span className="text-gray-500 italic">Sẵn sàng tại quầy POS</span>
+                      <span className="text-slate-400 italic">Sẵn sàng tại quầy POS</span>
                     )}
                   </td>
                 </tr>
@@ -231,7 +246,7 @@ export default function InventoryPhonesPage() {
 
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-gray-500 text-xs">
+                  <td colSpan={7} className="p-8 text-center text-slate-500 text-xs">
                     Không tìm thấy số IMEI nào phù hợp.
                   </td>
                 </tr>

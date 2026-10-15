@@ -29,6 +29,9 @@ import {
   FileText,
   AlertCircle,
   Camera,
+  X,
+  Smartphone,
+  Inbox,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { IShopStore } from '@/lib/store';
@@ -36,9 +39,13 @@ import { CustomerUser, Customer, Invoice, RepairTicket } from '@/lib/types';
 import { MEMBERSHIP_TIERS, getTierByPoints, MembershipTierConfig } from '@/lib/loyalty';
 import { formatVND } from '@/lib/vietqr';
 import { AvatarPickerModal } from '@/components/common/AvatarPickerModal';
+import { RedeemGiftSection } from '@/components/loyalty/RedeemGiftSection';
+import { PromoQRSection } from '@/components/loyalty/PromoQRSection';
+import { DevicePassportSection } from '@/components/loyalty/DevicePassportSection';
+import { EmailHubSection } from '@/components/loyalty/EmailHubSection';
 
 export default function AccountPage() {
-  const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'loyalty' | 'orders' | 'repairs'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'loyalty' | 'orders' | 'repairs' | 'devices' | 'emails'>('profile');
   const [customerUser, setCustomerUser] = useState<CustomerUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -104,6 +111,24 @@ export default function AccountPage() {
       );
       setCustomerOrders(userInvoices);
 
+      // Tính tổng điểm tích lũy từ các đơn hàng thực tế đã phát sinh
+      const invoicePoints = userInvoices.reduce((sum, inv) => {
+        const earned = typeof inv.pointsEarned === 'number' ? inv.pointsEarned : Math.floor(inv.totalAmount / 10000);
+        return sum + earned;
+      }, 0);
+
+      // Điểm cơ bản (thành viên mới là 100 điểm) cộng với toàn bộ điểm từ hóa đơn
+      const basePoints = 100;
+      const calculatedTotalPoints = Math.max(user.points || 0, basePoints + invoicePoints);
+
+      if (user.points !== calculatedTotalPoints) {
+        user.points = calculatedTotalPoints;
+        const newTier = getTierByPoints(calculatedTotalPoints).tier;
+        user.membershipTier = newTier;
+        IShopStore.updateCustomerUser({ points: calculatedTotalPoints, membershipTier: newTier });
+        setCustomerUser({ ...user, points: calculatedTotalPoints, membershipTier: newTier });
+      }
+
       const allRepairs = IShopStore.getRepairs();
       const userRepairs = allRepairs.filter(
         (rep) =>
@@ -117,6 +142,13 @@ export default function AccountPage() {
 
   useEffect(() => {
     loadUserData();
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get('tab');
+      if (tabParam === 'orders' || tabParam === 'repairs' || tabParam === 'loyalty' || tabParam === 'security' || tabParam === 'profile' || tabParam === 'devices' || tabParam === 'emails') {
+        setActiveTab(tabParam as any);
+      }
+    }
     const handleDataChange = () => loadUserData();
     window.addEventListener('ishop_data_changed', handleDataChange);
     return () => window.removeEventListener('ishop_data_changed', handleDataChange);
@@ -513,11 +545,10 @@ export default function AccountPage() {
         <div className="flex items-center gap-2 overflow-x-auto pt-6 mt-6 border-t border-slate-200 text-xs no-scrollbar">
           <button
             onClick={() => setActiveTab('profile')}
-            className={`px-4 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-              activeTab === 'profile'
+            className={`px-4 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${activeTab === 'profile'
                 ? 'bg-slate-900 text-white shadow-md'
                 : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
-            }`}
+              }`}
           >
             <User className="w-4 h-4" />
             <span>Hồ Sơ Cá Nhân</span>
@@ -525,11 +556,10 @@ export default function AccountPage() {
 
           <button
             onClick={() => setActiveTab('security')}
-            className={`px-4 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-              activeTab === 'security'
+            className={`px-4 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${activeTab === 'security'
                 ? 'bg-slate-900 text-white shadow-md'
                 : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
-            }`}
+              }`}
           >
             <Lock className="w-4 h-4" />
             <span>Đổi Mật Khẩu &amp; Bảo Mật</span>
@@ -537,11 +567,10 @@ export default function AccountPage() {
 
           <button
             onClick={() => setActiveTab('loyalty')}
-            className={`px-4 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-              activeTab === 'loyalty'
+            className={`px-4 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${activeTab === 'loyalty'
                 ? 'bg-slate-900 text-white shadow-md'
                 : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
-            }`}
+              }`}
           >
             <Award className="w-4 h-4" />
             <span>Thẻ VIP &amp; Điểm Thưởng</span>
@@ -549,11 +578,10 @@ export default function AccountPage() {
 
           <button
             onClick={() => setActiveTab('orders')}
-            className={`px-4 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-              activeTab === 'orders'
+            className={`px-4 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${activeTab === 'orders'
                 ? 'bg-slate-900 text-white shadow-md'
                 : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
-            }`}
+              }`}
           >
             <ShoppingBag className="w-4 h-4" />
             <span>Lịch Sử Đơn Mua ({customerOrders.length})</span>
@@ -561,14 +589,35 @@ export default function AccountPage() {
 
           <button
             onClick={() => setActiveTab('repairs')}
-            className={`px-4 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-              activeTab === 'repairs'
+            className={`px-4 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${activeTab === 'repairs'
                 ? 'bg-slate-900 text-white shadow-md'
                 : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
-            }`}
+              }`}
           >
             <Wrench className="w-4 h-4" />
             <span>Đơn Sửa iCare ({customerRepairs.length})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('devices')}
+            className={`px-4 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${activeTab === 'devices'
+                ? 'bg-slate-900 text-white shadow-md'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
+              }`}
+          >
+            <Smartphone className="w-4 h-4 text-amber-500" />
+            <span>Thiết Bị Của Tôi (IMEI)</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('emails')}
+            className={`px-4 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${activeTab === 'emails'
+                ? 'bg-slate-900 text-white shadow-md'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
+              }`}
+          >
+            <Inbox className="w-4 h-4 text-amber-500" />
+            <span>Hòm Thư &amp; Hóa Đơn Email</span>
           </button>
         </div>
       </div>
@@ -733,11 +782,10 @@ export default function AccountPage() {
 
             {securityFeedback && (
               <div
-                className={`p-3.5 rounded-2xl text-xs font-semibold flex items-center gap-2 animate-in fade-in ${
-                  securityFeedback.type === 'success'
+                className={`p-3.5 rounded-2xl text-xs font-semibold flex items-center gap-2 animate-in fade-in ${securityFeedback.type === 'success'
                     ? 'bg-emerald-50 border border-emerald-200 text-emerald-800'
                     : 'bg-rose-50 border border-rose-200 text-rose-800'
-                }`}
+                  }`}
               >
                 {securityFeedback.type === 'success' ? (
                   <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
@@ -797,19 +845,16 @@ export default function AccountPage() {
                       <div className="mt-2 space-y-1">
                         <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden flex gap-1">
                           <div
-                            className={`h-full flex-1 rounded-full transition-all ${
-                              passStrength.score >= 1 ? passStrength.color : 'bg-transparent'
-                            }`}
+                            className={`h-full flex-1 rounded-full transition-all ${passStrength.score >= 1 ? passStrength.color : 'bg-transparent'
+                              }`}
                           />
                           <div
-                            className={`h-full flex-1 rounded-full transition-all ${
-                              passStrength.score >= 2 ? passStrength.color : 'bg-transparent'
-                            }`}
+                            className={`h-full flex-1 rounded-full transition-all ${passStrength.score >= 2 ? passStrength.color : 'bg-transparent'
+                              }`}
                           />
                           <div
-                            className={`h-full flex-1 rounded-full transition-all ${
-                              passStrength.score >= 3 ? passStrength.color : 'bg-transparent'
-                            }`}
+                            className={`h-full flex-1 rounded-full transition-all ${passStrength.score >= 3 ? passStrength.color : 'bg-transparent'
+                              }`}
                           />
                         </div>
                         <span className="text-[10px] text-slate-500 font-medium">Độ mạnh mật khẩu: {passStrength.text}</span>
@@ -1022,6 +1067,17 @@ export default function AccountPage() {
                 </table>
               </div>
             </div>
+
+            {/* Đổi Điểm Lấy Phụ Kiện Chính Hãng */}
+            <RedeemGiftSection
+              customerPhone={customerUser.phone}
+              customerName={customerUser.name}
+              currentPoints={currentPoints}
+              onRedeemSuccess={() => loadUserData()}
+            />
+
+            {/* Mã QR Khuyến Mãi Flash Sale & Thời Hạn Countdown */}
+            <PromoQRSection />
           </div>
         )}
 
@@ -1085,13 +1141,24 @@ export default function AccountPage() {
                       ))}
                     </div>
 
-                    <div className="flex items-center justify-between pt-2 border-t border-slate-200 text-xs">
-                      <span className="text-slate-600">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between pt-2.5 border-t border-slate-200 text-xs gap-2">
+                      <div className="flex items-center gap-2">
                         {invoice.pointsEarned ? (
-                          <span className="text-amber-700 font-semibold">+ {invoice.pointsEarned} điểm thưởng</span>
+                          <span className="text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200">
+                            + {invoice.pointsEarned.toLocaleString('vi-VN')} điểm thưởng
+                          </span>
                         ) : null}
-                      </span>
-                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedInvoice(invoice)}
+                          className="px-3 py-1 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center gap-1.5 transition-colors shadow-sm cursor-pointer"
+                        >
+                          <FileText className="w-3.5 h-3.5 text-amber-400" />
+                          <span>Xem Chi Tiết Hóa Đơn</span>
+                        </button>
+                      </div>
+
+                      <div className="flex items-center gap-2 sm:justify-end">
                         <span className="text-slate-500 font-medium">Tổng thanh toán:</span>
                         <span className="font-black text-amber-700 text-sm font-mono">
                           {formatVND(invoice.totalAmount)}
@@ -1151,6 +1218,27 @@ export default function AccountPage() {
             )}
           </div>
         )}
+
+        {/* TAB 6: HỒ SƠ THIẾT BỊ THỐNG NHẤT (MUA & SỬA CHUNG 1 MÃ IMEI DUY NHẤT) */}
+        {activeTab === 'devices' && (
+          <div className="lg:col-span-12">
+            <DevicePassportSection
+              customerPhone={customerUser.phone}
+              customerName={customerUser.name}
+            />
+          </div>
+        )}
+
+        {/* TAB 7: HÒM THƯ ĐIỆN TỬ & HÓA ĐƠN GỬI VỀ EMAIL */}
+        {activeTab === 'emails' && (
+          <div className="lg:col-span-12">
+            <EmailHubSection
+              customerPhone={customerUser.phone}
+              customerEmail={customerUser.email}
+              customerName={customerUser.name}
+            />
+          </div>
+        )}
       </div>
       {/* Reusable Avatar Picker Modal */}
       {customerUser && (
@@ -1162,6 +1250,144 @@ export default function AccountPage() {
           onSaveAvatar={handleSaveAvatar}
           title="Ảnh Đại Diện Khách Hàng VIP"
         />
+      )}
+
+      {/* Invoice Detail Modal for Customer */}
+      {selectedInvoice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 max-w-2xl w-full shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex items-start justify-between pb-4 border-b border-slate-200">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-mono font-bold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-md border border-amber-200">
+                    {selectedInvoice.invoiceCode}
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                    ✓ Đã Thanh Toán
+                  </span>
+                </div>
+                <h3 className="text-lg sm:text-xl font-black text-slate-900 mt-2">
+                  Hóa Đơn Mua Hàng Điện Tử
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Thời gian: {selectedInvoice.createdAt} • Thu ngân: {selectedInvoice.cashierName || 'Online Web Store'}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedInvoice(null)}
+                className="p-2 text-slate-400 hover:text-slate-900 rounded-xl bg-slate-100 hover:bg-slate-200 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Customer Info Box */}
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              <div>
+                <span className="text-slate-500 block">Khách hàng nhận:</span>
+                <strong className="text-slate-900 text-sm">{selectedInvoice.customerName}</strong>
+              </div>
+              <div>
+                <span className="text-slate-500 block">Số điện thoại:</span>
+                <strong className="text-slate-900 font-mono text-sm">{selectedInvoice.customerPhone}</strong>
+              </div>
+              <div>
+                <span className="text-slate-500 block">Phương thức:</span>
+                <span className="font-bold text-slate-800 uppercase">
+                  {selectedInvoice.paymentMethod === 'vietqr' ? 'Chuyển khoản VietQR Napas 247' : 'Tiền mặt tại quầy / COD'}
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-500 block">Bảo hành điện tử:</span>
+                <span className="text-emerald-700 font-semibold">{selectedInvoice.warrantyNote || 'Chính hãng 12 tháng'}</span>
+              </div>
+            </div>
+
+            {/* Items Table */}
+            <div>
+              <h4 className="font-bold text-slate-900 text-xs mb-2.5 uppercase tracking-wide">
+                Danh Sách Sản Phẩm Đã Mua:
+              </h4>
+              <div className="border border-slate-200 rounded-2xl overflow-hidden divide-y divide-slate-100 text-xs">
+                {selectedInvoice.items.map((item, idx) => (
+                  <div key={idx} className="p-3.5 flex items-center justify-between gap-3 bg-white hover:bg-slate-50/50">
+                    <div>
+                      <p className="font-bold text-slate-900 text-sm">{item.name}</p>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        {item.variant && <span>Phân loại: {item.variant} • </span>}
+                        Đơn giá: <span className="font-mono">{formatVND(item.unitPrice)}</span> • SL: <strong className="text-slate-800">x{item.quantity}</strong>
+                      </p>
+                      {item.imei && (
+                        <div className="mt-1 flex items-center gap-1.5">
+                          <span className="px-2 py-0.5 rounded font-mono font-bold text-[10px] bg-amber-100 text-amber-900 border border-amber-300">
+                            IMEI: {item.imei}
+                          </span>
+                          <Link
+                            href="/warranty"
+                            className="text-[11px] text-blue-600 hover:underline font-semibold"
+                          >
+                            Tra cứu bảo hành →
+                          </Link>
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className="font-black text-amber-700 font-mono text-sm">
+                        {formatVND(item.total)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Total Summary */}
+            <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200/80 space-y-2 text-xs">
+              <div className="flex justify-between text-slate-600">
+                <span>Tạm tính tiền hàng:</span>
+                <span className="font-mono font-bold text-slate-800">{formatVND(selectedInvoice.subtotal)}</span>
+              </div>
+              {selectedInvoice.discount > 0 && (
+                <div className="flex justify-between text-emerald-700">
+                  <span>Chiết khấu giảm giá:</span>
+                  <span className="font-mono font-bold">-{formatVND(selectedInvoice.discount)}</span>
+                </div>
+              )}
+              {selectedInvoice.pointsEarned ? (
+                <div className="flex justify-between text-amber-800">
+                  <span>Điểm thưởng tích lũy:</span>
+                  <span className="font-mono font-bold">+{selectedInvoice.pointsEarned.toLocaleString('vi-VN')} điểm</span>
+                </div>
+              ) : null}
+              <div className="flex justify-between items-center pt-2 border-t border-amber-200 text-sm">
+                <span className="font-black text-slate-900">Tổng thanh toán:</span>
+                <span className="font-black text-amber-700 font-mono text-lg">
+                  {formatVND(selectedInvoice.totalAmount)}
+                </span>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex items-center justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer"
+              >
+                <Printer className="w-4 h-4 text-slate-600" />
+                <span>In Hóa Đơn</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedInvoice(null)}
+                className="px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-colors cursor-pointer"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

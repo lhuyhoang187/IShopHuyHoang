@@ -14,6 +14,9 @@ import {
   Sparkles,
   Layers,
   ChevronRight,
+  Plus,
+  Minus,
+  AlertCircle,
 } from 'lucide-react';
 import { IShopStore } from '@/lib/store';
 import { PhoneProduct, PhoneColor, PhoneCapacity, AccessoryProduct } from '@/lib/types';
@@ -31,20 +34,31 @@ export default function PhoneDetailPage() {
   const [availableStockCount, setAvailableStockCount] = useState<number>(0);
   const [accessories, setAccessories] = useState<AccessoryProduct[]>([]);
   const [isVietQROpen, setIsVietQROpen] = useState(false);
-  const [addedToast, setAddedToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [quantity, setQuantity] = useState(1);
   const [orderCode] = useState(() => `DH${Date.now().toString().slice(-6)}`);
+
+  const updateVariantStock = (p: PhoneProduct, col: PhoneColor | null, cap: PhoneCapacity | null) => {
+    const stock = IShopStore.getProductAvailableStock({
+      productId: p.id,
+      type: 'phone',
+      color: col?.name,
+      capacity: cap?.size,
+    });
+    setAvailableStockCount(stock);
+  };
 
   const loadData = () => {
     if (!slug) return;
     const found = IShopStore.getPhoneBySlug(slug);
     if (found) {
       setPhone(found);
-      if (!selectedColor) setSelectedColor(found.colors[0]);
-      if (!selectedCapacity) setSelectedCapacity(found.capacities[0]);
+      const col = selectedColor || found.colors[0];
+      const cap = selectedCapacity || found.capacities[0];
+      if (!selectedColor) setSelectedColor(col);
+      if (!selectedCapacity) setSelectedCapacity(cap);
 
-      // Check real-time stock
-      const stock = IShopStore.getAvailablePhones().filter((s) => s.phoneId === found.id);
-      setAvailableStockCount(stock.length);
+      updateVariantStock(found, col, cap);
     }
     setAccessories(IShopStore.getAccessories());
   };
@@ -82,7 +96,7 @@ export default function PhoneDetailPage() {
   };
 
   const handleAddToCart = () => {
-    IShopStore.addToCart({
+    const result = IShopStore.addToCart({
       productId: phone.id,
       type: 'phone',
       name: phone.name,
@@ -92,13 +106,23 @@ export default function PhoneDetailPage() {
       capacity: selectedCapacity.size,
       price: selectedCapacity.price,
       originalPrice: selectedCapacity.originalPrice,
-      quantity: 1,
+      quantity: quantity,
     });
 
+    if (!result.success) {
+      setToastMessage({
+        message: result.message,
+        type: 'error',
+      });
+      setTimeout(() => setToastMessage(null), 3500);
+      return;
+    }
+
+    const failedCombos: string[] = [];
     comboItems
       .filter((c) => selectedCombos.includes(c.id))
       .forEach((combo) => {
-        IShopStore.addToCart({
+        const comboRes = IShopStore.addToCart({
           productId: combo.id,
           type: 'accessory',
           name: `${combo.name} (Mua kèm máy -15%)`,
@@ -109,10 +133,24 @@ export default function PhoneDetailPage() {
           quantity: 1,
           isComboDiscount: true,
         });
+        if (!comboRes.success) {
+          failedCombos.push(combo.name);
+        }
       });
 
-    setAddedToast(true);
-    setTimeout(() => setAddedToast(false), 2500);
+    if (failedCombos.length > 0) {
+      setToastMessage({
+        message: `Đã thêm máy vào giỏ, tuy nhiên phụ kiện "${failedCombos.join(', ')}" đã hết hàng trong kho!`,
+        type: 'error',
+      });
+      setTimeout(() => setToastMessage(null), 4000);
+    } else {
+      setToastMessage({
+        message: `Đã thêm ${quantity} máy ${phone.name} (${selectedCapacity.size} - ${selectedColor.name}) vào giỏ hàng thành công!`,
+        type: 'success',
+      });
+      setTimeout(() => setToastMessage(null), 3000);
+    }
   };
 
   const isComparing = IShopStore.getComparisonList().includes(phone.id);
@@ -218,23 +256,41 @@ export default function PhoneDetailPage() {
           </div>
 
           {/* Luxury Pricing Box */}
-          <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-white p-5 sm:p-6 rounded-3xl border border-amber-200 flex items-baseline justify-between shadow-md">
-            <div>
-              <span className="text-xs text-slate-400 line-through block font-medium">
-                {formatVND(selectedCapacity.originalPrice)}
-              </span>
-              <span className="text-3xl sm:text-4xl font-black text-amber-700">
-                {formatVND(finalPrice)}
-              </span>
-            </div>
-            <div className="text-right">
-              <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-200 shadow-sm">
-                Tiết kiệm {formatVND(selectedCapacity.originalPrice - selectedCapacity.price)}
-              </span>
-              <div className="text-[11px] text-emerald-700 mt-2 flex items-center gap-1.5 justify-end font-bold">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                <span>Còn {availableStockCount > 0 ? `${availableStockCount} máy sẵn IMEI` : 'Sẵn hàng kích hoạt'}</span>
+          <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-white p-5 sm:p-6 rounded-3xl border border-amber-200 shadow-md space-y-3">
+            <div className="flex items-baseline justify-between">
+              <div>
+                <span className="text-xs text-slate-400 line-through block font-medium">
+                  {formatVND(selectedCapacity.originalPrice * quantity)}
+                </span>
+                <span className="text-3xl sm:text-4xl font-black text-amber-700">
+                  {formatVND(finalPrice * quantity)}
+                </span>
+                {quantity > 1 && (
+                  <span className="text-xs text-slate-500 font-medium block mt-0.5">
+                    Đơn giá: {formatVND(finalPrice)}/máy
+                  </span>
+                )}
               </div>
+              <div className="text-right">
+                <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-200 shadow-sm">
+                  Tiết kiệm {formatVND((selectedCapacity.originalPrice - selectedCapacity.price) * quantity)}
+                </span>
+                <div className="text-[11px] text-emerald-700 mt-2 flex items-center gap-1.5 justify-end font-bold">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                  <span>Còn {availableStockCount > 0 ? `${availableStockCount} máy sẵn IMEI` : 'Sẵn hàng kích hoạt'}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Hiển thị điểm thưởng theo tỷ lệ 100k = 10 điểm */}
+            <div className="flex items-center justify-between bg-amber-500/10 border border-amber-300 px-3.5 py-2 rounded-2xl">
+              <div className="flex items-center gap-2 text-xs font-bold text-amber-800">
+                <Sparkles className="w-4 h-4 text-amber-600" />
+                <span>Điểm tích lũy khi mua:</span>
+              </div>
+              <span className="text-sm font-black text-amber-900 bg-amber-100 px-2.5 py-0.5 rounded-xl border border-amber-300">
+                +{Math.floor((finalPrice * quantity) / 10000).toLocaleString('vi-VN')} điểm
+              </span>
             </div>
           </div>
 
@@ -250,7 +306,10 @@ export default function PhoneDetailPage() {
                 return (
                   <button
                     key={cap.size}
-                    onClick={() => setSelectedCapacity(cap)}
+                    onClick={() => {
+                      setSelectedCapacity(cap);
+                      updateVariantStock(phone, selectedColor, cap);
+                    }}
                     className={`p-3.5 rounded-2xl border text-left transition-all ${
                       isSelected
                         ? 'border-amber-500 bg-amber-50 text-slate-900 shadow-sm scale-[1.02]'
@@ -283,7 +342,10 @@ export default function PhoneDetailPage() {
                 return (
                   <button
                     key={c.id}
-                    onClick={() => setSelectedColor(c)}
+                    onClick={() => {
+                      setSelectedColor(c);
+                      updateVariantStock(phone, c, selectedCapacity);
+                    }}
                     className={`p-3 rounded-2xl border flex items-center gap-2.5 text-xs font-bold transition-all ${
                       isSelected
                         ? 'border-amber-500 bg-amber-50 text-slate-900 shadow-sm'
@@ -360,13 +422,68 @@ export default function PhoneDetailPage() {
             </div>
           </div>
 
+          {/* Bộ chọn số lượng đặt mua dấu cộng (+) và trừ (-) */}
+          <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
+            <div>
+              <span className="text-xs font-bold text-slate-800 block">Số lượng máy:</span>
+              <span className="text-[11px] text-slate-500">Tùy chọn đặt nhiều sản phẩm cùng lúc</span>
+            </div>
+            <div className="flex items-center gap-2.5 bg-white px-3 py-1.5 rounded-xl border border-slate-300 shadow-sm">
+              <button
+                type="button"
+                onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                className="p-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                title="Giảm số lượng"
+              >
+                <Minus className="w-4 h-4" />
+              </button>
+              <span className="text-sm font-black text-slate-900 w-8 text-center">{quantity}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  if (quantity >= availableStockCount) {
+                    setToastMessage({
+                      message: `Kho hiện chỉ còn ${availableStockCount} máy cho phiên bản ${selectedCapacity.size} - ${selectedColor.name}. Không thể chọn thêm!`,
+                      type: 'error',
+                    });
+                    setTimeout(() => setToastMessage(null), 3500);
+                    return;
+                  }
+                  setQuantity((q) => q + 1);
+                }}
+                className="p-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                title="Tăng số lượng"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
           {/* Action CTA Buttons */}
-          <div className="space-y-3.5 pt-4">
+          <div className="space-y-3.5 pt-2">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               {/* Buy now with VietQR */}
               <button
-                onClick={() => setIsVietQROpen(true)}
-                className="btn-gold w-full py-4 px-4 rounded-2xl text-sm font-black flex items-center justify-center gap-2 shadow-md"
+                onClick={() => {
+                  if (availableStockCount <= 0) {
+                    setToastMessage({
+                      message: `Phiên bản ${selectedCapacity.size} - ${selectedColor.name} hiện đã hết hàng trong kho!`,
+                      type: 'error',
+                    });
+                    setTimeout(() => setToastMessage(null), 3500);
+                    return;
+                  }
+                  if (quantity > availableStockCount) {
+                    setToastMessage({
+                      message: `Kho chỉ còn ${availableStockCount} máy. Vui lòng giảm số lượng đặt mua!`,
+                      type: 'error',
+                    });
+                    setTimeout(() => setToastMessage(null), 3500);
+                    return;
+                  }
+                  setIsVietQROpen(true);
+                }}
+                className="btn-gold w-full py-4 px-4 rounded-2xl text-sm font-black flex items-center justify-center gap-2 shadow-md cursor-pointer"
               >
                 <Zap className="w-4 h-4 text-white fill-current" />
                 <span>MUA NGAY (VIETQR 247)</span>
@@ -375,7 +492,7 @@ export default function PhoneDetailPage() {
               {/* Add to Cart */}
               <button
                 onClick={handleAddToCart}
-                className="w-full py-4 px-4 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm shadow-md flex items-center justify-center gap-2 transition-all"
+                className="w-full py-4 px-4 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
               >
                 <ShoppingCart className="w-4 h-4 text-amber-300" />
                 <span>Thêm Vào Giỏ Hàng</span>
@@ -385,7 +502,7 @@ export default function PhoneDetailPage() {
             {/* Compare button */}
             <button
               onClick={() => IShopStore.toggleComparison(phone.id)}
-              className={`w-full py-3 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 border transition-all shadow-sm ${
+              className={`w-full py-3 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 border transition-all shadow-sm cursor-pointer ${
                 isComparing
                   ? 'border-sky-400 bg-sky-50 text-sky-800 shadow-sm'
                   : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
@@ -400,9 +517,20 @@ export default function PhoneDetailPage() {
             </button>
 
             {/* Toast feedback */}
-            {addedToast && (
-              <div className="p-3.5 bg-emerald-600 text-white text-xs font-bold rounded-2xl text-center shadow-lg animate-in fade-in duration-200">
-                ✓ Đã thêm {phone.name} ({selectedCapacity.size}) vào giỏ hàng thành công!
+            {toastMessage && (
+              <div
+                className={`p-4 rounded-2xl text-xs font-bold shadow-xl flex items-center gap-3 border animate-in slide-in-from-bottom duration-200 ${
+                  toastMessage.type === 'error'
+                    ? 'bg-red-950 text-red-100 border-red-500 shadow-red-950/50'
+                    : 'bg-emerald-700 text-white border-emerald-400 shadow-emerald-950/50'
+                }`}
+              >
+                {toastMessage.type === 'error' ? (
+                  <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
+                ) : (
+                  <Check className="w-5 h-5 text-emerald-200 shrink-0" />
+                )}
+                <span className="leading-relaxed">{toastMessage.message}</span>
               </div>
             )}
           </div>
@@ -471,7 +599,7 @@ export default function PhoneDetailPage() {
       <VietQRModal
         isOpen={isVietQROpen}
         onClose={() => setIsVietQROpen(false)}
-        amount={finalPrice}
+        amount={finalPrice * quantity}
         orderCode={orderCode}
         onPaymentSuccess={() => {
           alert('Cảm ơn quý khách! iShop Huy Hoàng đã ghi nhận thanh toán và sẽ liên hệ giao hàng trong 15 phút.');

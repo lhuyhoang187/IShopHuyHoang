@@ -21,6 +21,7 @@ import {
   LogOut,
   UserCheck,
   ChevronDown,
+  ShoppingBag,
 } from 'lucide-react';
 import { IShopStore } from '@/lib/store';
 import { CustomerUser } from '@/lib/types';
@@ -106,7 +107,7 @@ export default function Header() {
       badge: null,
     },
     {
-      name: 'Hệ Thống Showroom',
+      name: 'Giới Thiệu',
       href: '/about',
       icon: Building2,
       badge: null,
@@ -226,6 +227,14 @@ export default function Header() {
 
                         <div className="space-y-1">
                           <Link
+                            href="/account?tab=orders"
+                            onClick={() => setIsCustomerMenuOpen(false)}
+                            className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-amber-900 font-bold bg-amber-50/80 hover:bg-amber-100/80 transition-colors"
+                          >
+                            <ShoppingBag className="w-4 h-4 text-amber-600" />
+                            <span>Đơn Hàng &amp; Hóa Đơn Mua</span>
+                          </Link>
+                          <Link
                             href="/account"
                             onClick={() => setIsCustomerMenuOpen(false)}
                             className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-slate-800 font-bold hover:bg-amber-50 transition-colors"
@@ -247,7 +256,7 @@ export default function Header() {
                             className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-colors"
                           >
                             <ShoppingCart className="w-4 h-4 text-amber-600" />
-                            <span>Giỏ hàng &amp; Đơn mua ({cartCount})</span>
+                            <span>Giỏ hàng hiện tại ({cartCount})</span>
                           </Link>
                         </div>
 
@@ -481,9 +490,18 @@ export default function Header() {
 
                   <div className="grid grid-cols-2 gap-2 pt-1">
                     <Link
+                      href="/account?tab=orders"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="col-span-2 flex items-center justify-center gap-1.5 p-2 rounded-xl bg-amber-100/80 border border-amber-300 text-amber-900 text-xs font-bold hover:bg-amber-200 transition-colors"
+                    >
+                      <ShoppingBag className="w-3.5 h-3.5 text-amber-700" />
+                      <span>Xem Lịch Sử Đơn Hàng &amp; Hóa Đơn</span>
+                    </Link>
+
+                    <Link
                       href="/account"
                       onClick={() => setIsMobileMenuOpen(false)}
-                      className="col-span-2 flex items-center justify-center gap-1.5 p-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold hover:bg-amber-100 transition-colors"
+                      className="col-span-2 flex items-center justify-center gap-1.5 p-2 rounded-xl bg-slate-100 border border-slate-200 text-slate-800 text-xs font-bold hover:bg-slate-200 transition-colors"
                     >
                       <User className="w-3.5 h-3.5 text-amber-600" />
                       <span>Hồ Sơ Cá Nhân &amp; Đổi Mật Khẩu</span>

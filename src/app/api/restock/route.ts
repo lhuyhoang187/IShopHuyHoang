@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import {
+  isValidImei,
+  isValidAmount,
+  sanitizeString,
+} from '@/lib/validation';
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,13 +30,65 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Clean and deduplicate IMEIs in the incoming batch
+    const rawImeis: string[] = imeis.map((im: any) => String(im).trim()).filter(Boolean);
+    const uniqueImeis = Array.from(new Set(rawImeis));
+
+    if (uniqueImeis.length === 0) {
+      return NextResponse.json(
+        { error: 'Danh sách IMEI không chứa mã IMEI hợp lệ' },
+        { status: 400 }
+      );
+    }
+
+    // Validate each IMEI
+    for (const imei of uniqueImeis) {
+      if (!isValidImei(imei)) {
+        return NextResponse.json(
+          { error: `Số IMEI "${imei}" không đúng định dạng hợp lệ (8 - 25 ký tự chữ và số)` },
+          { status: 400 }
+        );
+      }
+    }
+
+    const costNum = Number(costPrice || 0);
+    const sellNum = Number(sellingPrice || 0);
+    const paidNum = Number(paidAmount || 0);
+
+    if (!isValidAmount(costNum, true) || !isValidAmount(sellNum, true) || !isValidAmount(paidNum, true)) {
+      return NextResponse.json(
+        { error: 'Giá vốn, giá bán hoặc số tiền thanh toán không được âm' },
+        { status: 400 }
+      );
+    }
+
+    // Resolve Supplier
     const supplier = await prisma.supplier.findUnique({
       where: { id: supplierId },
     });
 
-    const supplierName = supplier?.name || 'Nhà Cung Cấp Phân Phối';
-    const totalBatchCost = Number(costPrice || 0) * imeis.length;
-    const paid = Number(paidAmount || 0);
+    if (!supplier) {
+      return NextResponse.json(
+        { error: `Không tìm thấy nhà cung cấp với mã ID: ${supplierId}` },
+        { status: 404 }
+      );
+    }
+
+    const supplierName = supplier.name;
+
+    // Resolve PhoneProduct foreign key
+    let resolvedPhoneId = phoneId ? sanitizeString(phoneId, 50) : null;
+    if (resolvedPhoneId) {
+      const existsPhone = await prisma.phoneProduct.findUnique({ where: { id: resolvedPhoneId } });
+      if (!existsPhone) resolvedPhoneId = null;
+    }
+    if (!resolvedPhoneId) {
+      const firstPhone = await prisma.phoneProduct.findFirst({ select: { id: true } });
+      resolvedPhoneId = firstPhone ? firstPhone.id : 'p-1';
+    }
+
+    const totalBatchCost = costNum * uniqueImeis.length;
+    const paid = Math.min(paidNum, totalBatchCost);
     const debtIncrease = Math.max(0, totalBatchCost - paid);
 
     const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
@@ -42,29 +99,29 @@ export async function POST(request: NextRequest) {
 
     // Execute in Prisma Transaction for full atomic data integrity
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Insert PhoneStock for each IMEI
-      for (const imei of imeis) {
+      // 1. Insert/Update PhoneStock for each IMEI
+      for (const imei of uniqueImeis) {
         await tx.phoneStock.upsert({
           where: { imei },
           update: {
-            phoneId: phoneId || 'p-1',
-            phoneName: phoneName || 'iPhone Mới Nhập',
-            color: color || 'Titan Tự Nhiên',
-            capacity: capacity || '256GB',
-            costPrice: Number(costPrice || 0),
-            sellingPrice: Number(sellingPrice || 0),
+            phoneId: resolvedPhoneId!,
+            phoneName: sanitizeString(phoneName || 'iPhone Mới Nhập', 191),
+            color: sanitizeString(color || 'Titan Tự Nhiên', 100),
+            capacity: sanitizeString(capacity || '256GB', 50),
+            costPrice: costNum,
+            sellingPrice: sellNum,
             supplierId,
             supplierName,
             status: 'in_stock',
           },
           create: {
             imei,
-            phoneId: phoneId || 'p-1',
-            phoneName: phoneName || 'iPhone Mới Nhập',
-            color: color || 'Titan Tự Nhiên',
-            capacity: capacity || '256GB',
-            costPrice: Number(costPrice || 0),
-            sellingPrice: Number(sellingPrice || 0),
+            phoneId: resolvedPhoneId!,
+            phoneName: sanitizeString(phoneName || 'iPhone Mới Nhập', 191),
+            color: sanitizeString(color || 'Titan Tự Nhiên', 100),
+            capacity: sanitizeString(capacity || '256GB', 50),
+            costPrice: costNum,
+            sellingPrice: sellNum,
             supplierId,
             supplierName,
             importDate: dateStr,
@@ -83,26 +140,24 @@ export async function POST(request: NextRequest) {
           supplierName,
           date: dateStr,
           type: 'phones',
-          itemsSummary: `Nhập ${imeis.length} cây ${phoneName || 'iPhone'} (${color} - ${capacity})`,
+          itemsSummary: `Nhập ${uniqueImeis.length} cây ${phoneName || 'iPhone'} (${color || 'Titan'} - ${capacity || '256GB'})`,
           totalAmount: totalBatchCost,
           paidAmount: paid,
           debtAmount: debtIncrease,
           status: debtIncrease === 0 ? 'completed' : 'partial',
-          notes: notes || 'Nhập lô hàng chính ngạch.',
-          importedImeis: JSON.stringify(imeis),
+          notes: sanitizeString(notes || 'Nhập lô hàng chính ngạch.', 1000),
+          importedImeis: JSON.stringify(uniqueImeis),
         },
       });
 
       // 3. Update Supplier debt & purchase totals
-      if (supplier) {
-        await tx.supplier.update({
-          where: { id: supplierId },
-          data: {
-            totalPurchased: supplier.totalPurchased + totalBatchCost,
-            currentDebt: supplier.currentDebt + debtIncrease,
-          },
-        });
-      }
+      await tx.supplier.update({
+        where: { id: supplierId },
+        data: {
+          totalPurchased: { increment: totalBatchCost },
+          currentDebt: { increment: debtIncrease },
+        },
+      });
 
       // 4. Auto-generate Cashbook Payment Entry (Phiếu Chi tiền mặt/chuyển khoản)
       let cashbookEntry = null;
@@ -121,13 +176,13 @@ export async function POST(request: NextRequest) {
             amount: paid,
             paymentMethod: 'transfer',
             referenceCode: orderCode,
-            description: `Thanh toán tiền nhập lô ${imeis.length} máy đơn hàng ${orderCode} cho ${supplierName}`,
+            description: `Thanh toán tiền nhập lô ${uniqueImeis.length} máy đơn hàng ${orderCode} cho ${supplierName}`,
             creator: 'Lê Huy Hoàng (Chủ Shop)',
           },
         });
       }
 
-      return { order, cashbookEntry, importedCount: imeis.length };
+      return { order, cashbookEntry, importedCount: uniqueImeis.length };
     });
 
     return NextResponse.json({

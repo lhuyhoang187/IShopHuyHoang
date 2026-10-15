@@ -16,7 +16,19 @@ import {
   StaffUser,
   CustomerUser,
   PermissionItem,
+  PromoQRCode,
+  PromotionCampaign,
+  EmailNotification,
+  RegisteredDevice,
+  RedeemedGiftItem,
 } from './types';
+import {
+  sendPurchaseInvoiceEmail,
+  sendDepositInvoiceEmail,
+  sendRepairReceiptEmail,
+  sendRepairStatusUpdateEmail,
+  sendRewardRedeemEmail,
+} from './emailService';
 import {
   initialPhones,
   initialPhoneStock,
@@ -81,6 +93,15 @@ export const defaultPermissions: PermissionItem[] = [
     admin: true,
     tech: false,
     cashier: false,
+  },
+  {
+    id: 'promotions',
+    module: 'Quản Lý Giá & Khuyến Mãi (Flash Sale / QR Code)',
+    category: 'bán hàng',
+    description: 'Điều chỉnh trực tiếp giá niêm yết sản phẩm, cài đặt thời gian bắt đầu & kết thúc khuyến mãi, quản lý mã QR và điểm đổi phụ kiện',
+    admin: true,
+    tech: false,
+    cashier: true,
   },
   {
     id: 'repairs',
@@ -274,7 +295,24 @@ export const IShopStore = {
     setStorage('customer_avatars', avatars);
   },
   getCustomerUser(): CustomerUser | null {
-    return getStorage<CustomerUser | null>('customer_user', null);
+    const user = getStorage<CustomerUser | null>('customer_user', null);
+    if (!user) return null;
+
+    // Tự động đồng bộ điểm tích lũy và hạng thẻ mới nhất từ danh bạ khách hàng
+    if (user.phone || user.id) {
+      const customers = this.getCustomers();
+      const matched = customers.find(
+        (c) =>
+          (user.phone && c.phone.trim() === user.phone.trim()) ||
+          (user.id && c.id === user.id)
+      );
+      if (matched && typeof matched.points === 'number' && matched.points !== user.points) {
+        user.points = matched.points;
+        user.membershipTier = matched.membershipTier || user.membershipTier;
+        setStorage('customer_user', user);
+      }
+    }
+    return user;
   },
   setCustomerUser(user: CustomerUser | null) {
     if (user) {
@@ -380,6 +418,47 @@ export const IShopStore = {
   getPhoneBySlug(slug: string): PhoneProduct | undefined {
     return this.getPhones().find((p) => p.slug === slug);
   },
+  updatePhone(phoneId: string, data: Partial<PhoneProduct>): void {
+    const phones = this.getPhones();
+    const updated = phones.map((p) => (p.id === phoneId ? { ...p, ...data } : p));
+    setStorage('phones', updated);
+  },
+  updatePhonePrice(phoneId: string, capacitySize: string, newPrice: number, newOriginalPrice?: number): void {
+    const phones = this.getPhones();
+    let phoneName = '';
+    const updatedPhones = phones.map((p) => {
+      if (p.id === phoneId) {
+        phoneName = p.name;
+        const newCapacities = p.capacities.map((cap) => {
+          if (cap.size === capacitySize) {
+            return {
+              ...cap,
+              price: newPrice,
+              originalPrice: newOriginalPrice !== undefined ? newOriginalPrice : cap.originalPrice,
+            };
+          }
+          return cap;
+        });
+        return { ...p, capacities: newCapacities };
+      }
+      return p;
+    });
+    setStorage('phones', updatedPhones);
+
+    // Đồng bộ giá sang tồn kho máy chưa bán (in_stock)
+    const stock = this.getPhoneStock();
+    const updatedStock = stock.map((item) => {
+      if (
+        (item.phoneId === phoneId || item.phoneName === phoneName) &&
+        item.capacity === capacitySize &&
+        item.status === 'in_stock'
+      ) {
+        return { ...item, sellingPrice: newPrice };
+      }
+      return item;
+    });
+    setStorage('phone_stock', updatedStock);
+  },
 
   // Phone stock (IMEIs)
   getPhoneStock(): PhoneStockItem[] {
@@ -392,6 +471,13 @@ export const IShopStore = {
     const clean = imei.trim();
     return this.getPhoneStock().find((item) => item.imei === clean);
   },
+  updatePhoneStockItemPrice(imei: string, newSellingPrice: number): void {
+    const stock = this.getPhoneStock();
+    const updated = stock.map((item) =>
+      item.imei === imei ? { ...item, sellingPrice: newSellingPrice } : item
+    );
+    setStorage('phone_stock', updated);
+  },
 
   // Accessories
   getAccessories(): AccessoryProduct[] {
@@ -402,6 +488,31 @@ export const IShopStore = {
   },
   getAccessoryByBarcode(barcode: string): AccessoryProduct | undefined {
     return this.getAccessories().find((a) => a.barcode === barcode.trim());
+  },
+  updateAccessory(accessoryId: string, data: Partial<AccessoryProduct>): void {
+    const accessories = this.getAccessories();
+    const updated = accessories.map((a) => (a.id === accessoryId ? { ...a, ...data } : a));
+    setStorage('accessories', updated);
+  },
+  updateAccessoryPrice(
+    accessoryId: string,
+    newSellingPrice: number,
+    newOriginalPrice?: number,
+    newCostPrice?: number
+  ): void {
+    const accessories = this.getAccessories();
+    const updated = accessories.map((a) => {
+      if (a.id === accessoryId) {
+        return {
+          ...a,
+          sellingPrice: newSellingPrice,
+          originalPrice: newOriginalPrice !== undefined ? newOriginalPrice : a.originalPrice,
+          costPrice: newCostPrice !== undefined ? newCostPrice : a.costPrice,
+        };
+      }
+      return a;
+    });
+    setStorage('accessories', updated);
   },
 
   // Spare parts
@@ -454,6 +565,18 @@ export const IShopStore = {
       time: 'Vừa xong',
     });
 
+    // Thống nhất mã sản phẩm: Tự động liên kết mã phiếu sửa chữa vào đúng mã IMEI của máy đã mua
+    if (newTicket.imeiOrSerial) {
+      this.linkRepairToDevice(newTicket.imeiOrSerial, newTicket.ticketCode);
+    }
+
+    // Tự động gửi Email biên nhận tiếp nhận sửa chữa về mail khách hàng
+    try {
+      sendRepairReceiptEmail(newTicket);
+    } catch (e) {
+      console.warn('Lỗi gửi email tiếp nhận sửa chữa:', e);
+    }
+
     return newTicket;
   },
 
@@ -475,6 +598,8 @@ export const IShopStore = {
       cancelled: 'Hủy sửa chữa',
     };
 
+    let targetTicket: RepairTicket | undefined;
+
     const updated = repairs.map((t) => {
       if (t.id === ticketId) {
         const history = [
@@ -487,17 +612,33 @@ export const IShopStore = {
             actor,
           },
         ];
-        return {
+        const res = {
           ...t,
           status: newStatus,
           statusHistory: history,
           deliveredAt: newStatus === 'delivered' ? now : t.deliveredAt,
         };
+        targetTicket = res;
+        return res;
       }
       return t;
     });
 
     setStorage('repairs', updated);
+
+    // Tự động gửi Email cập nhật tiến độ sửa chữa máy hiện tại về hòm thư khách hàng
+    if (targetTicket) {
+      try {
+        sendRepairStatusUpdateEmail(
+          targetTicket,
+          statusLabels[newStatus] || newStatus,
+          note,
+          actor
+        );
+      } catch (e) {
+        console.warn('Lỗi gửi email cập nhật tiến độ:', e);
+      }
+    }
 
     // If delivered, record cashbook entry if totalAmount > 0
     if (newStatus === 'delivered') {
@@ -517,7 +658,7 @@ export const IShopStore = {
     }
   },
 
-  useSparePart(ticketId: string, partId: string, quantity: number = 1) {
+  consumeSparePart(ticketId: string, partId: string, quantity: number = 1) {
     const parts = this.getSpareParts();
     const targetPart = parts.find((p) => p.id === partId);
     if (!targetPart || targetPart.stock < quantity) {
@@ -567,6 +708,10 @@ export const IShopStore = {
     setStorage('repairs', updatedRepairs);
   },
 
+  useSparePart(ticketId: string, partId: string, quantity: number = 1) {
+    return this.consumeSparePart(ticketId, partId, quantity);
+  },
+
   // Invoices & POS
   getInvoices(): Invoice[] {
     return getStorage<Invoice[]>('invoices', initialInvoices);
@@ -576,12 +721,27 @@ export const IShopStore = {
     const count = invoices.length + 1;
     const invoiceCode = `HD-2608-${String(count).padStart(3, '0')}`;
     const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    const calculatedPoints =
+      typeof invoiceData.pointsEarned === 'number' && invoiceData.pointsEarned >= 0
+        ? invoiceData.pointsEarned
+        : Math.floor(invoiceData.totalAmount / 10000);
+
+    const isLarge =
+      invoiceData.totalAmount >= 100000000 ||
+      invoiceData.items
+        .filter((i) => i.type === 'phone')
+        .reduce((sum, i) => sum + i.quantity, 0) >= 5;
+
+    const initialStatus = invoiceData.status || (isLarge ? 'pending_admin_approval' : 'completed');
 
     const newInvoice: Invoice = {
       ...invoiceData,
       id: 'inv-' + Date.now(),
       invoiceCode,
       createdAt: now,
+      pointsEarned: calculatedPoints,
+      isLargeOrder: isLarge,
+      status: initialStatus,
     };
 
     // Update phone stock for any phone sold
@@ -626,6 +786,28 @@ export const IShopStore = {
     // Save invoice
     setStorage('invoices', [newInvoice, ...invoices]);
 
+    // Thống nhất mã sản phẩm: Tự động lưu thiết bị máy bán ra vào danh bạ thiết bị của khách hàng
+    invoiceData.items.forEach((item) => {
+      if (item.type === 'phone' && item.imei) {
+        this.registerDevice({
+          id: 'dev-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+          imei: item.imei,
+          productName: item.name,
+          phoneId: item.id,
+          color: item.variant?.split(' ')[0],
+          capacity: item.variant?.split(' ')[1],
+          customerPhone: invoiceData.customerPhone,
+          customerName: invoiceData.customerName,
+          customerEmail: invoiceData.customerEmail,
+          purchaseInvoiceCode: invoiceCode,
+          purchaseDate: now.substring(0, 10),
+          warrantyExpiryDate: new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString().substring(0, 10),
+          purchasePrice: item.unitPrice,
+          repairHistoryCodes: [],
+        });
+      }
+    });
+
     // Record cashbook entry
     const hasPhone = invoiceData.items.some((i) => i.type === 'phone');
     this.addCashbookEntry({
@@ -635,7 +817,7 @@ export const IShopStore = {
       amount: newInvoice.totalAmount,
       paymentMethod: newInvoice.paymentMethod === 'vietqr' ? 'transfer' : 'cash',
       referenceCode: invoiceCode,
-      description: `Bán hàng cho ${newInvoice.customerName} (${invoiceData.items.length} món)`,
+      description: `Bán hàng cho ${newInvoice.customerName} (${invoiceData.items.length} món)${isLarge ? ' [ĐƠN HÀNG LỚN >100TR]' : ''}`,
       creator: newInvoice.cashierName,
     });
 
@@ -647,12 +829,23 @@ export const IShopStore = {
       newInvoice.pointsEarned
     );
 
+    // Tự động gửi Email thông báo hóa đơn mua hàng hoặc hóa đơn đặt cọc
+    try {
+      if (newInvoice.isPreOrder) {
+        sendDepositInvoiceEmail(newInvoice, newInvoice.customerEmail);
+      } else {
+        sendPurchaseInvoiceEmail(newInvoice, newInvoice.customerEmail);
+      }
+    } catch (e) {
+      console.warn('Lỗi gửi email hóa đơn khách hàng:', e);
+    }
+
     // Add recent item
     this.addRecentItem({
       id: newInvoice.id,
       code: newInvoice.invoiceCode,
       type: 'invoice',
-      title: `${newInvoice.invoiceCode} - ${newInvoice.customerName}`,
+      title: `${newInvoice.invoiceCode} - ${newInvoice.customerName}${isLarge ? ' (Đơn lớn >100tr)' : ''}`,
       url: `/admin/pos`,
       time: 'Vừa xong',
     });
@@ -791,7 +984,7 @@ export const IShopStore = {
     const earnedPoints =
       typeof customEarnedPoints === 'number' && customEarnedPoints >= 0
         ? customEarnedPoints
-        : Math.floor(amount / 100000); // Mặc định 100k = 1 điểm nếu không có điểm sản phẩm
+        : Math.floor(amount / 10000); // Mặc định 100.000đ = 10 điểm (10.000đ = 1 điểm)
 
     if (existing) {
       const updatedPoints = (existing.points || 0) + earnedPoints;
@@ -808,6 +1001,14 @@ export const IShopStore = {
           : c
       );
       setStorage('customers', updated);
+
+      // Cập nhật ngay lập tức nếu khách hàng đang đăng nhập tài khoản này
+      const currentCustUser = getStorage<CustomerUser | null>('customer_user', null);
+      if (currentCustUser && (currentCustUser.phone?.trim() === phone.trim() || currentCustUser.name === existing.name)) {
+        currentCustUser.points = updatedPoints;
+        currentCustUser.membershipTier = updatedTier;
+        setStorage('customer_user', currentCustUser);
+      }
     } else {
       const initialPoints = earnedPoints;
       const initialTier = getTierByPoints(initialPoints).tier;
@@ -823,7 +1024,47 @@ export const IShopStore = {
         repairCount: 0,
       };
       setStorage('customers', [newCust, ...customers]);
+
+      // Cập nhật ngay lập tức nếu khách hàng đang đăng nhập tài khoản này
+      const currentCustUser = getStorage<CustomerUser | null>('customer_user', null);
+      if (currentCustUser && currentCustUser.phone?.trim() === phone.trim()) {
+        currentCustUser.points = initialPoints;
+        currentCustUser.membershipTier = initialTier;
+        setStorage('customer_user', currentCustUser);
+      }
     }
+  },
+
+  updateCustomerPoints(phone: string, deltaPoints: number): number {
+    if (!phone) return 0;
+    const cleanPhone = phone.trim();
+    const customers = this.getCustomers();
+    const existing = customers.find((c) => c.phone.trim() === cleanPhone);
+    let newPoints = 0;
+
+    if (existing) {
+      newPoints = Math.max(0, (existing.points || 0) + deltaPoints);
+      const newTier = getTierByPoints(newPoints).tier;
+      const updated = customers.map((c) =>
+        c.phone.trim() === cleanPhone
+          ? { ...c, points: newPoints, membershipTier: newTier }
+          : c
+      );
+      setStorage('customers', updated);
+    }
+
+    const currentCustUser = getStorage<CustomerUser | null>('customer_user', null);
+    if (currentCustUser && currentCustUser.phone?.trim() === cleanPhone) {
+      newPoints = Math.max(0, (currentCustUser.points || 0) + deltaPoints);
+      currentCustUser.points = newPoints;
+      currentCustUser.membershipTier = getTierByPoints(newPoints).tier;
+      setStorage('customer_user', currentCustUser);
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('ishop_data_changed'));
+    }
+    return newPoints;
   },
 
   getSuppliers(): Supplier[] {
@@ -882,10 +1123,84 @@ export const IShopStore = {
   getCart(): CartItem[] {
     return getStorage<CartItem[]>('cart', []);
   },
-  addToCart(item: Omit<CartItem, 'id'>) {
+
+  // Kiểm tra số lượng tồn kho khả dụng hiện tại của sản phẩm (điện thoại hoặc phụ kiện)
+  getProductAvailableStock(params: {
+    productId: string;
+    type?: 'phone' | 'accessory';
+    color?: string;
+    capacity?: string;
+  }): number {
+    const { productId, type, color, capacity } = params;
+
+    // Nếu là phụ kiện hoặc không chỉ định nhưng tìm thấy trong phụ kiện
+    if (type === 'accessory' || (!type && this.getAccessories().some((a) => a.id === productId))) {
+      const accessory = this.getAccessories().find((a) => a.id === productId);
+      return accessory ? (accessory.stock ?? 0) : 0;
+    }
+
+    // Nếu là điện thoại (quản lý qua danh sách phone_stock có trạng thái in_stock)
+    const inStockPhones = this.getAvailablePhones().filter((p) => p.phoneId === productId);
+
+    // Nếu có chọn màu sắc và dung lượng cụ thể, lọc chuẩn xác theo biến thể
+    if (color || capacity) {
+      const matched = inStockPhones.filter((p) => {
+        let matchColor = true;
+        let matchCapacity = true;
+        if (color) {
+          const c1 = p.color.toLowerCase().trim();
+          const c2 = color.toLowerCase().trim();
+          matchColor = c1.includes(c2) || c2.includes(c1);
+        }
+        if (capacity) {
+          const cap1 = p.capacity.toLowerCase().replace(/\s+/g, '');
+          const cap2 = capacity.toLowerCase().replace(/\s+/g, '');
+          matchCapacity = cap1 === cap2;
+        }
+        return matchColor && matchCapacity;
+      });
+
+      // Nếu có biến thể cụ thể thì trả về số lượng biến thể đó
+      if (matched.length > 0) return matched.length;
+
+      // Nếu không có chính xác biến thể đó nhưng có máy thuộc dòng này
+      return matched.length;
+    }
+
+    // Trường hợp chung dòng điện thoại
+    return inStockPhones.length;
+  },
+
+  addToCart(item: Omit<CartItem, 'id'>): { success: boolean; message: string; availableStock: number } {
     const cart = this.getCart();
     const key = `${item.productId}_${item.color || ''}_${item.capacity || ''}`;
     const existing = cart.find((i) => i.id === key);
+    const currentQtyInCart = existing ? existing.quantity : 0;
+    const requestedTotalQty = currentQtyInCart + item.quantity;
+
+    // Lấy tồn kho thực tế
+    const availableStock = this.getProductAvailableStock({
+      productId: item.productId,
+      type: item.type,
+      color: item.color,
+      capacity: item.capacity,
+    });
+
+    // Ràng buộc số lượng trong kho
+    if (requestedTotalQty > availableStock) {
+      if (availableStock <= 0) {
+        return {
+          success: false,
+          message: `Sản phẩm "${item.name}" hiện đã hết hàng trong kho!`,
+          availableStock: 0,
+        };
+      }
+      return {
+        success: false,
+        message: `Kho hiện chỉ còn ${availableStock} sản phẩm (bạn đã có ${currentQtyInCart} trong giỏ). Không thể đặt vượt quá tồn kho!`,
+        availableStock,
+      };
+    }
 
     if (existing) {
       const updated = cart.map((i) =>
@@ -895,17 +1210,57 @@ export const IShopStore = {
     } else {
       setStorage('cart', [...cart, { ...item, id: key }]);
     }
+
+    return {
+      success: true,
+      message: `Đã thêm ${item.quantity} "${item.name}" vào giỏ hàng thành công!`,
+      availableStock,
+    };
   },
-  updateCartQuantity(cartItemId: string, quantity: number) {
+
+  updateCartQuantity(
+    cartItemId: string,
+    quantity: number
+  ): { success: boolean; message: string; availableStock: number } {
     const cart = this.getCart();
+    const targetItem = cart.find((i) => i.id === cartItemId);
+
     if (quantity <= 0) {
       setStorage('cart', cart.filter((i) => i.id !== cartItemId));
-    } else {
-      setStorage(
-        'cart',
-        cart.map((i) => (i.id === cartItemId ? { ...i, quantity } : i))
-      );
+      return {
+        success: true,
+        message: 'Đã xóa sản phẩm khỏi giỏ hàng.',
+        availableStock: 0,
+      };
     }
+
+    if (targetItem) {
+      const availableStock = this.getProductAvailableStock({
+        productId: targetItem.productId,
+        type: targetItem.type,
+        color: targetItem.color,
+        capacity: targetItem.capacity,
+      });
+
+      if (quantity > availableStock) {
+        return {
+          success: false,
+          message: `Kho hiện chỉ còn ${availableStock} sản phẩm. Không thể tăng thêm số lượng!`,
+          availableStock,
+        };
+      }
+    }
+
+    setStorage(
+      'cart',
+      cart.map((i) => (i.id === cartItemId ? { ...i, quantity } : i))
+    );
+
+    return {
+      success: true,
+      message: 'Đã cập nhật số lượng thành công.',
+      availableStock: targetItem ? this.getProductAvailableStock(targetItem) : 0,
+    };
   },
   clearCart() {
     setStorage('cart', []);
@@ -931,6 +1286,359 @@ export const IShopStore = {
       }
     }
   },
+  // =========================================================================
+  // 1. QUẢN LÝ MÃ SẢN PHẨM / THIẾT BỊ VÒNG ĐỜI THỐNG NHẤT (CHUNG MÃ IMEI)
+  // =========================================================================
+  getRegisteredDevices(phone?: string): RegisteredDevice[] {
+    const defaultList: RegisteredDevice[] = [
+      {
+        id: 'dev-init-1',
+        imei: '359144208391001',
+        productName: 'iPhone 16 Pro 128GB - Titan Sa Mạc',
+        phoneId: 'p-2',
+        color: 'Titan Sa Mạc',
+        capacity: '128GB',
+        customerPhone: '0986898197',
+        customerName: 'Lê Huy Hoàng',
+        customerEmail: 'huyhoang@gmail.com',
+        purchaseInvoiceCode: 'HD-2608-001',
+        purchaseDate: '2026-08-25',
+        warrantyExpiryDate: '2027-08-25',
+        purchasePrice: 28490000,
+        repairHistoryCodes: ['SC-2608-001'],
+      },
+    ];
+    const list = getStorage<RegisteredDevice[]>('registered_devices', defaultList);
+    if (!phone) return list;
+    const cleanPhone = phone.trim();
+    return list.filter((d) => d.customerPhone === cleanPhone);
+  },
+
+  getDeviceByImei(imei: string): RegisteredDevice | undefined {
+    const clean = imei.trim().toUpperCase();
+    const list = this.getRegisteredDevices();
+    return list.find((d) => d.imei.toUpperCase() === clean);
+  },
+
+  registerDevice(device: RegisteredDevice): void {
+    const list = this.getRegisteredDevices();
+    const cleanImei = device.imei.trim().toUpperCase();
+    const exists = list.some((d) => d.imei.toUpperCase() === cleanImei);
+    if (exists) {
+      const updated = list.map((d) =>
+        d.imei.toUpperCase() === cleanImei
+          ? {
+              ...d,
+              ...device,
+              repairHistoryCodes: Array.from(new Set([...d.repairHistoryCodes, ...(device.repairHistoryCodes || [])])),
+            }
+          : d
+      );
+      setStorage('registered_devices', updated);
+    } else {
+      setStorage('registered_devices', [device, ...list]);
+    }
+  },
+
+  linkRepairToDevice(imei: string, repairCode: string): void {
+    if (!imei || !repairCode) return;
+    const cleanImei = imei.trim().toUpperCase();
+    const list = this.getRegisteredDevices();
+    const updated = list.map((d) => {
+      if (d.imei.toUpperCase() === cleanImei) {
+        return {
+          ...d,
+          repairHistoryCodes: Array.from(new Set([...d.repairHistoryCodes, repairCode])),
+        };
+      }
+      return d;
+    });
+    setStorage('registered_devices', updated);
+  },
+
+  // =========================================================================
+  // 2. TÍNH NĂNG KHUYẾN MÃI TÍCH ĐIỂM ĐỔI PHỤ KIỆN
+  // =========================================================================
+  getRedeemedGifts(customerPhone?: string): RedeemedGiftItem[] {
+    const list = getStorage<RedeemedGiftItem[]>('redeemed_gifts', []);
+    if (!customerPhone) return list;
+    const clean = customerPhone.trim();
+    return list.filter((g) => g.customerPhone === clean);
+  },
+
+  redeemAccessoryWithPoints(params: {
+    customerPhone: string;
+    customerName: string;
+    accessoryId: string;
+  }): { success: boolean; message: string; gift?: RedeemedGiftItem } {
+    const accessories = this.getAccessories();
+    const targetAcc = accessories.find((a) => a.id === params.accessoryId);
+    if (!targetAcc) {
+      return { success: false, message: 'Phụ kiện không tồn tại trên hệ thống.' };
+    }
+
+    const pointsNeeded = targetAcc.pointsToRedeem || Math.ceil(targetAcc.sellingPrice / 1000);
+    if (targetAcc.stock <= 0) {
+      return { success: false, message: `Phụ kiện "${targetAcc.name}" hiện đã hết hàng trong kho quà tặng!` };
+    }
+
+    // Kiểm tra điểm của khách hàng
+    const customer = this.getCustomerByPhone(params.customerPhone);
+    const customerUser = this.getCustomerUser();
+    const currentPoints = customer?.points ?? (customerUser?.phone === params.customerPhone ? customerUser.points ?? 0 : 0);
+
+    if (currentPoints < pointsNeeded) {
+      return {
+        success: false,
+        message: `Bạn đang có ${currentPoints.toLocaleString('vi-VN')} điểm, còn thiếu ${(pointsNeeded - currentPoints).toLocaleString('vi-VN')} điểm để đổi "${targetAcc.name}"!`,
+      };
+    }
+
+    // Khấu trừ điểm khách hàng
+    this.updateCustomerPoints(params.customerPhone, -pointsNeeded);
+
+    // Giảm tồn kho phụ kiện quà tặng
+    const updatedAccessories = accessories.map((a) =>
+      a.id === targetAcc.id ? { ...a, stock: Math.max(0, a.stock - 1) } : a
+    );
+    setStorage('accessories', updatedAccessories);
+
+    // Tạo phiếu nhận quà
+    const gifts = this.getRedeemedGifts();
+    const giftCode = `GIFT-2608-${String(gifts.length + 1).padStart(3, '0')}`;
+    const newGift: RedeemedGiftItem = {
+      id: 'gift-' + Date.now(),
+      giftCode,
+      customerId: customer?.id || 'cust-' + params.customerPhone,
+      customerPhone: params.customerPhone,
+      customerName: params.customerName,
+      accessoryId: targetAcc.id,
+      accessoryName: targetAcc.name,
+      accessoryImage: targetAcc.imageUrl,
+      pointsRedeemed: pointsNeeded,
+      redeemedAt: new Date().toISOString(),
+      status: 'active',
+    };
+
+    setStorage('redeemed_gifts', [newGift, ...gifts]);
+
+    // Gửi email xác nhận đổi quà
+    try {
+      sendRewardRedeemEmail(newGift);
+    } catch (e) {
+      console.warn('Lỗi gửi email đổi quà:', e);
+    }
+
+    return {
+      success: true,
+      message: `Đổi thành công "${targetAcc.name}" (-${pointsNeeded.toLocaleString('vi-VN')} điểm). Mã nhận quà của bạn: ${giftCode}.`,
+      gift: newGift,
+    };
+  },
+
+  // =========================================================================
+  // 3. QR CODE KHUYẾN MÃI (SETUP THỜI GIAN & ĐẾM NGƯỢC HIỆU LỰC CÒN LẠI)
+  // =========================================================================
+  getPromoQRCodes(): PromoQRCode[] {
+    const defaultList: PromoQRCode[] = [
+      {
+        id: 'qr-promo-1',
+        code: 'FLASH-APPLE-500K',
+        title: 'Flash Sale Siêu Cấp - Giảm 500.000đ',
+        description: 'Áp dụng cho mọi đơn hàng điện thoại Flagship từ 10.000.000đ khi đặt trực tiếp hoặc online.',
+        discountType: 'fixed_amount',
+        discountValue: 500000,
+        minOrderValue: 10000000,
+        startDate: new Date(Date.now() - 3600 * 1000 * 24).toISOString(),
+        endDate: new Date(Date.now() + 3600 * 1000 * 72).toISOString(), // 3 ngày nữa
+        isActive: true,
+        qrPayload: 'https://ishop.vn/promo/FLASH-APPLE-500K',
+        bannerColor: 'from-amber-500 to-orange-600',
+      },
+      {
+        id: 'qr-promo-2',
+        code: 'TECHFEST-10',
+        title: 'TechFest Phụ Kiện - Giảm 10%',
+        description: 'Giảm 10% tối đa 500.000đ cho củ sạc GaN, cáp sạc dù, tai nghe và ốp lưng chính hãng.',
+        discountType: 'percentage',
+        discountValue: 10,
+        minOrderValue: 300000,
+        startDate: new Date(Date.now() - 3600 * 1000 * 12).toISOString(),
+        endDate: new Date(Date.now() + 3600 * 1000 * 120).toISOString(), // 5 ngày nữa
+        isActive: true,
+        qrPayload: 'https://ishop.vn/promo/TECHFEST-10',
+        bannerColor: 'from-blue-600 to-indigo-700',
+      },
+      {
+        id: 'qr-promo-3',
+        code: 'ICARE-VIP-100K',
+        title: 'iCare Trợ Giá Sửa Chữa - Tặng 100.000đ',
+        description: 'Trợ giá trực tiếp cho dịch vụ ép kính, thay pin Pisen dung lượng chuẩn hoặc thay màn hình zin.',
+        discountType: 'fixed_amount',
+        discountValue: 100000,
+        minOrderValue: 500000,
+        startDate: new Date(Date.now() - 3600 * 1000 * 24).toISOString(),
+        endDate: new Date(Date.now() + 3600 * 1000 * 168).toISOString(), // 7 ngày nữa
+        isActive: true,
+        qrPayload: 'https://ishop.vn/promo/ICARE-VIP-100K',
+        bannerColor: 'from-emerald-600 to-teal-700',
+      },
+    ];
+
+    return getStorage<PromoQRCode[]>('promo_qr_codes', defaultList);
+  },
+
+  createPromoQRCode(data: Omit<PromoQRCode, 'id'>): PromoQRCode {
+    const list = this.getPromoQRCodes();
+    const newPromo: PromoQRCode = {
+      ...data,
+      id: 'qr-promo-' + Date.now(),
+    };
+    setStorage('promo_qr_codes', [newPromo, ...list]);
+    return newPromo;
+  },
+
+  updatePromoQRCode(id: string, data: Partial<PromoQRCode>): void {
+    const list = this.getPromoQRCodes();
+    const updated = list.map((p) => (p.id === id ? { ...p, ...data } : p));
+    setStorage('promo_qr_codes', updated);
+  },
+
+  deletePromoQRCode(id: string): void {
+    const list = this.getPromoQRCodes();
+    setStorage('promo_qr_codes', list.filter((p) => p.id !== id));
+  },
+
+  // =========================================================================
+  // 3.1 CHIẾN DỊCH KHUYẾN MÃI & FLASH SALE (SETUP THỜI GIAN BẮT ĐẦU & KẾT THÚC)
+  // =========================================================================
+  getPromotionCampaigns(): PromotionCampaign[] {
+    const defaultCampaigns: PromotionCampaign[] = [
+      {
+        id: 'camp-1',
+        title: '⚡ Siêu Flash Sale Giờ Vàng 2026',
+        description: 'Giảm giá trực tiếp lên đến 15% cho tất cả dòng máy iPhone 16 Series & phụ kiện chính hãng khi mua tại cửa hàng hoặc online.',
+        badgeText: 'FLASH SALE',
+        discountType: 'percentage',
+        discountValue: 15,
+        startDate: new Date(Date.now() - 3600 * 1000 * 6).toISOString(),
+        endDate: new Date(Date.now() + 3600 * 1000 * 48).toISOString(), // Còn 2 ngày
+        isActive: true,
+        targetCategory: 'all',
+        bannerGradient: 'from-amber-500 via-orange-500 to-rose-600',
+      },
+      {
+        id: 'camp-2',
+        title: '🎧 Tuần Lễ Vàng Phụ Kiện Chính Hãng Anker & Baseus',
+        description: 'Trợ giá giảm 20% cho toàn bộ củ sạc nhanh GaN 65W/100W, cáp sạc dù chống đứt và pin dự phòng MagSafe chuẩn Qi2.',
+        badgeText: 'GIẢM ĐẾN 20%',
+        discountType: 'percentage',
+        discountValue: 20,
+        startDate: new Date(Date.now() - 3600 * 1000 * 24).toISOString(),
+        endDate: new Date(Date.now() + 3600 * 1000 * 120).toISOString(), // Còn 5 ngày
+        isActive: true,
+        targetCategory: 'accessories',
+        bannerGradient: 'from-emerald-500 via-teal-600 to-cyan-600',
+      },
+      {
+        id: 'camp-3',
+        title: '🏆 Lễ Hội Mua Sắm Flagship Trợ Giá Lên Đời',
+        description: 'Thu cũ đổi mới trợ giá 1.000.000đ trực tiếp vào giá bán lẻ khi nâng cấp lên Galaxy S24 Ultra hoặc Xiaomi 14 Ultra.',
+        badgeText: 'TẶNG 1.000.000Đ',
+        discountType: 'fixed_amount',
+        discountValue: 1000000,
+        startDate: new Date(Date.now() + 3600 * 1000 * 24).toISOString(), // Sắp diễn ra
+        endDate: new Date(Date.now() + 3600 * 1000 * 240).toISOString(),
+        isActive: true,
+        targetCategory: 'phones',
+        bannerGradient: 'from-blue-600 via-indigo-600 to-purple-600',
+      },
+    ];
+
+    return getStorage<PromotionCampaign[]>('promotion_campaigns', defaultCampaigns);
+  },
+
+  createPromotionCampaign(data: Omit<PromotionCampaign, 'id'>): PromotionCampaign {
+    const list = this.getPromotionCampaigns();
+    const newCamp: PromotionCampaign = {
+      ...data,
+      id: 'camp-' + Date.now(),
+    };
+    setStorage('promotion_campaigns', [newCamp, ...list]);
+    return newCamp;
+  },
+
+  updatePromotionCampaign(id: string, data: Partial<PromotionCampaign>): void {
+    const list = this.getPromotionCampaigns();
+    const updated = list.map((c) => (c.id === id ? { ...c, ...data } : c));
+    setStorage('promotion_campaigns', updated);
+  },
+
+  deletePromotionCampaign(id: string): void {
+    const list = this.getPromotionCampaigns();
+    setStorage('promotion_campaigns', list.filter((c) => c.id !== id));
+  },
+
+  // =========================================================================
+  // 4. PHÊ DUYỆT ĐƠN HÀNG LỚN (>100.000.000 VNĐ) BỞI ADMIN
+  // =========================================================================
+  getPendingLargeOrders(): Invoice[] {
+    const invoices = this.getInvoices();
+    return invoices.filter(
+      (inv) => inv.isLargeOrder && inv.status === 'pending_admin_approval'
+    );
+  },
+
+  approveLargeOrder(invoiceId: string, adminName: string, note?: string): boolean {
+    const invoices = this.getInvoices();
+    const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    let approved = false;
+
+    const updated = invoices.map((inv) => {
+      if (inv.id === invoiceId) {
+        approved = true;
+        return {
+          ...inv,
+          status: 'approved' as const,
+          approvedBy: adminName,
+          approvedAt: now,
+          adminApprovalNote: note || 'Ban Giám Đốc đã phê duyệt hạn mức và xuất kho thành công.',
+        };
+      }
+      return inv;
+    });
+
+    if (approved) {
+      setStorage('invoices', updated);
+    }
+    return approved;
+  },
+
+  rejectLargeOrder(invoiceId: string, adminName: string, reason: string): boolean {
+    const invoices = this.getInvoices();
+    const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    let rejected = false;
+
+    const updated = invoices.map((inv) => {
+      if (inv.id === invoiceId) {
+        rejected = true;
+        return {
+          ...inv,
+          status: 'rejected' as const,
+          approvedBy: adminName,
+          approvedAt: now,
+          adminApprovalNote: `Từ chối duyệt đơn: ${reason}`,
+        };
+      }
+      return inv;
+    });
+
+    if (rejected) {
+      setStorage('invoices', updated);
+    }
+    return rejected;
+  },
+
   clearComparison() {
     setStorage('comparison_ids', []);
   },

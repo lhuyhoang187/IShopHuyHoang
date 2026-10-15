@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { sanitizeString } from '@/lib/validation';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { username, password } = body;
+    const username = sanitizeString(body.username, 50).toLowerCase();
+    const password = String(body.password || '');
 
     if (!username || !password) {
       return NextResponse.json(
@@ -14,13 +16,21 @@ export async function POST(request: NextRequest) {
     }
 
     const user = await prisma.user.findUnique({
-      where: { username: username.trim().toLowerCase() },
+      where: { username },
     });
 
     if (!user || user.password !== password) {
       return NextResponse.json(
         { error: 'Tên đăng nhập hoặc mật khẩu không chính xác' },
         { status: 401 }
+      );
+    }
+
+    // Check account active status constraint
+    if (!user.isActive) {
+      return NextResponse.json(
+        { error: 'Tài khoản nhân viên này đã bị khóa hoặc ngừng hoạt động. Vui lòng liên hệ Quản trị viên!' },
+        { status: 403 }
       );
     }
 
