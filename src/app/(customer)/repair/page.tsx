@@ -75,7 +75,7 @@ export default function RepairPriceListPage() {
     setCustomerUser(null);
   };
 
-  const iphonePrices = [
+  const defaultIphonePrices = [
     { service: 'Thay Pin Pisen Chính Hãng (Hiển thị 100% dung lượng)', models: 'iPhone 11 / 12 / 13 Series', price: 650000, warranty: '12 Tháng' },
     { service: 'Thay Pin Pisen Dung Lượng Cao Siêu Bền', models: 'iPhone 14 / 15 Series', price: 850000, warranty: '12 Tháng' },
     { service: 'Ép Kính Cảm Ứng Chân Không (Giữ màn zin hiển thị)', models: 'iPhone 12 / 13 / 14 Pro Max', price: 750000, warranty: '12 Tháng keo bọt' },
@@ -84,12 +84,43 @@ export default function RepairPriceListPage() {
     { service: 'Thay Cụm Chân Sạc Type-C & Mic Thoại', models: 'iPhone 15 / 16 Series', price: 650000, warranty: '06 Tháng' },
   ];
 
-  const samsungPrices = [
+  const defaultSamsungPrices = [
     { service: 'Thay Màn Hình Dynamic AMOLED 2X Zin', models: 'Samsung Galaxy S24 Ultra', price: 5900000, warranty: '06 Tháng' },
     { service: 'Thay Pin Chính Hãng Samsung 5.000mAh', models: 'Galaxy S23 / S24 Ultra', price: 750000, warranty: '12 Tháng' },
     { service: 'Ép Kính Màn Hình Cong Phẳng Chân Không', models: 'Galaxy Note 20 / S22 / S23 Ultra', price: 850000, warranty: '12 Tháng' },
     { service: 'Thay Cụm Chân Sạc Nhanh 45W & Cáp Bo Phụ', models: 'Galaxy S24 Ultra', price: 550000, warranty: '06 Tháng' },
   ];
+
+  const [iphonePrices, setIphonePrices] = useState(defaultIphonePrices);
+  const [samsungPrices, setSamsungPrices] = useState(defaultSamsungPrices);
+
+  useEffect(() => {
+    fetch('/api/repairs/services')
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+          const ipList = json.data
+            .filter((s: any) => s.deviceBrand === 'Apple')
+            .map((s: any) => ({
+              service: s.name,
+              models: s.deviceModels,
+              price: s.price,
+              warranty: s.warrantyPeriod,
+            }));
+          const ssList = json.data
+            .filter((s: any) => s.deviceBrand === 'Samsung')
+            .map((s: any) => ({
+              service: s.name,
+              models: s.deviceModels,
+              price: s.price,
+              warranty: s.warrantyPeriod,
+            }));
+          if (ipList.length > 0) setIphonePrices(ipList);
+          if (ssList.length > 0) setSamsungPrices(ssList);
+        }
+      })
+      .catch((e) => console.warn('Could not fetch repair services from API:', e));
+  }, []);
 
   const handleBooking = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,7 +148,7 @@ export default function RepairPriceListPage() {
 
       setCreatedTicketCode(ticket.ticketCode);
 
-      // 2. Sync with Server API asynchronously
+      // 2. Sync with Server API asynchronously (Repair Ticket)
       fetch('/api/repairs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -132,6 +163,21 @@ export default function RepairPriceListPage() {
           laborFee: 150000,
         }),
       }).catch((err) => console.warn('API sync background notice:', err));
+
+      // 3. Save Online Repair Booking in MySQL
+      fetch('/api/repairs/booking', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: bookingForm.name,
+          phone: bookingForm.phone,
+          model: bookingForm.model,
+          service: bookingForm.service,
+          date: bookingForm.date,
+          time: bookingForm.time,
+          notes: bookingForm.notes,
+        }),
+      }).catch((err) => console.warn('API booking notice:', err));
 
       // 3. Trigger confetti celebration
       confetti({

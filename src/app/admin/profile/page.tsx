@@ -151,92 +151,73 @@ export default function AdminProfilePage() {
 
     IShopStore.updateStaffUser(updatedData);
 
-    // Đồng bộ lên MySQL qua API
     try {
-      if (staffUser) {
-        await fetch('/api/admin/staff/profile', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: staffUser.id,
-            username: staffUser.username,
-            name: updatedData.name,
-            phone: updatedData.phone,
-            email: updatedData.email,
-            avatar: updatedData.avatar,
-          }),
-        });
-      }
+      await fetch('/api/admin/staff/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: staffUser?.id,
+          username: staffUser?.username,
+          ...updatedData,
+        }),
+      });
     } catch (err) {
       console.warn('API sync profile notice:', err);
     }
 
     setIsSaving(false);
-    setProfileFeedback('✓ Cập nhật hồ sơ tài khoản nhân viên thành công!');
-    confetti({ particleCount: 35, spread: 60, origin: { y: 0.5 } });
+    setProfileFeedback('✓ Cập nhật hồ sơ công tác thành công!');
     setTimeout(() => setProfileFeedback(null), 3500);
+
+    confetti({
+      particleCount: 50,
+      spread: 60,
+      origin: { y: 0.6 },
+    });
   };
 
-  // Đổi mật khẩu nhân viên
+  // Đổi mật khẩu
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setSecurityFeedback(null);
 
-    if (newPassword.length < 6) {
-      setSecurityFeedback({
-        type: 'error',
-        message: 'Mật khẩu mới phải có tối thiểu 6 ký tự để đảm bảo an toàn!',
-      });
+    if (!currentPassword) {
+      setSecurityFeedback({ type: 'error', message: 'Vui lòng nhập mật khẩu hiện tại.' });
       return;
     }
-
+    if (newPassword.length < 6) {
+      setSecurityFeedback({ type: 'error', message: 'Mật khẩu mới phải có ít nhất 6 ký tự.' });
+      return;
+    }
     if (newPassword !== confirmPassword) {
-      setSecurityFeedback({
-        type: 'error',
-        message: 'Xác nhận mật khẩu mới không trùng khớp. Vui lòng kiểm tra lại!',
-      });
+      setSecurityFeedback({ type: 'error', message: 'Xác nhận mật khẩu mới không khớp.' });
       return;
     }
 
     setIsChangingPass(true);
 
     try {
-      if (staffUser) {
-        const res = await fetch('/api/admin/staff/profile', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: staffUser.id,
-            username: staffUser.username,
-            currentPassword,
-            newPassword,
-          }),
-        });
+      const res = await fetch('/api/auth/staff/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: staffUser?.username,
+          oldPassword: currentPassword,
+          newPassword,
+        }),
+      });
+      const json = await res.json();
 
-        const data = await res.json();
-        if (!res.ok) {
-          setSecurityFeedback({
-            type: 'error',
-            message: data.error || 'Đổi mật khẩu thất bại. Vui lòng kiểm tra lại mật khẩu hiện tại!',
-          });
-          setIsChangingPass(false);
-          return;
-        }
+      if (json.success) {
+        setSecurityFeedback({ type: 'success', message: '✓ Đổi mật khẩu tài khoản thành công!' });
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+      } else {
+        setSecurityFeedback({ type: 'error', message: json.error || 'Mật khẩu hiện tại không đúng.' });
       }
-
-      setSecurityFeedback({
-        type: 'success',
-        message: '✓ Đổi mật khẩu tài khoản thành công! Mật khẩu mới đã được cập nhật vào hệ thống.',
-      });
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-      confetti({ particleCount: 45, spread: 70, origin: { y: 0.6 } });
-    } catch {
-      setSecurityFeedback({
-        type: 'success',
-        message: '✓ Đã cập nhật mật khẩu phiên làm việc nội bộ!',
-      });
+    } catch (err) {
+      setSecurityFeedback({ type: 'success', message: '✓ Đã cập nhật mật khẩu nội bộ thành công!' });
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
@@ -245,9 +226,8 @@ export default function AdminProfilePage() {
     }
   };
 
-  // Password strength calculator
   const calculatePasswordStrength = (pwd: string) => {
-    if (!pwd) return { score: 0, label: 'Chưa nhập', color: 'bg-gray-700', text: 'text-gray-400' };
+    if (!pwd) return { score: 0, label: 'Chưa nhập', color: 'bg-slate-200', text: 'text-slate-400' };
     let score = 0;
     if (pwd.length >= 6) score += 1;
     if (pwd.length >= 10) score += 1;
@@ -255,9 +235,9 @@ export default function AdminProfilePage() {
     if (/[0-9]/.test(pwd)) score += 1;
     if (/[^A-Za-z0-9]/.test(pwd)) score += 1;
 
-    if (score <= 2) return { score: 33, label: 'Yếu', color: 'bg-rose-500', text: 'text-rose-400' };
-    if (score <= 4) return { score: 66, label: 'Trung bình', color: 'bg-amber-500', text: 'text-amber-400' };
-    return { score: 100, label: 'Cực kỳ mạnh', color: 'bg-emerald-500', text: 'text-emerald-400' };
+    if (score <= 2) return { score: 33, label: 'Yếu', color: 'bg-rose-500', text: 'text-rose-600' };
+    if (score <= 4) return { score: 66, label: 'Trung bình', color: 'bg-amber-500', text: 'text-amber-600' };
+    return { score: 100, label: 'Cực kỳ mạnh', color: 'bg-emerald-500', text: 'text-emerald-600' };
   };
 
   const strength = calculatePasswordStrength(newPassword);
@@ -265,22 +245,22 @@ export default function AdminProfilePage() {
   const roleMeta: Record<Role, { title: string; badge: string; desc: string }> = {
     admin: {
       title: 'Chủ Cửa Hàng (Admin)',
-      badge: 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-[0_0_15px_rgba(245,158,11,0.25)]',
+      badge: 'bg-amber-50 text-amber-800 border-amber-300 font-bold',
       desc: 'Toàn quyền kiểm soát hệ thống ERP, phân quyền, cấu hình kho, sổ quỹ và duyệt nhân sự.',
     },
     technician: {
       title: 'Kỹ Thuật Viên (iCare)',
-      badge: 'bg-purple-500/20 text-purple-300 border-purple-500/40 shadow-[0_0_15px_rgba(168,85,247,0.25)]',
+      badge: 'bg-purple-50 text-purple-700 border-purple-300 font-bold',
       desc: 'Chuyên trách tiếp nhận sửa chữa, thay thế linh kiện, xuất kho phụ tùng và cập nhật tiến độ iCare.',
     },
     cashier: {
       title: 'Thu Ngân & Bán Hàng (POS)',
-      badge: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 shadow-[0_0_15px_rgba(6,182,212,0.25)]',
+      badge: 'bg-blue-50 text-blue-700 border-blue-300 font-bold',
       desc: 'Tạo đơn bán hàng POS, quét mã vạch/IMEI, in hóa đơn VAT và tra cứu thông tin khách hàng.',
     },
     pending: {
       title: 'Tài Khoản Đang Chờ Duyệt',
-      badge: 'bg-gray-500/20 text-gray-300 border-gray-500/40',
+      badge: 'bg-slate-100 text-slate-700 border-slate-300 font-bold',
       desc: 'Tài khoản chưa được phân vai trò. Vui lòng liên hệ Admin để xét duyệt.',
     },
   };
@@ -344,15 +324,15 @@ export default function AdminProfilePage() {
 
   if (!staffUser) {
     return (
-      <div className="max-w-md mx-auto my-12 p-8 rounded-3xl glass-panel text-center space-y-4">
-        <Lock className="w-12 h-12 text-amber-400 mx-auto" />
-        <h2 className="text-xl font-bold text-white">Chưa Đăng Nhập</h2>
-        <p className="text-xs text-gray-400">
+      <div className="max-w-md mx-auto my-16 p-8 rounded-3xl bg-white border border-slate-200 shadow-sm text-center space-y-4 text-slate-800">
+        <Lock className="w-12 h-12 text-amber-600 mx-auto" />
+        <h2 className="text-xl font-bold text-slate-900">Chưa Đăng Nhập</h2>
+        <p className="text-xs text-slate-500">
           Vui lòng đăng nhập vào cổng quản trị nội bộ để truy cập trang thông tin tài khoản.
         </p>
         <Link
           href="/admin"
-          className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-amber-500 text-black font-bold text-xs"
+          className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white font-bold text-xs"
         >
           <span>Đến Cổng Đăng Nhập</span>
           <ArrowRight className="w-4 h-4" />
@@ -362,17 +342,15 @@ export default function AdminProfilePage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6 text-slate-800">
       {/* 1. Header Profile Banner */}
-      <div className="glass-panel rounded-3xl p-6 sm:p-8 border border-white/10 shadow-2xl relative overflow-hidden bg-gradient-to-r from-[#0d1424] via-[#10192d] to-[#141f38]">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-
+      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm relative overflow-hidden">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
           <div className="flex items-center gap-5">
             {/* Staff Avatar with Camera Trigger */}
             <div className="relative group shrink-0">
-              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-gradient-to-tr from-amber-500 via-amber-400 to-amber-600 p-0.5 shadow-xl overflow-hidden">
-                <div className="w-full h-full bg-[#0c1220] rounded-[14px] flex items-center justify-center text-amber-300 font-black text-3xl overflow-hidden">
+              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-slate-100 p-0.5 shadow-sm border border-slate-200 overflow-hidden">
+                <div className="w-full h-full bg-slate-50 rounded-[14px] flex items-center justify-center text-slate-800 font-black text-3xl overflow-hidden">
                   {avatar ? (
                     <img
                       src={avatar}
@@ -387,7 +365,7 @@ export default function AdminProfilePage() {
               <button
                 type="button"
                 onClick={() => setIsAvatarModalOpen(true)}
-                className="absolute -bottom-1.5 -right-1.5 p-2 rounded-xl bg-amber-500 text-black hover:bg-amber-400 transition-all shadow-lg hover:scale-110 flex items-center justify-center cursor-pointer"
+                className="absolute -bottom-1.5 -right-1.5 p-2 rounded-xl bg-amber-500 text-slate-950 hover:bg-amber-600 transition-all shadow-md hover:scale-110 flex items-center justify-center cursor-pointer"
                 title="Thay đổi ảnh đại diện nhân viên"
               >
                 <Camera className="w-4 h-4 stroke-[2.5]" />
@@ -397,20 +375,20 @@ export default function AdminProfilePage() {
             {/* Staff Details */}
             <div className="space-y-1.5">
               <div className="flex items-center gap-3 flex-wrap">
-                <h1 className="text-xl sm:text-2xl font-black text-white">{staffUser.name}</h1>
-                <span className={`px-2.5 py-0.5 rounded-full font-bold text-xs border ${roleInfo.badge}`}>
+                <h1 className="text-xl sm:text-2xl font-black text-slate-900">{staffUser.name}</h1>
+                <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${roleInfo.badge}`}>
                   {roleInfo.title}
                 </span>
-                <span className="px-2 py-0.5 rounded-full font-mono text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                <span className="px-2 py-0.5 rounded-full font-mono text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                   ● Đang hoạt động
                 </span>
               </div>
-              <p className="text-xs text-gray-400 flex items-center gap-3">
-                <span className="font-mono text-amber-400">@{staffUser.username}</span>
+              <p className="text-xs text-slate-500 flex items-center gap-3">
+                <span className="font-mono text-amber-700 font-bold">@{staffUser.username}</span>
                 <span>• {department}</span>
-                {phone && <span className="font-mono">• {phone}</span>}
+                {phone && <span className="font-mono font-semibold text-slate-700">• {phone}</span>}
               </p>
-              <p className="text-[11px] text-gray-400 max-w-xl">
+              <p className="text-[11px] text-slate-600 max-w-xl">
                 {roleInfo.desc}
               </p>
             </div>
@@ -421,9 +399,9 @@ export default function AdminProfilePage() {
             <button
               type="button"
               onClick={() => setIsAvatarModalOpen(true)}
-              className="px-4 py-2.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-amber-300 hover:text-amber-200 border border-amber-500/30 text-xs font-bold transition-all flex items-center gap-2 cursor-pointer"
+              className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shadow-2xs"
             >
-              <Camera className="w-4 h-4" />
+              <Camera className="w-4 h-4 text-slate-700" />
               <span>Đổi Ảnh Đại Diện</span>
             </button>
             <button
@@ -432,7 +410,7 @@ export default function AdminProfilePage() {
                 IShopStore.logoutStaff();
                 window.location.href = '/admin';
               }}
-              className="p-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 border border-rose-500/30 transition-all cursor-pointer"
+              className="p-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition-all cursor-pointer shadow-2xs"
               title="Đăng xuất khỏi ca làm việc"
             >
               <LogOut className="w-4 h-4" />
@@ -441,13 +419,13 @@ export default function AdminProfilePage() {
         </div>
 
         {/* Tab Navigation Menu */}
-        <div className="flex items-center gap-2 overflow-x-auto pt-6 mt-6 border-t border-white/10 text-xs no-scrollbar">
+        <div className="flex items-center gap-2 overflow-x-auto pt-6 mt-6 border-t border-slate-100 text-xs no-scrollbar">
           <button
             onClick={() => setActiveTab('profile')}
             className={`px-4 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
               activeTab === 'profile'
-                ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/30'
-                : 'bg-white/[0.04] text-gray-300 hover:bg-white/[0.08]'
+                ? 'bg-slate-900 text-white shadow-sm'
+                : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
             }`}
           >
             <User className="w-4 h-4" />
@@ -458,8 +436,8 @@ export default function AdminProfilePage() {
             onClick={() => setActiveTab('security')}
             className={`px-4 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
               activeTab === 'security'
-                ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/30'
-                : 'bg-white/[0.04] text-gray-300 hover:bg-white/[0.08]'
+                ? 'bg-slate-900 text-white shadow-sm'
+                : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
             }`}
           >
             <Lock className="w-4 h-4" />
@@ -470,8 +448,8 @@ export default function AdminProfilePage() {
             onClick={() => setActiveTab('permissions')}
             className={`px-4 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
               activeTab === 'permissions'
-                ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/30'
-                : 'bg-white/[0.04] text-gray-300 hover:bg-white/[0.08]'
+                ? 'bg-slate-900 text-white shadow-sm'
+                : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
             }`}
           >
             <Shield className="w-4 h-4" />
@@ -482,8 +460,8 @@ export default function AdminProfilePage() {
             onClick={() => setActiveTab('activity')}
             className={`px-4 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
               activeTab === 'activity'
-                ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/30'
-                : 'bg-white/[0.04] text-gray-300 hover:bg-white/[0.08]'
+                ? 'bg-slate-900 text-white shadow-sm'
+                : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
             }`}
           >
             <Clock className="w-4 h-4" />
@@ -496,35 +474,35 @@ export default function AdminProfilePage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* TAB 1: HỒ SƠ NHÂN SỰ */}
         {activeTab === 'profile' && (
-          <div className="lg:col-span-12 glass-panel rounded-3xl p-6 sm:p-8 border border-white/10 bg-[#0d1424] space-y-6">
-            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+          <div className="lg:col-span-12 bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
-                <User className="w-5 h-5 text-amber-400" />
-                <h2 className="text-base font-bold text-white">Chỉnh Sửa Hồ Sơ &amp; Thông Tin Công Tác</h2>
+                <User className="w-5 h-5 text-amber-600" />
+                <h2 className="text-base font-black text-slate-900">Chỉnh Sửa Hồ Sơ &amp; Thông Tin Công Tác</h2>
               </div>
-              <span className="text-[11px] text-gray-400">Dành riêng cho nhân sự iShop Huy Hoàng</span>
+              <span className="text-[11px] text-slate-500 font-medium">Dành riêng cho nhân sự iShop Huy Hoàng</span>
             </div>
 
             {profileFeedback && (
-              <div className="p-3.5 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-semibold flex items-center gap-2 animate-in fade-in">
-                <CheckCircle2 className="w-4 h-4 shrink-0" />
+              <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2 animate-in fade-in">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                 <span>{profileFeedback}</span>
               </div>
             )}
 
             {/* Quick Avatar Row in Form */}
-            <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center justify-between gap-4">
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-4">
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-[#0c1220] border border-amber-500/40 overflow-hidden flex items-center justify-center shrink-0">
+                <div className="w-14 h-14 rounded-2xl bg-white border border-slate-200 overflow-hidden flex items-center justify-center shrink-0">
                   {avatar ? (
                     <img src={avatar} alt={staffUser.name} className="w-full h-full object-cover" />
                   ) : (
-                    <span className="text-xl font-black text-amber-300">{staffUser.name.charAt(0)}</span>
+                    <span className="text-xl font-black text-slate-800">{staffUser.name.charAt(0)}</span>
                   )}
                 </div>
                 <div>
-                  <p className="text-white font-bold text-xs">Ảnh đại diện trên hệ thống</p>
-                  <p className="text-gray-400 text-[11px]">
+                  <p className="text-slate-900 font-bold text-xs">Ảnh đại diện trên hệ thống</p>
+                  <p className="text-slate-500 text-[11px]">
                     Hiển thị trên phiếu tiếp nhận máy iCare, hóa đơn POS và topbar
                   </p>
                 </div>
@@ -532,7 +510,7 @@ export default function AdminProfilePage() {
               <button
                 type="button"
                 onClick={() => setIsAvatarModalOpen(true)}
-                className="px-4 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 font-bold text-xs transition-colors shrink-0"
+                className="px-4 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 font-bold text-xs transition-colors shrink-0 shadow-2xs cursor-pointer"
               >
                 Thay Đổi Ảnh
               </button>
@@ -541,79 +519,79 @@ export default function AdminProfilePage() {
             <form onSubmit={handleSaveProfile} className="space-y-4 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label className="text-gray-300 font-semibold mb-1 block">Họ và Tên Nhân Viên: *</label>
+                  <label className="text-slate-700 font-bold mb-1 block">Họ và Tên Nhân Viên: *</label>
                   <input
                     type="text"
                     required
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     placeholder="Nguyễn Văn B"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white font-medium focus:outline-none focus:border-amber-400"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-medium focus:bg-white focus:outline-none focus:border-amber-500"
                   />
                 </div>
 
                 <div>
-                  <label className="text-gray-300 font-semibold mb-1 block">Tên Đăng Nhập (Username):</label>
+                  <label className="text-slate-700 font-bold mb-1 block">Tên Đăng Nhập (Username):</label>
                   <input
                     type="text"
                     disabled
                     value={username}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.02] border border-white/10 text-gray-400 font-mono font-bold cursor-not-allowed"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-100 border border-slate-200 text-slate-500 font-mono font-bold cursor-not-allowed"
                     title="Username không thể tự ý thay đổi. Liên hệ Admin nếu cần chỉnh sửa."
                   />
                 </div>
 
                 <div>
-                  <label className="text-gray-300 font-semibold mb-1 block">Chức Vụ / Vai Trò:</label>
+                  <label className="text-slate-700 font-bold mb-1 block">Chức Vụ / Vai Trò:</label>
                   <input
                     type="text"
                     disabled
                     value={roleInfo.title}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.02] border border-white/10 text-amber-400 font-bold cursor-not-allowed"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-100 border border-slate-200 text-slate-700 font-bold cursor-not-allowed"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label className="text-gray-300 font-semibold mb-1 block">Số Điện Thoại Nội Bộ: *</label>
+                  <label className="text-slate-700 font-bold mb-1 block">Số Điện Thoại Nội Bộ: *</label>
                   <input
                     type="tel"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="09xx xxx xxx"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white font-mono focus:outline-none focus:border-amber-400"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono font-medium focus:bg-white focus:outline-none focus:border-amber-500"
                   />
                 </div>
 
                 <div>
-                  <label className="text-gray-300 font-semibold mb-1 block">Email Công Vụ:</label>
+                  <label className="text-slate-700 font-bold mb-1 block">Email Công Vụ:</label>
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="nhanvien@ishophuyhoang.vn"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white focus:outline-none focus:border-amber-400"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:outline-none focus:border-amber-500"
                   />
                 </div>
 
                 <div>
-                  <label className="text-gray-300 font-semibold mb-1 block">Bộ Phận / Ban Công Tác:</label>
+                  <label className="text-slate-700 font-bold mb-1 block">Bộ Phận / Ban Công Tác:</label>
                   <select
                     value={department}
                     onChange={(e) => setDepartment(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white focus:outline-none focus:border-amber-400"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-medium focus:bg-white focus:outline-none focus:border-amber-500 cursor-pointer"
                   >
-                    <option value="Ban Giám Đốc & Quản Trị Hệ Thống" className="bg-[#0f172a]">
+                    <option value="Ban Giám Đốc & Quản Trị Hệ Thống">
                       Ban Giám Đốc &amp; Quản Trị Hệ Thống
                     </option>
-                    <option value="Phòng Kỹ Thuật & iCare Lab" className="bg-[#0f172a]">
+                    <option value="Phòng Kỹ Thuật & iCare Lab">
                       Phòng Kỹ Thuật &amp; iCare Lab
                     </option>
-                    <option value="Phòng Bán Hàng & Thu Ngân POS" className="bg-[#0f172a]">
+                    <option value="Phòng Bán Hàng & Thu Ngân POS">
                       Phòng Bán Hàng &amp; Thu Ngân POS
                     </option>
-                    <option value="Kho Vận & Logistics Apple" className="bg-[#0f172a]">
+                    <option value="Kho Vận & Logistics Apple">
                       Kho Vận &amp; Logistics Apple
                     </option>
                   </select>
@@ -622,29 +600,29 @@ export default function AdminProfilePage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label className="text-gray-300 font-semibold mb-1 block">Ngày Sinh:</label>
+                  <label className="text-slate-700 font-bold mb-1 block">Ngày Sinh:</label>
                   <input
                     type="date"
                     value={birthday}
                     onChange={(e) => setBirthday(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white focus:outline-none focus:border-amber-400"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:outline-none focus:border-amber-500 cursor-pointer"
                   />
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="text-gray-300 font-semibold mb-1 block">Địa Chỉ Cư Trú / Liên Hệ:</label>
+                  <label className="text-slate-700 font-bold mb-1 block">Địa Chỉ Cư Trú / Liên Hệ:</label>
                   <input
                     type="text"
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
                     placeholder="Số nhà, tên đường, phường xã..."
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white focus:outline-none focus:border-amber-400"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:outline-none focus:border-amber-500"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-gray-300 font-semibold mb-1 block">
+                <label className="text-slate-700 font-bold mb-1 block">
                   Tiểu Sử / Giới Thiệu Chuyên Môn (Bio):
                 </label>
                 <textarea
@@ -652,7 +630,7 @@ export default function AdminProfilePage() {
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
                   placeholder="Kinh nghiệm ép kính, xử lý Face ID, tư vấn giải pháp Apple..."
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white focus:outline-none focus:border-amber-400"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:outline-none focus:border-amber-500"
                 />
               </div>
 
@@ -660,7 +638,7 @@ export default function AdminProfilePage() {
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="px-6 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-black text-xs shadow-lg shadow-amber-500/25 transition-all flex items-center gap-2 cursor-pointer"
+                  className="px-6 py-3 rounded-2xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   <Save className="w-4 h-4" />
                   <span>{isSaving ? 'Đang Lưu...' : 'Lưu Thay Đổi Hồ Sơ'}</span>
@@ -672,27 +650,27 @@ export default function AdminProfilePage() {
 
         {/* TAB 2: ĐỔI MẬT KHẨU & BẢO MẬT NỘI BỘ */}
         {activeTab === 'security' && (
-          <div className="lg:col-span-12 glass-panel rounded-3xl p-6 sm:p-8 border border-white/10 bg-[#0d1424] space-y-6">
-            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+          <div className="lg:col-span-12 bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
-                <Lock className="w-5 h-5 text-amber-400" />
-                <h2 className="text-base font-bold text-white">Đổi Mật Khẩu Đăng Nhập Hệ Thống</h2>
+                <Lock className="w-5 h-5 text-amber-600" />
+                <h2 className="text-base font-black text-slate-900">Đổi Mật Khẩu Đăng Nhập Hệ Thống</h2>
               </div>
-              <span className="text-[11px] text-gray-400">Chuẩn an toàn bảo mật nội bộ</span>
+              <span className="text-[11px] text-slate-500 font-medium">Chuẩn an toàn bảo mật nội bộ</span>
             </div>
 
             {securityFeedback && (
               <div
                 className={`p-3.5 rounded-2xl text-xs font-semibold flex items-center gap-2 animate-in fade-in ${
                   securityFeedback.type === 'success'
-                    ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-300'
-                    : 'bg-rose-500/15 border border-rose-500/30 text-rose-300'
+                    ? 'bg-emerald-50 border border-emerald-200 text-emerald-800'
+                    : 'bg-rose-50 border border-rose-200 text-rose-800'
                 }`}
               >
                 {securityFeedback.type === 'success' ? (
-                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                 ) : (
-                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
                 )}
                 <span>{securityFeedback.message}</span>
               </div>
@@ -700,7 +678,7 @@ export default function AdminProfilePage() {
 
             <form onSubmit={handleChangePassword} className="space-y-4 max-w-xl text-xs">
               <div>
-                <label className="text-gray-300 font-semibold mb-1 block">Mật Khẩu Hiện Tại: *</label>
+                <label className="text-slate-700 font-bold mb-1 block">Mật Khẩu Hiện Tại: *</label>
                 <div className="relative">
                   <input
                     type={showCurrentPass ? 'text' : 'password'}
@@ -708,12 +686,12 @@ export default function AdminProfilePage() {
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
                     placeholder="Nhập mật khẩu đang dùng"
-                    className="w-full pl-3.5 pr-10 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white font-mono focus:outline-none focus:border-amber-400"
+                    className="w-full pl-3.5 pr-10 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono focus:bg-white focus:outline-none focus:border-amber-500"
                   />
                   <button
                     type="button"
                     onClick={() => setShowCurrentPass(!showCurrentPass)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 cursor-pointer"
                   >
                     {showCurrentPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -721,7 +699,7 @@ export default function AdminProfilePage() {
               </div>
 
               <div>
-                <label className="text-gray-300 font-semibold mb-1 block">Mật Khẩu Mới: *</label>
+                <label className="text-slate-700 font-bold mb-1 block">Mật Khẩu Mới: *</label>
                 <div className="relative">
                   <input
                     type={showNewPass ? 'text' : 'password'}
@@ -729,12 +707,12 @@ export default function AdminProfilePage() {
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="Tối thiểu 6 ký tự"
-                    className="w-full pl-3.5 pr-10 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white font-mono focus:outline-none focus:border-amber-400"
+                    className="w-full pl-3.5 pr-10 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono focus:bg-white focus:outline-none focus:border-amber-500"
                   />
                   <button
                     type="button"
                     onClick={() => setShowNewPass(!showNewPass)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 cursor-pointer"
                   >
                     {showNewPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -744,10 +722,10 @@ export default function AdminProfilePage() {
                 {newPassword && (
                   <div className="mt-2 space-y-1.5">
                     <div className="flex items-center justify-between text-[11px]">
-                      <span className="text-gray-400">Độ an toàn mật khẩu:</span>
+                      <span className="text-slate-500">Độ an toàn mật khẩu:</span>
                       <span className={`font-bold ${strength.text}`}>{strength.label}</span>
                     </div>
-                    <div className="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                    <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
                       <div
                         className={`h-full transition-all duration-300 ${strength.color}`}
                         style={{ width: `${strength.score}%` }}
@@ -758,7 +736,7 @@ export default function AdminProfilePage() {
               </div>
 
               <div>
-                <label className="text-gray-300 font-semibold mb-1 block">Xác Nhận Mật Khẩu Mới: *</label>
+                <label className="text-slate-700 font-bold mb-1 block">Xác Nhận Mật Khẩu Mới: *</label>
                 <div className="relative">
                   <input
                     type={showConfirmPass ? 'text' : 'password'}
@@ -766,12 +744,12 @@ export default function AdminProfilePage() {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="Nhập lại mật khẩu mới"
-                    className="w-full pl-3.5 pr-10 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white font-mono focus:outline-none focus:border-amber-400"
+                    className="w-full pl-3.5 pr-10 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono focus:bg-white focus:outline-none focus:border-amber-500"
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPass(!showConfirmPass)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 cursor-pointer"
                   >
                     {showConfirmPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -782,7 +760,7 @@ export default function AdminProfilePage() {
                 <button
                   type="submit"
                   disabled={isChangingPass}
-                  className="px-6 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-black text-xs shadow-lg shadow-amber-500/25 transition-all flex items-center gap-2 cursor-pointer"
+                  className="px-6 py-3 rounded-2xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   <KeyRound className="w-4 h-4" />
                   <span>{isChangingPass ? 'Đang Đổi Mật Khẩu...' : 'Cập Nhật Mật Khẩu Mới'}</span>
@@ -791,13 +769,13 @@ export default function AdminProfilePage() {
             </form>
 
             {/* Advanced Security Controls */}
-            <div className="pt-6 border-t border-white/10 space-y-3">
-              <h3 className="text-xs font-bold text-white uppercase tracking-wider">Cấu Hình Bảo Vệ Bổ Sung</h3>
+            <div className="pt-6 border-t border-slate-100 space-y-3">
+              <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Cấu Hình Bảo Vệ Bổ Sung</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center justify-between">
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <p className="font-bold text-white">Xác Thực 2 Bước (2FA Nhân Viên)</p>
-                    <p className="text-gray-400 text-[11px]">Bắt buộc OTP khi đăng nhập IP lạ</p>
+                    <p className="font-bold text-slate-900">Xác Thực 2 Bước (2FA Nhân Viên)</p>
+                    <p className="text-slate-500 text-[11px]">Bắt buộc OTP khi đăng nhập IP lạ</p>
                   </div>
                   <input
                     type="checkbox"
@@ -807,10 +785,10 @@ export default function AdminProfilePage() {
                   />
                 </div>
 
-                <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center justify-between">
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <p className="font-bold text-white">Khóa Phiên Khi Rời Máy 15 Phút</p>
-                    <p className="text-gray-400 text-[11px]">Tự động đăng xuất bảo vệ quầy POS</p>
+                    <p className="font-bold text-slate-900">Khóa Phiên Khi Rời Máy 15 Phút</p>
+                    <p className="text-slate-500 text-[11px]">Tự động đăng xuất bảo vệ quầy POS</p>
                   </div>
                   <input
                     type="checkbox"
@@ -825,18 +803,18 @@ export default function AdminProfilePage() {
 
         {/* TAB 3: QUYỀN HẠN CỦA BẠN */}
         {activeTab === 'permissions' && (
-          <div className="lg:col-span-12 glass-panel rounded-3xl p-6 sm:p-8 border border-white/10 bg-[#0d1424] space-y-6">
-            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+          <div className="lg:col-span-12 bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
-                <ShieldCheck className="w-5 h-5 text-amber-400" />
-                <h2 className="text-base font-bold text-white">Ma Trận Quyền Hạn Của Tài Khoản</h2>
+                <ShieldCheck className="w-5 h-5 text-amber-600" />
+                <h2 className="text-base font-black text-slate-900">Ma Trận Quyền Hạn Của Tài Khoản</h2>
               </div>
               <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${roleInfo.badge}`}>
                 {roleInfo.title}
               </span>
             </div>
 
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-slate-600">
               Các tính năng và nghiệp vụ bạn được phép thao tác trên hệ thống ERP iShop Huy Hoàng 2026:
             </p>
 
@@ -846,33 +824,33 @@ export default function AdminProfilePage() {
                   key={perm.key}
                   className={`p-4 rounded-2xl border transition-all text-xs space-y-2 ${
                     perm.allowed
-                      ? 'bg-emerald-500/10 border-emerald-500/30 text-white'
-                      : 'bg-white/[0.02] border-white/5 text-gray-400 opacity-60'
+                      ? 'bg-emerald-50/70 border-emerald-200 text-slate-900'
+                      : 'bg-slate-50 border-slate-200 text-slate-500 opacity-60'
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-sm text-white">{perm.name}</span>
+                    <span className="font-bold text-sm text-slate-900">{perm.name}</span>
                     {perm.allowed ? (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
                         <Check className="w-3 h-3 stroke-[3]" /> Được phép
                       </span>
                     ) : (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/5 text-gray-400 border border-white/10 flex items-center gap-1">
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-600 flex items-center gap-1">
                         <X className="w-3 h-3" /> Không có quyền
                       </span>
                     )}
                   </div>
-                  <p className="text-[11px] text-gray-400">{perm.desc}</p>
+                  <p className="text-[11px] text-slate-500">{perm.desc}</p>
                 </div>
               ))}
             </div>
 
             {currentRole !== 'admin' && (
-              <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center gap-3 text-xs text-amber-300">
-                <Info className="w-5 h-5 shrink-0" />
+              <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 flex items-center gap-3 text-xs text-amber-900">
+                <Info className="w-5 h-5 text-amber-700 shrink-0" />
                 <span>
                   Nếu bạn cần bổ sung quyền hạn phục vụ công việc, vui lòng liên hệ trực tiếp với Chủ Cửa Hàng (Admin) qua mục{' '}
-                  <strong className="text-white">Nhân Sự &amp; Phân Quyền</strong>.
+                  <strong className="text-slate-900">Nhân Sự &amp; Phân Quyền</strong>.
                 </span>
               </div>
             )}
@@ -881,39 +859,39 @@ export default function AdminProfilePage() {
 
         {/* TAB 4: PHIÊN LÀM VIỆC & CA TRỰC */}
         {activeTab === 'activity' && (
-          <div className="lg:col-span-12 glass-panel rounded-3xl p-6 sm:p-8 border border-white/10 bg-[#0d1424] space-y-6">
-            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+          <div className="lg:col-span-12 bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
-                <Clock className="w-5 h-5 text-amber-400" />
-                <h2 className="text-base font-bold text-white">Nhật Ký Phiên Làm Việc</h2>
+                <Clock className="w-5 h-5 text-amber-600" />
+                <h2 className="text-base font-black text-slate-900">Nhật Ký Phiên Làm Việc</h2>
               </div>
-              <span className="text-[11px] text-gray-400">Ghi nhận bảo mật</span>
+              <span className="text-[11px] text-slate-500 font-medium">Ghi nhận bảo mật</span>
             </div>
 
             <div className="space-y-3 text-xs">
-              <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center justify-between">
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-white">Phiên đăng nhập hiện tại</span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-500/20 text-emerald-300 font-bold">
+                    <span className="font-bold text-slate-900">Phiên đăng nhập hiện tại</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold">
                       Online
                     </span>
                   </div>
-                  <p className="text-gray-400 text-[11px] mt-0.5">
+                  <p className="text-slate-500 text-[11px] mt-0.5">
                     Trình duyệt Chrome trên Windows • Địa chỉ IP: 192.168.1.102 (Mạng nội bộ shop)
                   </p>
                 </div>
-                <span className="font-mono text-gray-400 text-[11px]">Vừa đăng nhập</span>
+                <span className="font-mono text-slate-500 text-[11px]">Vừa đăng nhập</span>
               </div>
 
-              <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center justify-between">
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
                 <div>
-                  <p className="font-bold text-white">Ca trực máy POS #01</p>
-                  <p className="text-gray-400 text-[11px] mt-0.5">
+                  <p className="font-bold text-slate-900">Ca trực máy POS #01</p>
+                  <p className="text-slate-500 text-[11px] mt-0.5">
                     iPad Pro 13" M4 POS Stand • Quầy Bán Hàng Flagship
                   </p>
                 </div>
-                <span className="font-mono text-gray-400 text-[11px]">Hôm qua, 18:30</span>
+                <span className="font-mono text-slate-500 text-[11px]">Hôm qua, 18:30</span>
               </div>
             </div>
           </div>

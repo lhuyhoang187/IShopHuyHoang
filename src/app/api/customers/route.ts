@@ -81,14 +81,24 @@ export async function POST(request: NextRequest) {
       where: { phone },
     });
 
+    const updateFields: any = {
+      name,
+      email: email || existing?.email,
+      address: address || existing?.address,
+    };
+    if (body.customerType) updateFields.customerType = sanitizeString(body.customerType, 50);
+    if (body.membershipTier) updateFields.membershipTier = sanitizeString(body.membershipTier, 50);
+    if (body.taxCode) updateFields.taxCode = sanitizeString(body.taxCode, 50);
+    if (body.birthday) updateFields.birthday = sanitizeString(body.birthday, 50);
+    if (body.city) updateFields.city = sanitizeString(body.city, 100);
+    if (body.notes) updateFields.notes = body.notes;
+    if (body.avatar) updateFields.avatar = body.avatar;
+    if (body.points !== undefined) updateFields.points = Math.max(0, Math.floor(Number(body.points) || 0));
+
     if (existing) {
       const updated = await prisma.customer.update({
         where: { phone },
-        data: {
-          name,
-          email: email || existing.email,
-          address: address || existing.address,
-        },
+        data: updateFields,
       });
       return NextResponse.json({
         success: true,
@@ -107,6 +117,13 @@ export async function POST(request: NextRequest) {
         email,
         address,
         points,
+        customerType: body.customerType || 'Khách lẻ',
+        membershipTier: body.membershipTier || 'Thành viên mới',
+        taxCode: body.taxCode || null,
+        birthday: body.birthday || null,
+        city: body.city || 'TP. Hồ Chí Minh',
+        notes: body.notes || null,
+        avatar: body.avatar || null,
       },
     });
 

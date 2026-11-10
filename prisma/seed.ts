@@ -459,6 +459,276 @@ async function main() {
     },
   });
 
+  // 17. Seed Accessory Categories (Danh mục phụ kiện động)
+  console.log('17. Seeding Accessory Categories...');
+  const initialAccCategories = [
+    { code: 'charger', name: 'Củ sạc GaN', description: 'Củ sạc nhanh công nghệ GaN siêu nhỏ gọn, tản nhiệt tốt, hỗ trợ PD & QC.', displayOrder: 1 },
+    { code: 'cable', name: 'Cáp sạc', description: 'Cáp sạc nhanh bọc dù Kevlar chống đứt, Type-C sang Lightning / Type-C sang C.', displayOrder: 2 },
+    { code: 'powerbank', name: 'Pin MagSafe / Sạc dự phòng', description: 'Pin sạc dự phòng hít từ tính MagSafe chuẩn Qi2 và sạc nhanh đa năng.', displayOrder: 3 },
+    { code: 'screen_protector', name: 'Kính cường lực', description: 'Kính cường lực KingKong King Armor 9H+ phủ Nano chống bám vân tay.', displayOrder: 4 },
+    { code: 'audio', name: 'Tai nghe AirPods / Tai nghe', description: 'Tai nghe Apple AirPods chính hãng, tai nghe Bluetooth True Wireless chống ồn ANC.', displayOrder: 5 },
+    { code: 'case', name: 'Ốp lưng chính hãng', description: 'Ốp lưng từ tính MagSafe Apple Silicone Case, UAG, Spigen chống sốc quân đội.', displayOrder: 6 },
+    { code: 'other', name: 'Phụ kiện khác', description: 'Bút cảm ứng, củ chuyển đổi OTG, bao da bảo vệ, dây đeo Apple Watch.', displayOrder: 7 },
+  ];
+
+  for (const cat of initialAccCategories) {
+    await prisma.accessoryCategory.upsert({
+      where: { code: cat.code },
+      update: {
+        name: cat.name,
+        description: cat.description,
+        displayOrder: cat.displayOrder,
+      },
+      create: {
+        code: cat.code,
+        name: cat.name,
+        description: cat.description,
+        displayOrder: cat.displayOrder,
+        isActive: true,
+      },
+    });
+  }
+
+  // 18. Seed Spare Part Categories (Danh mục linh kiện sửa chữa)
+  console.log('18. Seeding Spare Part Categories...');
+  const initialSpareCategories = [
+    { code: 'screen', name: 'Màn hình zin & OEM', description: 'Màn hình OLED 120Hz ProMotion zin bóc máy, màn hình linh kiện cao cấp.', displayOrder: 1 },
+    { code: 'battery', name: 'Pin chuẩn & Dung lượng cao', description: 'Pin Pisen chính hãng, pin dung lượng cực đại hiển thị 100% dung lượng.', displayOrder: 2 },
+    { code: 'camera', name: 'Cụm camera trước / sau', description: 'Camera zin Apple & Samsung chống rung OIS nét căng.', displayOrder: 3 },
+    { code: 'back_glass', name: 'Kính lưng & Sườn máy', description: 'Kính lưng laser, khung viền Titan và nhôm nguyên khối thay thế.', displayOrder: 4 },
+    { code: 'charge_port', name: 'Cụm chân sạc & Mic thoại', description: 'Bo mạch chân sạc Type-C/Lightning zin, mic thoại đàm thoại rõ nét.', displayOrder: 5 },
+    { code: 'motherboard', name: 'Mainboard & IC nguồn', description: 'IC sạc, IC hiển thị, chip điều khiển công suất sửa chữa phần cứng.', displayOrder: 6 },
+    { code: 'other', name: 'Linh kiện khác', description: 'Loa trong, loa ngoài, rung Taptic Engine, khay SIM, cáp phím bấm.', displayOrder: 7 },
+  ];
+
+  for (const cat of initialSpareCategories) {
+    await prisma.sparePartCategory.upsert({
+      where: { code: cat.code },
+      update: {
+        name: cat.name,
+        description: cat.description,
+        displayOrder: cat.displayOrder,
+      },
+      create: {
+        code: cat.code,
+        name: cat.name,
+        description: cat.description,
+        displayOrder: cat.displayOrder,
+        isActive: true,
+      },
+    });
+  }
+
+  // 19. Seed Repair Services (Bảng giá dịch vụ sửa chữa iCare)
+  console.log('19. Seeding Repair Services (Bảng giá iCare)...');
+  const initialRepairServices = [
+    {
+      id: 'srv-ip-1',
+      name: 'Thay Pin Pisen Chính Hãng (Hiển thị 100% dung lượng)',
+      category: 'battery',
+      deviceBrand: 'Apple',
+      deviceModels: 'iPhone 11 / 12 / 13 Series',
+      price: 650000,
+      originalPrice: 850000,
+      warrantyPeriod: '12 Tháng',
+      estimatedMinutes: 30,
+      isFeatured: true,
+    },
+    {
+      id: 'srv-ip-2',
+      name: 'Thay Pin Pisen Dung Lượng Cao Siêu Bền',
+      category: 'battery',
+      deviceBrand: 'Apple',
+      deviceModels: 'iPhone 14 / 15 Series',
+      price: 850000,
+      originalPrice: 1100000,
+      warrantyPeriod: '12 Tháng',
+      estimatedMinutes: 30,
+      isFeatured: true,
+    },
+    {
+      id: 'srv-ip-3',
+      name: 'Ép Kính Cảm Ứng Chân Không (Giữ màn zin hiển thị)',
+      category: 'glass',
+      deviceBrand: 'Apple',
+      deviceModels: 'iPhone 12 / 13 / 14 Pro Max',
+      price: 750000,
+      originalPrice: 950000,
+      warrantyPeriod: '12 Tháng keo bọt',
+      estimatedMinutes: 45,
+      isFeatured: true,
+    },
+    {
+      id: 'srv-ip-4',
+      name: 'Thay Màn Hình OLED Zin Bóc Máy 120Hz ProMotion',
+      category: 'screen',
+      deviceBrand: 'Apple',
+      deviceModels: 'iPhone 13 / 14 Pro Max',
+      price: 5200000,
+      originalPrice: 6200000,
+      warrantyPeriod: '06 Tháng',
+      estimatedMinutes: 30,
+      isFeatured: true,
+    },
+    {
+      id: 'srv-ip-5',
+      name: 'Thay Màn Hình Zin Bóc Máy iPhone 15 Pro Max',
+      category: 'screen',
+      deviceBrand: 'Apple',
+      deviceModels: 'iPhone 15 Pro Max',
+      price: 6500000,
+      originalPrice: 7500000,
+      warrantyPeriod: '06 Tháng',
+      estimatedMinutes: 30,
+      isFeatured: false,
+    },
+    {
+      id: 'srv-ip-6',
+      name: 'Thay Cụm Chân Sạc Type-C & Mic Thoại',
+      category: 'charge_port',
+      deviceBrand: 'Apple',
+      deviceModels: 'iPhone 15 / 16 Series',
+      price: 650000,
+      originalPrice: 850000,
+      warrantyPeriod: '06 Tháng',
+      estimatedMinutes: 30,
+      isFeatured: false,
+    },
+    {
+      id: 'srv-ss-1',
+      name: 'Thay Màn Hình Dynamic AMOLED 2X Zin',
+      category: 'screen',
+      deviceBrand: 'Samsung',
+      deviceModels: 'Samsung Galaxy S24 Ultra',
+      price: 5900000,
+      originalPrice: 6900000,
+      warrantyPeriod: '06 Tháng',
+      estimatedMinutes: 45,
+      isFeatured: true,
+    },
+    {
+      id: 'srv-ss-2',
+      name: 'Thay Pin Chính Hãng Samsung 5.000mAh',
+      category: 'battery',
+      deviceBrand: 'Samsung',
+      deviceModels: 'Galaxy S23 / S24 Ultra',
+      price: 750000,
+      originalPrice: 950000,
+      warrantyPeriod: '12 Tháng',
+      estimatedMinutes: 30,
+      isFeatured: true,
+    },
+    {
+      id: 'srv-ss-3',
+      name: 'Ép Kính Màn Hình Cong Phẳng Chân Không',
+      category: 'glass',
+      deviceBrand: 'Samsung',
+      deviceModels: 'Galaxy Note 20 / S22 / S23 Ultra',
+      price: 850000,
+      originalPrice: 1100000,
+      warrantyPeriod: '12 Tháng keo bọt',
+      estimatedMinutes: 45,
+      isFeatured: true,
+    },
+    {
+      id: 'srv-ss-4',
+      name: 'Thay Cụm Chân Sạc Nhanh 45W & Cáp Bo Phụ',
+      category: 'charge_port',
+      deviceBrand: 'Samsung',
+      deviceModels: 'Galaxy S24 Ultra',
+      price: 550000,
+      originalPrice: 750000,
+      warrantyPeriod: '06 Tháng',
+      estimatedMinutes: 30,
+      isFeatured: false,
+    },
+  ];
+
+  for (const srv of initialRepairServices) {
+    await prisma.repairService.upsert({
+      where: { id: srv.id },
+      update: {
+        name: srv.name,
+        category: srv.category,
+        deviceBrand: srv.deviceBrand,
+        deviceModels: srv.deviceModels,
+        price: srv.price,
+        originalPrice: srv.originalPrice,
+        warrantyPeriod: srv.warrantyPeriod,
+        estimatedMinutes: srv.estimatedMinutes,
+        isFeatured: srv.isFeatured,
+      },
+      create: srv,
+    });
+  }
+
+  // 20. Seed Phone Brands (Thương hiệu điện thoại)
+  console.log('20. Seeding Phone Brands...');
+  const initialBrands = [
+    { name: 'Apple', slug: 'apple', country: 'Mỹ', displayOrder: 1, description: 'Hệ sinh thái Apple iPhone, iPad, AirPods, Apple Watch chuẩn chính hãng AAR.' },
+    { name: 'Samsung', slug: 'samsung', country: 'Hàn Quốc', displayOrder: 2, description: 'Dòng điện thoại Galaxy S Ultra, Galaxy Z Fold/Flip đẳng cấp hàng đầu.' },
+    { name: 'Xiaomi', slug: 'xiaomi', country: 'Trung Quốc', displayOrder: 3, description: 'Flagship Xiaomi trang bị ống kính Leica siêu cảm biến và sạc nhanh siêu tốc.' },
+    { name: 'OPPO', slug: 'oppo', country: 'Trung Quốc', displayOrder: 4, description: 'Điện thoại nhiếp ảnh đỉnh cao Find X Series, Reno Series với thiết kế thời thượng.' },
+    { name: 'Google', slug: 'google', country: 'Mỹ', displayOrder: 5, description: 'Google Pixel tích hợp AI thông minh Gemini nguyên bản mượt mà.' },
+  ];
+
+  for (const b of initialBrands) {
+    await prisma.phoneBrand.upsert({
+      where: { slug: b.slug },
+      update: {
+        name: b.name,
+        country: b.country,
+        displayOrder: b.displayOrder,
+        description: b.description,
+      },
+      create: b,
+    });
+  }
+
+  // 21. Seed Store Branches (Hệ thống chi nhánh)
+  console.log('21. Seeding Store Branches...');
+  const initialBranches = [
+    {
+      code: 'CN-THUDUC',
+      name: 'iShop Huy Hoàng - Chi Nhánh Thủ Đức',
+      phone: '0909.123.456',
+      address: '45 Lê Văn Việt, Phường Hiệp Phú, TP. Thủ Đức, TP. Hồ Chí Minh',
+      district: 'TP. Thủ Đức',
+      city: 'TP. Hồ Chí Minh',
+      openingHours: '08:00 - 21:30 (Mở cửa tất cả các ngày trong tuần)',
+      isMainBranch: true,
+      isActive: true,
+    },
+    {
+      code: 'CN-Q10',
+      name: 'iShop Huy Hoàng - Chi Nhánh Quận 10',
+      phone: '0986.898.197',
+      address: '168 Đường 3/2, Phường 12, Quận 10, TP. Hồ Chí Minh',
+      district: 'Quận 10',
+      city: 'TP. Hồ Chí Minh',
+      openingHours: '08:00 - 21:30 (Mở cửa tất cả các ngày trong tuần)',
+      isMainBranch: false,
+      isActive: true,
+    },
+  ];
+
+  for (const br of initialBranches) {
+    await prisma.storeBranch.upsert({
+      where: { code: br.code },
+      update: {
+        name: br.name,
+        phone: br.phone,
+        address: br.address,
+        district: br.district,
+        city: br.city,
+        openingHours: br.openingHours,
+        isMainBranch: br.isMainBranch,
+        isActive: br.isActive,
+      },
+      create: br,
+    });
+  }
+
   console.log('✅ Hoàn tất nạp dữ liệu mẫu với các ràng buộc quan hệ toàn vẹn!');
 }
 

@@ -428,14 +428,13 @@ export default function AdminLayout({
   }
 
   const navItems: { name: string; href: string; icon: any; permissionKey?: string; adminOnly?: boolean }[] = [
-    { name: 'Tổng Quan Cockpit', href: '/admin', icon: Store },
+    { name: 'Tổng Quan & Kế Toán Sổ Quỹ', href: '/admin', icon: Store },
     { name: 'Bán Hàng (POS)', href: '/admin/pos', icon: ShoppingCart, permissionKey: 'pos' },
     { name: 'Giá & Khuyến Mãi', href: '/admin/promotions', icon: Tag, permissionKey: 'promotions' },
     { name: 'Bàn Sửa Chữa (iCare)', href: '/admin/repairs', icon: Wrench, permissionKey: 'repairs' },
     { name: 'Kho Hàng', href: '/admin/inventory/phones', icon: Package },
     { name: 'Mua Hàng NCC', href: '/admin/restock', icon: Truck, permissionKey: 'restock' },
     { name: 'Đối Tác & Khách Hàng', href: '/admin/partners', icon: Users, permissionKey: 'partners' },
-    { name: 'Kế Toán & Sổ Quỹ', href: '/admin/cashbook', icon: Wallet, permissionKey: 'cashbook', adminOnly: true },
     { name: 'Nhân Sự & Phân Quyền', href: '/admin/staff', icon: UserCheck, permissionKey: 'staff_management', adminOnly: true },
     { name: 'Cấu Hình & Webhook', href: '/admin/settings', icon: Settings, permissionKey: 'settings' },
     { name: 'Tài Khoản & Hồ Sơ', href: '/admin/profile', icon: User },

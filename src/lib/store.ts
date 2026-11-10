@@ -2,9 +2,13 @@
 
 import {
   PhoneProduct,
+  PhoneColor,
+  PhoneCapacity,
   PhoneStockItem,
   AccessoryProduct,
+  AccessoryCategoryItem,
   SparePartItem,
+  SparePartCategoryItem,
   RepairTicket,
   RepairStatus,
   Customer,
@@ -460,6 +464,147 @@ export const IShopStore = {
     setStorage('phone_stock', updatedStock);
   },
 
+  // Cập nhật số lượng và trạng thái Còn hàng / Hết hàng theo màu sắc hoặc dung lượng
+  updatePhoneVariants(
+    phoneId: string,
+    payload: {
+      capacities?: PhoneCapacity[];
+      colors?: PhoneColor[];
+      variantStocks?: Record<string, { stock: number; isOutOfStock?: boolean }>;
+    }
+  ): void {
+    const phones = this.getPhones();
+    const phone = phones.find((p) => p.id === phoneId);
+    if (!phone) return;
+
+    const updatedCapacities = payload.capacities ? [...payload.capacities] : phone.capacities;
+    const updatedColors = payload.colors ? [...payload.colors] : phone.colors;
+    const updatedVariantStocks =
+      payload.variantStocks !== undefined ? payload.variantStocks : phone.variantStocks;
+
+    const updatedPhones = phones.map((p) => {
+      if (p.id === phoneId) {
+        return {
+          ...p,
+          capacities: updatedCapacities,
+          colors: updatedColors,
+          variantStocks: updatedVariantStocks,
+        };
+      }
+      return p;
+    });
+
+    setStorage('phones', updatedPhones);
+
+    // Đồng bộ vào kho máy cá thể phone_stock
+    let stock = this.getPhoneStock();
+
+    // 1. Đồng bộ nếu capacity bị đánh dấu hết hàng
+    updatedCapacities.forEach((cap) => {
+      const capNorm = cap.size.toLowerCase().replace(/\s+/g, '');
+      if (cap.isOutOfStock) {
+        stock = stock.map((s) => {
+          if (
+            s.phoneId === phoneId &&
+            s.status === 'in_stock' &&
+            s.capacity.toLowerCase().replace(/\s+/g, '') === capNorm
+          ) {
+            return { ...s, status: 'reserved' as const };
+          }
+          return s;
+        });
+      }
+    });
+
+    // 2. Đồng bộ nếu color bị đánh dấu hết hàng
+    updatedColors.forEach((col) => {
+      const colNorm = col.name.toLowerCase().trim();
+      if (col.isOutOfStock) {
+        stock = stock.map((s) => {
+          if (
+            s.phoneId === phoneId &&
+            s.status === 'in_stock' &&
+            s.color.toLowerCase().trim().includes(colNorm)
+          ) {
+            return { ...s, status: 'reserved' as const };
+          }
+          return s;
+        });
+      }
+    });
+
+    // 3. Đồng bộ variantStocks cụ thể
+    if (payload.variantStocks) {
+      Object.entries(payload.variantStocks).forEach(([key, conf]) => {
+        const [colorName, capSize] = key.split('_');
+        if (!colorName || !capSize) return;
+
+        const currentInStock = stock.filter(
+          (s) =>
+            s.phoneId === phoneId &&
+            s.status === 'in_stock' &&
+            s.color.toLowerCase().trim() === colorName.toLowerCase().trim() &&
+            s.capacity.toLowerCase().replace(/\s+/g, '') === capSize.toLowerCase().replace(/\s+/g, '')
+        );
+
+        if (conf.isOutOfStock) {
+          stock = stock.map((s) => {
+            if (
+              s.phoneId === phoneId &&
+              s.status === 'in_stock' &&
+              s.color.toLowerCase().trim() === colorName.toLowerCase().trim() &&
+              s.capacity.toLowerCase().replace(/\s+/g, '') === capSize.toLowerCase().replace(/\s+/g, '')
+            ) {
+              return { ...s, status: 'reserved' as const };
+            }
+            return s;
+          });
+        } else if (typeof conf.stock === 'number') {
+          const diff = conf.stock - currentInStock.length;
+          if (diff > 0) {
+            const capObj = updatedCapacities.find((c) => c.size === capSize);
+            const sellPrice = capObj?.price || 30000000;
+            const costPrice = Math.round(sellPrice * 0.85);
+            for (let i = 0; i < diff; i++) {
+              const imei = `35${Math.floor(1000000000000 + Math.random() * 9000000000000)}`;
+              stock.unshift({
+                imei,
+                phoneId: phone.id,
+                phoneName: phone.name,
+                color: colorName,
+                capacity: capSize,
+                costPrice,
+                sellingPrice: sellPrice,
+                supplierId: 'sup-1',
+                supplierName: 'Apple Authorized Distributor VN',
+                importDate: new Date().toISOString().split('T')[0],
+                status: 'in_stock',
+                warrantyMonths: 12,
+              });
+            }
+          } else if (diff < 0) {
+            let toRemove = Math.abs(diff);
+            stock = stock.map((s) => {
+              if (
+                toRemove > 0 &&
+                s.phoneId === phoneId &&
+                s.status === 'in_stock' &&
+                s.color.toLowerCase().trim() === colorName.toLowerCase().trim() &&
+                s.capacity.toLowerCase().replace(/\s+/g, '') === capSize.toLowerCase().replace(/\s+/g, '')
+              ) {
+                toRemove--;
+                return { ...s, status: 'reserved' as const };
+              }
+              return s;
+            });
+          }
+        }
+      });
+    }
+
+    setStorage('phone_stock', stock);
+  },
+
   // Phone stock (IMEIs)
   getPhoneStock(): PhoneStockItem[] {
     return getStorage<PhoneStockItem[]>('phone_stock', initialPhoneStock);
@@ -504,6 +649,20 @@ export const IShopStore = {
     const updated = accessories.map((a) => (a.id === accessoryId ? { ...a, ...data } : a));
     setStorage('accessories', updated);
   },
+  addAccessory(accessory: AccessoryProduct): void {
+    const accessories = this.getAccessories();
+    // Tránh trùng lặp ID
+    const exists = accessories.some((a) => a.id === accessory.id);
+    const updated = exists
+      ? accessories.map((a) => (a.id === accessory.id ? { ...a, ...accessory } : a))
+      : [accessory, ...accessories];
+    setStorage('accessories', updated);
+  },
+  deleteAccessory(accessoryId: string): void {
+    const accessories = this.getAccessories();
+    const updated = accessories.filter((a) => a.id !== accessoryId);
+    setStorage('accessories', updated);
+  },
   updateAccessoryPrice(
     accessoryId: string,
     newSellingPrice: number,
@@ -525,9 +684,142 @@ export const IShopStore = {
     setStorage('accessories', updated);
   },
 
+  // Accessory Categories Management (Quản lý danh mục phụ kiện động)
+  getAccessoryCategories(): AccessoryCategoryItem[] {
+    const defaultCategories: AccessoryCategoryItem[] = [
+      { id: 'cat-charger', code: 'charger', name: 'Củ sạc GaN' },
+      { id: 'cat-cable', code: 'cable', name: 'Cáp sạc' },
+      { id: 'cat-powerbank', code: 'powerbank', name: 'Pin MagSafe / Sạc dự phòng' },
+      { id: 'cat-screen_protector', code: 'screen_protector', name: 'Kính cường lực' },
+      { id: 'cat-audio', code: 'audio', name: 'Tai nghe AirPods / Tai nghe' },
+      { id: 'cat-case', code: 'case', name: 'Ốp lưng chính hãng' },
+      { id: 'cat-other', code: 'other', name: 'Phụ kiện khác' },
+    ];
+    return getStorage<AccessoryCategoryItem[]>('accessory_categories', defaultCategories);
+  },
+  saveAccessoryCategories(categories: AccessoryCategoryItem[]): void {
+    setStorage('accessory_categories', categories);
+  },
+  addAccessoryCategory(category: AccessoryCategoryItem): void {
+    const list = this.getAccessoryCategories();
+    if (!list.some((c) => c.code === category.code)) {
+      setStorage('accessory_categories', [...list, category]);
+    }
+  },
+  updateAccessoryCategory(oldCode: string, newName: string, newCode?: string): void {
+    const list = this.getAccessoryCategories();
+    const targetCode = newCode || oldCode;
+    const updated = list.map((c) =>
+      c.code === oldCode ? { ...c, name: newName, code: targetCode } : c
+    );
+    setStorage('accessory_categories', updated);
+
+    // Đồng thời tự động cập nhật categoryName cho các sản phẩm phụ kiện hiện có
+    const accessories = this.getAccessories();
+    const updatedAccs = accessories.map((a) => {
+      if (a.category === oldCode) {
+        return { ...a, category: targetCode, categoryName: newName };
+      }
+      return a;
+    });
+    setStorage('accessories', updatedAccs);
+  },
+  deleteAccessoryCategory(code: string): void {
+    const list = this.getAccessoryCategories();
+    setStorage(
+      'accessory_categories',
+      list.filter((c) => c.code !== code)
+    );
+
+    // Chuyển các phụ kiện thuộc danh mục bị xóa về 'other'
+    const accessories = this.getAccessories();
+    const updatedAccs = accessories.map((a) => {
+      if (a.category === code) {
+        return { ...a, category: 'other', categoryName: 'Phụ kiện khác' };
+      }
+      return a;
+    });
+    setStorage('accessories', updatedAccs);
+  },
+
   // Spare parts
   getSpareParts(): SparePartItem[] {
     return getStorage<SparePartItem[]>('spare_parts', initialSpareParts);
+  },
+  addSparePart(part: SparePartItem): void {
+    const parts = this.getSpareParts();
+    const exists = parts.some((p) => p.id === part.id || p.barcode === part.barcode);
+    const updated = exists
+      ? parts.map((p) => (p.id === part.id ? { ...p, ...part } : p))
+      : [part, ...parts];
+    setStorage('spare_parts', updated);
+  },
+  updateSparePart(partId: string, data: Partial<SparePartItem>): void {
+    const parts = this.getSpareParts();
+    const updated = parts.map((p) => (p.id === partId ? { ...p, ...data } : p));
+    setStorage('spare_parts', updated);
+  },
+  deleteSparePart(partId: string): void {
+    const parts = this.getSpareParts();
+    setStorage('spare_parts', parts.filter((p) => p.id !== partId));
+  },
+
+  // Spare Part Categories
+  getSparePartCategories(): SparePartCategoryItem[] {
+    const defaultCategories: SparePartCategoryItem[] = [
+      { id: 'sp-screen', code: 'screen', name: 'Màn hình zin & OEM' },
+      { id: 'sp-battery', code: 'battery', name: 'Pin chuẩn & Dung lượng cao' },
+      { id: 'sp-camera', code: 'camera', name: 'Cụm camera trước / sau' },
+      { id: 'sp-back_glass', code: 'back_glass', name: 'Kính lưng & Sườn máy' },
+      { id: 'sp-charge_port', code: 'charge_port', name: 'Cụm chân sạc & Mic thoại' },
+      { id: 'sp-motherboard', code: 'motherboard', name: 'Mainboard & IC nguồn' },
+      { id: 'sp-other', code: 'other', name: 'Linh kiện khác' },
+    ];
+    return getStorage<SparePartCategoryItem[]>('spare_part_categories', defaultCategories);
+  },
+  saveSparePartCategories(categories: SparePartCategoryItem[]): void {
+    setStorage('spare_part_categories', categories);
+  },
+  addSparePartCategory(category: SparePartCategoryItem): void {
+    const list = this.getSparePartCategories();
+    if (!list.some((c) => c.code === category.code)) {
+      setStorage('spare_part_categories', [...list, category]);
+    }
+  },
+  updateSparePartCategory(oldCode: string, newName: string, newCode?: string): void {
+    const list = this.getSparePartCategories();
+    const targetCode = newCode || oldCode;
+    const updated = list.map((c) =>
+      c.code === oldCode ? { ...c, name: newName, code: targetCode } : c
+    );
+    setStorage('spare_part_categories', updated);
+
+    // Đồng bộ categoryName cho các linh kiện hiện có
+    const parts = this.getSpareParts();
+    const updatedParts = parts.map((p) => {
+      if (p.category === oldCode) {
+        return { ...p, category: targetCode, categoryName: newName };
+      }
+      return p;
+    });
+    setStorage('spare_parts', updatedParts);
+  },
+  deleteSparePartCategory(code: string): void {
+    const list = this.getSparePartCategories();
+    setStorage(
+      'spare_part_categories',
+      list.filter((c) => c.code !== code)
+    );
+
+    // Chuyển linh kiện thuộc danh mục bị xóa về 'other'
+    const parts = this.getSpareParts();
+    const updatedParts = parts.map((p) => {
+      if (p.category === code) {
+        return { ...p, category: 'other', categoryName: 'Linh kiện khác' };
+      }
+      return p;
+    });
+    setStorage('spare_parts', updatedParts);
   },
 
   // Repairs
@@ -1149,6 +1441,41 @@ export const IShopStore = {
       return accessory ? (accessory.stock ?? 0) : 0;
     }
 
+    // Kiểm tra cấu hình PhoneProduct (isOutOfStock, stock theo màu/dung lượng)
+    const phone = this.getPhones().find((p) => p.id === productId);
+    if (phone) {
+      if (capacity) {
+        const cap = phone.capacities.find(
+          (c) => c.size.toLowerCase().replace(/\s+/g, '') === capacity.toLowerCase().replace(/\s+/g, '')
+        );
+        if (cap) {
+          if (cap.isOutOfStock) return 0;
+          if (cap.stock === 0) return 0;
+        }
+      }
+
+      if (color) {
+        const col = phone.colors.find(
+          (c) =>
+            c.name.toLowerCase().trim() === color.toLowerCase().trim() ||
+            c.id.toLowerCase() === color.toLowerCase()
+        );
+        if (col) {
+          if (col.isOutOfStock) return 0;
+          if (col.stock === 0) return 0;
+        }
+      }
+
+      if (color && capacity && phone.variantStocks) {
+        const key = `${color.trim()}_${capacity.trim()}`;
+        const v = phone.variantStocks[key];
+        if (v) {
+          if (v.isOutOfStock) return 0;
+          if (typeof v.stock === 'number') return v.stock;
+        }
+      }
+    }
+
     // Nếu là điện thoại (quản lý qua danh sách phone_stock có trạng thái in_stock)
     const inStockPhones = this.getAvailablePhones().filter((p) => p.phoneId === productId);
 
@@ -1170,11 +1497,33 @@ export const IShopStore = {
         return matchColor && matchCapacity;
       });
 
-      // Nếu có biến thể cụ thể thì trả về số lượng biến thể đó
+      // Nếu có máy khớp trong kho IMEI
       if (matched.length > 0) return matched.length;
 
-      // Nếu không có chính xác biến thể đó nhưng có máy thuộc dòng này
-      return matched.length;
+      // Nếu trong cấu hình capacity hoặc color có thiết lập stock cụ thể
+      if (phone) {
+        const cap = capacity
+          ? phone.capacities.find(
+              (c) =>
+                c.size.toLowerCase().replace(/\s+/g, '') === capacity.toLowerCase().replace(/\s+/g, '')
+            )
+          : null;
+        const col = color
+          ? phone.colors.find((c) => c.name.toLowerCase().trim() === color.toLowerCase().trim())
+          : null;
+
+        if (cap && typeof cap.stock === 'number' && cap.stock > 0) {
+          if (col && typeof col.stock === 'number') {
+            return Math.min(cap.stock, col.stock);
+          }
+          return cap.stock;
+        }
+        if (col && typeof col.stock === 'number' && col.stock > 0) {
+          return col.stock;
+        }
+      }
+
+      return 0;
     }
 
     // Trường hợp chung dòng điện thoại
@@ -1295,6 +1644,9 @@ export const IShopStore = {
         setStorage('comparison_ids', [...list, phoneId]);
       }
     }
+  },
+  setComparisonList(phoneIds: string[]) {
+    setStorage('comparison_ids', phoneIds.slice(0, 3));
   },
   // =========================================================================
   // 1. QUẢN LÝ MÃ SẢN PHẨM / THIẾT BỊ VÒNG ĐỜI THỐNG NHẤT (CHUNG MÃ IMEI)

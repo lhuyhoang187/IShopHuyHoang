@@ -1,13 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import {
   Tag,
-  Sparkles,
+  Package,
   Clock,
-  Calendar,
-  Percent,
   DollarSign,
   Smartphone,
   Headphones,
@@ -15,21 +13,25 @@ import {
   Trash2,
   Edit3,
   CheckCircle2,
-  AlertCircle,
   Save,
   QrCode,
   Gift,
-  ArrowRight,
-  TrendingDown,
-  RefreshCw,
   Search,
   Filter,
   Check,
   X,
-  Copy,
-  Printer,
-  ChevronRight,
   Zap,
+  ArrowUpDown,
+  Sliders,
+  CheckSquare,
+  Square,
+  ExternalLink,
+  Percent,
+  RefreshCw,
+  Eye,
+  Printer,
+  ChevronDown,
+  AlertCircle,
 } from 'lucide-react';
 import { IShopStore } from '@/lib/store';
 import {
@@ -41,10 +43,30 @@ import {
 } from '@/lib/types';
 import { formatVND } from '@/lib/vietqr';
 
+/**
+ * Chuyển số tiền thành chuỗi đọc tiếng Việt ngắn gọn (VD: 29.990.000 -> 29 triệu 990 nghìn đ)
+ * Giúp nhân viên nhận diện ngay lập tức, tránh tuyệt đối sai sót gõ nhầm số 0.
+ */
+function formatVietnameseWords(amount: number): string {
+  if (!amount || amount <= 0) return '0 đ';
+  const trieu = Math.floor(amount / 1000000);
+  const nghin = Math.floor((amount % 1000000) / 1000);
+  const le = amount % 1000;
+
+  const parts: string[] = [];
+  if (trieu > 0) parts.push(`${trieu} triệu`);
+  if (nghin > 0) parts.push(`${nghin} nghìn`);
+  if (le > 0) parts.push(`${le} đ`);
+  return parts.length > 0 ? parts.join(' ') : `${amount} đ`;
+}
+
+// Preset mức chiết khấu thông dụng
+const DISCOUNT_PRESETS = [0, 5, 10, 15, 20, 25, 30, 50];
+
 export default function AdminPromotionsPage() {
-  const [activeTab, setActiveTab] = useState<'pricing' | 'campaigns' | 'qrcodes' | 'redeem'>(
-    'pricing'
-  );
+  const [activeTab, setActiveTab] = useState<
+    'phones' | 'accessories' | 'campaigns' | 'qrcodes' | 'redeem'
+  >('phones');
   const [role, setRole] = useState<Role>('admin');
 
   // Catalogs
@@ -53,15 +75,28 @@ export default function AdminPromotionsPage() {
   const [campaigns, setCampaigns] = useState<PromotionCampaign[]>([]);
   const [promoQRs, setPromoQRs] = useState<PromoQRCode[]>([]);
 
-  // Search & Filter for pricing
-  const [searchQuery, setSearchQuery] = useState('');
-  const [productTypeFilter, setProductTypeFilter] = useState<'all' | 'phones' | 'accessories'>(
-    'all'
-  );
-  const [brandFilter, setBrandFilter] = useState('all');
+  // Search & Filter for Phones List
+  const [phoneSearch, setPhoneSearch] = useState('');
+  const [phoneBrandFilter, setPhoneBrandFilter] = useState<string>('all');
+  const [phoneDiscountFilter, setPhoneDiscountFilter] = useState<'all' | 'discounted' | 'original'>('all');
+  const [selectedPhoneIds, setSelectedPhoneIds] = useState<string[]>([]);
+
+  // Search & Filter for Accessories List
+  const [accSearch, setAccSearch] = useState('');
+  const [accCategoryFilter, setAccCategoryFilter] = useState<string>('all');
+  const [selectedAccIds, setSelectedAccIds] = useState<string[]>([]);
 
   // Feedback Notification
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Detailed Phone Pricing Config Modal
+  const [detailPhoneModal, setDetailPhoneModal] = useState<PhoneProduct | null>(null);
+  const [detailCapacities, setDetailCapacities] = useState<
+    { size: string; price: number; originalPrice: number; discountPercent: number }[]
+  >([]);
+
+  // Batch Phone Discount Modal / Popover
+  const [batchDiscountPercent, setBatchDiscountPercent] = useState<number>(10);
 
   // Modal / Form state for Campaign
   const [isCampaignModalOpen, setIsCampaignModalOpen] = useState(false);
@@ -85,24 +120,7 @@ export default function AdminPromotionsPage() {
   const [qrMinOrder, setQrMinOrder] = useState<number>(5000000);
   const [qrStart, setQrStart] = useState('');
   const [qrEnd, setQrEnd] = useState('');
-
-  // Inline edit state for Phones: phoneId -> { [capacitySize]: { price, originalPrice } }
-  const [phonePriceEdits, setPhonePriceEdits] = useState<
-    Record<string, Record<string, { price: number; originalPrice: number }>>
-  >({});
-
-  // Inline edit state for Accessories: accessoryId -> { sellingPrice, originalPrice, discountWhenBoughtWithPhone, pointsToRedeem }
-  const [accPriceEdits, setAccPriceEdits] = useState<
-    Record<
-      string,
-      {
-        sellingPrice: number;
-        originalPrice: number;
-        discountWhenBoughtWithPhone: number;
-        pointsToRedeem: number;
-      }
-    >
-  >({});
+  const [previewQrModal, setPreviewQrModal] = useState<PromoQRCode | null>(null);
 
   // Realtime clock for countdown
   const [now, setNow] = useState(Date.now());
@@ -123,31 +141,6 @@ export default function AdminPromotionsPage() {
     setAccessories(accList);
     setCampaigns(campList);
     setPromoQRs(qrList);
-
-    // Init phonePriceEdits
-    const pEdits: Record<string, Record<string, { price: number; originalPrice: number }>> = {};
-    phoneList.forEach((p) => {
-      pEdits[p.id] = {};
-      p.capacities.forEach((c) => {
-        pEdits[p.id][c.size] = {
-          price: c.price,
-          originalPrice: c.originalPrice,
-        };
-      });
-    });
-    setPhonePriceEdits(pEdits);
-
-    // Init accPriceEdits
-    const aEdits: Record<string, any> = {};
-    accList.forEach((a) => {
-      aEdits[a.id] = {
-        sellingPrice: a.sellingPrice,
-        originalPrice: a.originalPrice,
-        discountWhenBoughtWithPhone: a.discountWhenBoughtWithPhone || 15,
-        pointsToRedeem: a.pointsToRedeem || Math.round(a.sellingPrice / 1000),
-      };
-    });
-    setAccPriceEdits(aEdits);
   };
 
   useEffect(() => {
@@ -164,69 +157,279 @@ export default function AdminPromotionsPage() {
   // Format countdown string
   const formatCountdown = (endDateStr: string) => {
     const diff = new Date(endDateStr).getTime() - now;
-    if (diff <= 0) return 'Đã hết hạn';
+    if (diff <= 0) return 'Đã kết thúc';
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
     const minutes = Math.floor((diff / 1000 / 60) % 60);
     const seconds = Math.floor((diff / 1000) % 60);
 
     if (days > 0) {
-      return `${days} ngày ${hours} giờ ${minutes} phút`;
+      return `${days} ngày ${hours}h ${minutes}p`;
     }
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(
       seconds
     ).padStart(2, '0')}`;
   };
 
-  // Handlers for Phone Price Editing
-  const handleSavePhonePrice = (phoneId: string, capacitySize: string) => {
-    const edit = phonePriceEdits[phoneId]?.[capacitySize];
-    if (!edit) return;
+  // =========================================================================
+  // PHONE PRICING LIST HANDLERS
+  // =========================================================================
 
-    if (edit.price <= 0) {
-      alert('Giá bán phải lớn hơn 0');
-      return;
-    }
-
-    IShopStore.updatePhonePrice(phoneId, capacitySize, edit.price, edit.originalPrice);
-    showToast(`✓ Đã cập nhật giá phiên bản ${capacitySize} thành công!`);
-  };
-
-  // Quick discount % for all capacities of a phone
-  const handleQuickDiscountPhone = (phoneId: string, discountPercent: number) => {
+  // Quick preset discount for all capacities of 1 phone
+  const applyQuickPhoneDiscount = (phoneId: string, percent: number) => {
     const phone = phones.find((p) => p.id === phoneId);
     if (!phone) return;
 
     phone.capacities.forEach((c) => {
       const orig = c.originalPrice > 0 ? c.originalPrice : c.price;
-      const newPrice = Math.round((orig * (100 - discountPercent)) / 100000) * 1000;
+      const newPrice =
+        percent === 0 ? orig : Math.round((orig * (100 - percent)) / 100000) * 1000;
       IShopStore.updatePhonePrice(phoneId, c.size, newPrice, orig);
     });
 
     loadData();
-    showToast(`✓ Đã áp dụng giảm ${discountPercent}% cho toàn bộ bản ${phone.name}!`);
+    showToast(
+      percent === 0
+        ? `✓ Đã khôi phục giá niêm yết cho ${phone.name}`
+        : `✓ Đã áp dụng giảm ${percent}% cho toàn bộ dung lượng của ${phone.name}`
+    );
   };
 
-  // Handlers for Accessory Price Editing
-  const handleSaveAccessoryPrice = (accId: string) => {
-    const edit = accPriceEdits[accId];
-    if (!edit) return;
+  // Open Detailed Config Modal for 1 Phone
+  const openDetailPhoneModal = (phone: PhoneProduct) => {
+    setDetailPhoneModal(phone);
+    setDetailCapacities(
+      phone.capacities.map((c) => {
+        const orig = c.originalPrice > 0 ? c.originalPrice : c.price;
+        const discountPct = orig > c.price ? Math.round(((orig - c.price) / orig) * 100) : 0;
+        return {
+          size: c.size,
+          price: c.price,
+          originalPrice: orig,
+          discountPercent: discountPct,
+        };
+      })
+    );
+  };
 
-    if (edit.sellingPrice <= 0) {
-      alert('Giá bán phải lớn hơn 0');
+  // Update capacity row in detail modal
+  const handleDetailCapacityChange = (
+    index: number,
+    field: 'originalPrice' | 'price' | 'percent',
+    value: number
+  ) => {
+    setDetailCapacities((prev) => {
+      const next = [...prev];
+      const item = { ...next[index] };
+
+      if (field === 'percent') {
+        item.discountPercent = value;
+        if (value === 0) {
+          item.price = item.originalPrice;
+        } else {
+          item.price = Math.round((item.originalPrice * (100 - value)) / 100000) * 1000;
+        }
+      } else if (field === 'originalPrice') {
+        item.originalPrice = value;
+        if (item.discountPercent > 0) {
+          item.price =
+            Math.round((value * (100 - item.discountPercent)) / 100000) * 1000;
+        }
+      } else if (field === 'price') {
+        item.price = value;
+        if (item.originalPrice > value && item.originalPrice > 0) {
+          item.discountPercent = Math.round(
+            ((item.originalPrice - value) / item.originalPrice) * 100
+          );
+        } else {
+          item.discountPercent = 0;
+        }
+      }
+
+      next[index] = item;
+      return next;
+    });
+  };
+
+  // Apply discount to all capacities inside modal
+  const handleApplyAllCapacitiesInModal = (percent: number) => {
+    setDetailCapacities((prev) =>
+      prev.map((c) => {
+        const newPrice =
+          percent === 0 ? c.originalPrice : Math.round((c.originalPrice * (100 - percent)) / 100000) * 1000;
+        return {
+          ...c,
+          discountPercent: percent,
+          price: newPrice,
+        };
+      })
+    );
+  };
+
+  // Save all capacities from modal
+  const handleSavePhoneDetail = () => {
+    if (!detailPhoneModal) return;
+
+    detailCapacities.forEach((c) => {
+      IShopStore.updatePhonePrice(
+        detailPhoneModal.id,
+        c.size,
+        c.price,
+        c.originalPrice
+      );
+    });
+
+    loadData();
+    showToast(`✓ Đã lưu cấu hình giá & khuyến mãi cho ${detailPhoneModal.name}!`);
+    setDetailPhoneModal(null);
+  };
+
+  // Batch action: Apply discount to all selected phones
+  const handleBatchApplyPhoneDiscount = (percent: number) => {
+    if (selectedPhoneIds.length === 0) {
+      alert('Vui lòng tích chọn ít nhất 1 dòng máy để cấu hình.');
       return;
     }
 
-    IShopStore.updateAccessory(accId, {
-      sellingPrice: edit.sellingPrice,
-      originalPrice: edit.originalPrice,
-      discountWhenBoughtWithPhone: edit.discountWhenBoughtWithPhone,
-      pointsToRedeem: edit.pointsToRedeem,
+    selectedPhoneIds.forEach((pId) => {
+      const phone = phones.find((p) => p.id === pId);
+      if (phone) {
+        phone.capacities.forEach((c) => {
+          const orig = c.originalPrice > 0 ? c.originalPrice : c.price;
+          const newPrice =
+            percent === 0 ? orig : Math.round((orig * (100 - percent)) / 100000) * 1000;
+          IShopStore.updatePhonePrice(pId, c.size, newPrice, orig);
+        });
+      }
     });
-    showToast(`✓ Đã lưu thay đổi giá & điều kiện khuyến mãi phụ kiện!`);
+
+    loadData();
+    setSelectedPhoneIds([]);
+    showToast(
+      percent === 0
+        ? `✓ Đã khôi phục giá gốc cho ${selectedPhoneIds.length} dòng máy đã chọn!`
+        : `✓ Đã áp dụng giảm ${percent}% thành công cho ${selectedPhoneIds.length} dòng máy!`
+    );
   };
 
-  // Handlers for Campaign Modal
+  // Select all / toggle for phones
+  const handleToggleSelectAllPhones = () => {
+    if (selectedPhoneIds.length === filteredPhones.length) {
+      setSelectedPhoneIds([]);
+    } else {
+      setSelectedPhoneIds(filteredPhones.map((p) => p.id));
+    }
+  };
+
+  const handleToggleSelectPhone = (id: string) => {
+    setSelectedPhoneIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  // Filtered phones list
+  const filteredPhones = useMemo(() => {
+    return phones.filter((p) => {
+      if (phoneBrandFilter !== 'all' && p.brand !== phoneBrandFilter) return false;
+      if (phoneDiscountFilter === 'discounted') {
+        const hasDiscount = p.capacities.some((c) => c.originalPrice > c.price);
+        if (!hasDiscount) return false;
+      } else if (phoneDiscountFilter === 'original') {
+        const allOriginal = p.capacities.every(
+          (c) => !c.originalPrice || c.originalPrice <= c.price
+        );
+        if (!allOriginal) return false;
+      }
+      if (phoneSearch.trim()) {
+        const q = phoneSearch.toLowerCase();
+        return p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q);
+      }
+      return true;
+    });
+  }, [phones, phoneBrandFilter, phoneDiscountFilter, phoneSearch]);
+
+  // Unique brands
+  const phoneBrands = useMemo(() => {
+    const set = new Set<string>();
+    phones.forEach((p) => set.add(p.brand));
+    return Array.from(set);
+  }, [phones]);
+
+  // =========================================================================
+  // ACCESSORY PRICING LIST HANDLERS
+  // =========================================================================
+
+  const handleSaveAccessory = (
+    accId: string,
+    data: {
+      sellingPrice?: number;
+      originalPrice?: number;
+      discountWhenBoughtWithPhone?: number;
+      pointsToRedeem?: number;
+    }
+  ) => {
+    IShopStore.updateAccessory(accId, data);
+    loadData();
+    showToast('✓ Đã cập nhật giá phụ kiện thành công!');
+  };
+
+  const handleBatchApplyAccDiscountWithPhone = (percent: number) => {
+    if (selectedAccIds.length === 0) {
+      alert('Vui lòng tích chọn phụ kiện trong danh sách để áp dụng.');
+      return;
+    }
+
+    selectedAccIds.forEach((id) => {
+      IShopStore.updateAccessory(id, { discountWhenBoughtWithPhone: percent });
+    });
+
+    loadData();
+    setSelectedAccIds([]);
+    showToast(`✓ Đã thiết lập giảm ${percent}% khi mua kèm máy cho ${selectedAccIds.length} phụ kiện!`);
+  };
+
+  const handleAutoCalcPointsAllAccessories = () => {
+    if (
+      !window.confirm(
+        'Tự động chuẩn hóa điểm đổi quà cho toàn bộ phụ kiện (1 điểm = 1.000 VNĐ)?'
+      )
+    )
+      return;
+
+    accessories.forEach((a) => {
+      const pts = Math.max(10, Math.round(a.sellingPrice / 1000));
+      IShopStore.updateAccessory(a.id, { pointsToRedeem: pts });
+    });
+
+    loadData();
+    showToast('✓ Đã đồng bộ điểm đổi quà (1 điểm = 1.000đ) cho tất cả phụ kiện!');
+  };
+
+  const filteredAccessories = useMemo(() => {
+    return accessories.filter((a) => {
+      if (accCategoryFilter !== 'all' && a.category !== accCategoryFilter) return false;
+      if (accSearch.trim()) {
+        const q = accSearch.toLowerCase();
+        return (
+          a.name.toLowerCase().includes(q) ||
+          a.brand.toLowerCase().includes(q) ||
+          a.barcode.toLowerCase().includes(q)
+        );
+      }
+      return true;
+    });
+  }, [accessories, accCategoryFilter, accSearch]);
+
+  const accCategories = useMemo(() => {
+    const map = new Map<string, string>();
+    accessories.forEach((a) => map.set(a.category, a.categoryName || a.category));
+    return Array.from(map.entries());
+  }, [accessories]);
+
+  // =========================================================================
+  // CAMPAIGN FLASH SALE HANDLERS
+  // =========================================================================
+
   const openNewCampaignModal = () => {
     setEditingCampaignId(null);
     setCampaignTitle('');
@@ -234,7 +437,6 @@ export default function AdminPromotionsPage() {
     setCampaignBadge('FLASH SALE');
     setCampaignType('percentage');
     setCampaignValue(15);
-    // Default start now, end 3 days later
     const startStr = new Date().toISOString().slice(0, 16);
     const endStr = new Date(Date.now() + 3600 * 1000 * 72).toISOString().slice(0, 16);
     setCampaignStart(startStr);
@@ -259,7 +461,7 @@ export default function AdminPromotionsPage() {
   const handleSaveCampaign = (e: React.FormEvent) => {
     e.preventDefault();
     if (!campaignTitle.trim()) {
-      alert('Vui lòng nhập tên chương trình khuyến mãi');
+      alert('Vui lòng nhập tên chiến dịch khuyến mãi');
       return;
     }
 
@@ -305,7 +507,10 @@ export default function AdminPromotionsPage() {
     }
   };
 
-  // Handlers for Promo QR
+  // =========================================================================
+  // PROMO QR CODE HANDLERS
+  // =========================================================================
+
   const openNewQrModal = () => {
     setQrCode('SUMMER-' + Math.floor(100 + Math.random() * 900));
     setQrTitle('');
@@ -341,7 +546,7 @@ export default function AdminPromotionsPage() {
       bannerColor: 'from-amber-500 to-orange-600',
     });
 
-    showToast('✓ Đã tạo mã QR Khuyến mãi mới kèm thời gian hiệu lực!');
+    showToast('✓ Đã tạo mã QR Khuyến mãi mới!');
     setIsQrModalOpen(false);
     loadData();
   };
@@ -360,145 +565,129 @@ export default function AdminPromotionsPage() {
     }
   };
 
-  // Filter products for Tab 1
-  const filteredPhones = phones.filter((p) => {
-    if (productTypeFilter === 'accessories') return false;
-    if (brandFilter !== 'all' && p.brand !== brandFilter) return false;
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      return p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q);
-    }
-    return true;
-  });
+  // Metrics summary
+  const discountedPhonesCount = useMemo(() => {
+    return phones.filter((p) => p.capacities.some((c) => c.originalPrice > c.price)).length;
+  }, [phones]);
 
-  const filteredAccessories = accessories.filter((a) => {
-    if (productTypeFilter === 'phones') return false;
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      return (
-        a.name.toLowerCase().includes(q) ||
-        a.brand.toLowerCase().includes(q) ||
-        a.barcode.includes(q)
-      );
-    }
-    return true;
-  });
+  const activeCampaignsCount = useMemo(() => {
+    return campaigns.filter((c) => c.isActive && new Date(c.endDate).getTime() > now).length;
+  }, [campaigns, now]);
 
   return (
     <div className="space-y-6">
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed top-20 right-6 z-50 p-4 rounded-2xl bg-emerald-600 text-white shadow-2xl flex items-center gap-3 animate-bounce">
+        <div className="fixed top-20 right-6 z-50 p-4 rounded-2xl bg-emerald-600 text-white shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 duration-300">
           <CheckCircle2 className="w-5 h-5 shrink-0" />
           <span className="text-xs sm:text-sm font-bold">{toastMessage}</span>
         </div>
       )}
 
       {/* Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-200">
         <div>
           <div className="flex items-center gap-2">
             <span className="text-xs font-black text-amber-700 uppercase tracking-wider">
               Trung Tâm Quản Trị Giá & Khuyến Mãi
             </span>
             <span className="text-slate-300">•</span>
-            <span className="text-xs text-slate-500 font-medium">Hệ thống thời gian thực 2026</span>
+            <span className="text-xs text-slate-500 font-medium">Hệ thống bảng cấu hình dạng List 2026</span>
           </div>
           <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 flex items-center gap-2.5 mt-1">
             <Tag className="w-7 h-7 text-amber-600" />
-            <span>Điều Chỉnh Giá & Cấu Hình Khuyến Mãi</span>
+            <span>Cấu Hình Giá Bán & Khuyến Mãi Dạng List</span>
           </h1>
           <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-3xl">
-            Sửa giá bán trực tiếp cho điện thoại và phụ kiện đang kinh doanh, thiết lập thời gian bắt đầu
-            - kết thúc Flash Sale có đếm ngược, quản lý mã QR và điểm quy đổi quà tặng.
+            Quản lý giá niêm yết, thiết lập % chiết khấu nhanh từ danh sách định sẵn, cấu hình Flash Sale thời gian thực và voucher QR giúp tránh hoàn toàn sai sót khi nhập thủ công.
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 shrink-0">
+        <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
           <button
             onClick={openNewCampaignModal}
             className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-black text-xs shadow-md shadow-amber-500/20 flex items-center gap-2 transition-transform hover:scale-105 cursor-pointer"
           >
             <Zap className="w-4 h-4" />
-            <span>Tạo Flash Sale Mới</span>
+            <span>+ Tạo Flash Sale Mới</span>
           </button>
           <button
             onClick={openNewQrModal}
             className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white font-bold text-xs shadow-md flex items-center gap-2 transition-transform hover:scale-105 cursor-pointer"
           >
             <QrCode className="w-4 h-4 text-amber-400" />
-            <span>Tạo Mã QR Mới</span>
+            <span>+ Tạo Mã QR Voucher</span>
           </button>
         </div>
       </div>
 
-      {/* Overview Metric Cards */}
+      {/* KPI Overview Metrics */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200 shadow-sm flex items-center justify-between">
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
           <div>
             <span className="text-[11px] font-bold text-slate-500 uppercase block">
-              Dòng Điện Thoại Đang Bán
+              Dòng Điện Thoại
             </span>
-            <span className="text-xl sm:text-2xl font-black text-slate-900 mt-1 block">
+            <span className="text-xl font-black text-slate-900 mt-0.5 block">
               {phones.length} <span className="text-xs font-normal text-slate-500">model</span>
             </span>
             <span className="text-[11px] text-amber-700 font-semibold mt-0.5 block">
-              Chỉnh giá theo từng bản GB
+              {discountedPhonesCount} model đang giảm giá
             </span>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-            <Smartphone className="w-6 h-6" />
+          <div className="w-11 h-11 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+            <Smartphone className="w-5 h-5" />
           </div>
         </div>
 
-        <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200 shadow-sm flex items-center justify-between">
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
           <div>
             <span className="text-[11px] font-bold text-slate-500 uppercase block">
               Mặt Hàng Phụ Kiện
             </span>
-            <span className="text-xl sm:text-2xl font-black text-emerald-700 mt-1 block">
+            <span className="text-xl font-black text-emerald-700 mt-0.5 block">
               {accessories.length} <span className="text-xs font-normal text-slate-500">loại</span>
             </span>
             <span className="text-[11px] text-emerald-600 font-semibold mt-0.5 block">
-              Giá lẻ & % kèm máy
+              Cấu hình % giảm kèm máy
             </span>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-            <Headphones className="w-6 h-6" />
+          <div className="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+            <Headphones className="w-5 h-5" />
           </div>
         </div>
 
-        <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200 shadow-sm flex items-center justify-between">
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
           <div>
             <span className="text-[11px] font-bold text-slate-500 uppercase block">
-              Chiến Dịch Khuyến Mãi
+              Chiến Dịch Flash Sale
             </span>
-            <span className="text-xl sm:text-2xl font-black text-rose-600 mt-1 block">
-              {campaigns.filter((c) => c.isActive).length} / {campaigns.length}
+            <span className="text-xl font-black text-rose-600 mt-0.5 block">
+              {activeCampaignsCount} / {campaigns.length}
             </span>
             <span className="text-[11px] text-rose-600 font-semibold mt-0.5 block">
               Đang chạy thời gian thực
             </span>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
-            <Zap className="w-6 h-6" />
+          <div className="w-11 h-11 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
+            <Zap className="w-5 h-5" />
           </div>
         </div>
 
-        <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200 shadow-sm flex items-center justify-between">
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
           <div>
             <span className="text-[11px] font-bold text-slate-500 uppercase block">
               Mã QR Khuyến Mãi
             </span>
-            <span className="text-xl sm:text-2xl font-black text-indigo-700 mt-1 block">
+            <span className="text-xl font-black text-indigo-700 mt-0.5 block">
               {promoQRs.filter((q) => q.isActive).length} <span className="text-xs font-normal text-slate-500">mã</span>
             </span>
             <span className="text-[11px] text-indigo-600 font-semibold mt-0.5 block">
-              Có hạn dùng & đếm ngược
+              Quét camera áp dụng ngay
             </span>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
-            <QrCode className="w-6 h-6" />
+          <div className="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+            <QrCode className="w-5 h-5" />
           </div>
         </div>
       </div>
@@ -506,791 +695,638 @@ export default function AdminPromotionsPage() {
       {/* Main Tabs Navigation */}
       <div className="flex items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto text-xs sm:text-sm">
         <button
-          onClick={() => setActiveTab('pricing')}
-          className={`px-5 py-2.5 rounded-2xl font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
-            activeTab === 'pricing'
+          onClick={() => setActiveTab('phones')}
+          className={`px-4 py-2.5 rounded-2xl font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
+            activeTab === 'phones'
               ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
           }`}
         >
-          <DollarSign className="w-4 h-4" />
-          <span>1. Điều Chỉnh Giá Trực Tiếp Sản Phẩm</span>
+          <Smartphone className="w-4 h-4" />
+          <span>1. Cấu Hình Giá & KM Điện Thoại (List)</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('accessories')}
+          className={`px-4 py-2.5 rounded-2xl font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
+            activeTab === 'accessories'
+              ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+          }`}
+        >
+          <Headphones className="w-4 h-4" />
+          <span>2. Cấu Hình Giá & KM Phụ Kiện (List)</span>
         </button>
 
         <button
           onClick={() => setActiveTab('campaigns')}
-          className={`px-5 py-2.5 rounded-2xl font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
+          className={`px-4 py-2.5 rounded-2xl font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
             activeTab === 'campaigns'
               ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
           }`}
         >
           <Clock className="w-4 h-4" />
-          <span>2. Cài Đặt Flash Sale & Thời Gian Khuyến Mãi</span>
+          <span>3. Danh Sách Flash Sale ({campaigns.length})</span>
         </button>
 
         <button
           onClick={() => setActiveTab('qrcodes')}
-          className={`px-5 py-2.5 rounded-2xl font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
+          className={`px-4 py-2.5 rounded-2xl font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
             activeTab === 'qrcodes'
               ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
           }`}
         >
           <QrCode className="w-4 h-4" />
-          <span>3. Mã QR Khuyến Mãi (Quét Giảm Giá)</span>
+          <span>4. Danh Sách Mã QR Voucher ({promoQRs.length})</span>
         </button>
 
         <button
           onClick={() => setActiveTab('redeem')}
-          className={`px-5 py-2.5 rounded-2xl font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
+          className={`px-4 py-2.5 rounded-2xl font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
             activeTab === 'redeem'
               ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
           }`}
         >
           <Gift className="w-4 h-4" />
-          <span>4. Cấu Hình Điểm Đổi Phụ Kiện</span>
+          <span>5. Cấu Hình Điểm Đổi Quà Tặng</span>
         </button>
       </div>
 
       {/* ========================================================================= */}
-      {/* TAB 1: ĐIỀU CHỈNH GIÁ TRỰC TIẾP SẢN PHẨM */}
+      {/* TAB 1: CẤU HÌNH GIÁ & KHUYẾN MÃI ĐIỆN THOẠI (DẠNG LIST THÔNG MINH) */}
       {/* ========================================================================= */}
-      {activeTab === 'pricing' && (
-        <div className="space-y-6">
-          {/* Filter Bar */}
-          <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-4">
-            <div className="relative flex-1 min-w-[280px]">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Tìm sản phẩm cần sửa giá (iPhone 16, S24, Củ sạc 65W, Kính KingKong)..."
-                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-amber-500 focus:bg-white"
-              />
-            </div>
+      {activeTab === 'phones' && (
+        <div className="space-y-4">
+          {/* Filter Bar & Controls */}
+          <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm space-y-3">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+              {/* Search input */}
+              <div className="relative flex-1 max-w-md">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={phoneSearch}
+                  onChange={(e) => setPhoneSearch(e.target.value)}
+                  placeholder="Tìm dòng máy (iPhone 16 Pro, S24 Ultra, Xiaomi 14)..."
+                  className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-amber-500 focus:bg-white"
+                />
+              </div>
 
-            <div className="flex items-center gap-2 text-xs">
-              <span className="text-slate-500 font-medium">Loại sản phẩm:</span>
-              <select
-                value={productTypeFilter}
-                onChange={(e: any) => setProductTypeFilter(e.target.value)}
-                className="bg-slate-50 border border-slate-200 text-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-amber-500 font-bold"
-              >
-                <option value="all">Tất cả sản phẩm</option>
-                <option value="phones">📱 Điện thoại ({phones.length})</option>
-                <option value="accessories">🎧 Phụ kiện ({accessories.length})</option>
-              </select>
-
-              {productTypeFilter !== 'accessories' && (
+              {/* Status Filter */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-slate-500">Trạng thái giá:</span>
                 <select
-                  value={brandFilter}
-                  onChange={(e) => setBrandFilter(e.target.value)}
-                  className="bg-slate-50 border border-slate-200 text-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-amber-500 font-bold"
+                  value={phoneDiscountFilter}
+                  onChange={(e: any) => setPhoneDiscountFilter(e.target.value)}
+                  className="bg-slate-50 border border-slate-200 text-slate-800 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-amber-500 font-bold"
                 >
-                  <option value="all">Tất cả hãng</option>
-                  <option value="Apple">Apple</option>
-                  <option value="Samsung">Samsung</option>
-                  <option value="Xiaomi">Xiaomi</option>
-                  <option value="OPPO">OPPO</option>
+                  <option value="all">Tất cả ({phones.length})</option>
+                  <option value="discounted">Đang giảm giá ({discountedPhonesCount})</option>
+                  <option value="original">Giá niêm yết chuẩn ({phones.length - discountedPhonesCount})</option>
                 </select>
-              )}
+              </div>
+            </div>
+
+            {/* Brand Filter Chips */}
+            <div className="flex items-center gap-1.5 flex-wrap pt-2 border-t border-slate-100">
+              <span className="text-xs font-bold text-slate-400 mr-1 flex items-center gap-1">
+                <Filter className="w-3.5 h-3.5" />
+                Hãng:
+              </span>
+              <button
+                onClick={() => setPhoneBrandFilter('all')}
+                className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  phoneBrandFilter === 'all'
+                    ? 'bg-slate-900 text-white shadow-sm'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                Tất Cả ({phones.length})
+              </button>
+              {phoneBrands.map((b) => (
+                <button
+                  key={b}
+                  onClick={() => setPhoneBrandFilter(b)}
+                  className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    phoneBrandFilter === b
+                      ? 'bg-amber-500 text-black shadow-sm font-black'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {b} ({phones.filter((p) => p.brand === b).length})
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Section: PHONES PRICING */}
-          {productTypeFilter !== 'accessories' && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
-                  <Smartphone className="w-5 h-5 text-amber-600" />
-                  <span>Bảng Giá Niêm Yết & Giá Khuyến Mãi Điện Thoại</span>
-                </h2>
-                <span className="text-xs text-slate-500">
-                  Hiển thị {filteredPhones.length} dòng máy
+          {/* Bulk Action Bar (when phones are checked) */}
+          {selectedPhoneIds.length > 0 && (
+            <div className="bg-amber-50 border-2 border-amber-300 p-3.5 rounded-2xl shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-lg bg-amber-500 text-black font-black text-xs">
+                  {selectedPhoneIds.length}
+                </span>
+                <span className="text-xs font-bold text-amber-900">
+                  Dòng máy được chọn trong danh sách:
                 </span>
               </div>
 
-              <div className="space-y-4">
-                {filteredPhones.map((phone) => (
-                  <div
-                    key={phone.id}
-                    className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm hover:border-amber-300 transition-all"
-                  >
-                    {/* Header Phone Row */}
-                    <div className="p-4 sm:p-5 bg-slate-50/70 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 font-black flex items-center justify-center text-xs shrink-0">
-                          {phone.brand}
-                        </div>
-                        <div>
-                          <h3 className="font-black text-slate-900 text-sm sm:text-base">
-                            {phone.name}
-                          </h3>
-                          <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
-                            <span>Bảo hành: {phone.warrantyInfo}</span>
-                            <span>•</span>
-                            <Link
-                              href={`/phones/${phone.slug}`}
-                              target="_blank"
-                              className="text-amber-700 hover:underline font-bold"
-                            >
-                              Xem trang khách hàng →
-                            </Link>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Quick Discount Actions */}
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-semibold text-slate-500">Giảm nhanh:</span>
-                        <button
-                          onClick={() => handleQuickDiscountPhone(phone.id, 5)}
-                          className="px-2.5 py-1 rounded-lg bg-slate-200 hover:bg-amber-100 hover:text-amber-800 text-[11px] font-bold text-slate-700 transition-colors"
-                        >
-                          -5%
-                        </button>
-                        <button
-                          onClick={() => handleQuickDiscountPhone(phone.id, 10)}
-                          className="px-2.5 py-1 rounded-lg bg-slate-200 hover:bg-amber-100 hover:text-amber-800 text-[11px] font-bold text-slate-700 transition-colors"
-                        >
-                          -10%
-                        </button>
-                        <button
-                          onClick={() => handleQuickDiscountPhone(phone.id, 15)}
-                          className="px-2.5 py-1 rounded-lg bg-slate-200 hover:bg-amber-100 hover:text-amber-800 text-[11px] font-bold text-slate-700 transition-colors"
-                        >
-                          -15%
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Capacities Table */}
-                    <div className="p-4 overflow-x-auto">
-                      <table className="w-full text-left text-xs border-collapse">
-                        <thead>
-                          <tr className="text-slate-500 uppercase text-[10px] font-bold border-b border-slate-100">
-                            <th className="pb-2">Phiên Bản Dung Lượng</th>
-                            <th className="pb-2">Giá Gốc Niêm Yết (VNĐ)</th>
-                            <th className="pb-2">Giá Bán Khuyến Mãi (VNĐ)</th>
-                            <th className="pb-2 text-center">% Giảm Giá</th>
-                            <th className="pb-2 text-right">Thao Tác</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {phone.capacities.map((cap) => {
-                            const editVal = phonePriceEdits[phone.id]?.[cap.size] || {
-                              price: cap.price,
-                              originalPrice: cap.originalPrice,
-                            };
-                            const discountPct =
-                              editVal.originalPrice > editVal.price
-                                ? Math.round(
-                                    ((editVal.originalPrice - editVal.price) /
-                                      editVal.originalPrice) *
-                                      100
-                                  )
-                                : 0;
-
-                            return (
-                              <tr key={cap.size} className="hover:bg-amber-50/30">
-                                <td className="py-3 font-black text-slate-900 font-mono text-sm">
-                                  {cap.size}
-                                </td>
-
-                                <td className="py-3">
-                                  <div className="flex items-center gap-1.5 max-w-[200px]">
-                                    <input
-                                      type="number"
-                                      step="50000"
-                                      value={editVal.originalPrice}
-                                      onChange={(e) => {
-                                        const v = Number(e.target.value);
-                                        setPhonePriceEdits((prev) => ({
-                                          ...prev,
-                                          [phone.id]: {
-                                            ...prev[phone.id],
-                                            [cap.size]: {
-                                              ...editVal,
-                                              originalPrice: v,
-                                            },
-                                          },
-                                        }));
-                                      }}
-                                      className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl font-mono text-xs text-slate-600 focus:bg-white focus:border-amber-500 focus:outline-none"
-                                      placeholder="Giá gốc..."
-                                    />
-                                  </div>
-                                </td>
-
-                                <td className="py-3">
-                                  <div className="flex items-center gap-1.5 max-w-[200px]">
-                                    <input
-                                      type="number"
-                                      step="50000"
-                                      value={editVal.price}
-                                      onChange={(e) => {
-                                        const v = Number(e.target.value);
-                                        setPhonePriceEdits((prev) => ({
-                                          ...prev,
-                                          [phone.id]: {
-                                            ...prev[phone.id],
-                                            [cap.size]: {
-                                              ...editVal,
-                                              price: v,
-                                            },
-                                          },
-                                        }));
-                                      }}
-                                      className="w-full p-2 bg-amber-50/50 border-2 border-amber-300 rounded-xl font-mono font-black text-xs text-amber-900 focus:bg-white focus:border-amber-500 focus:outline-none shadow-sm"
-                                      placeholder="Giá bán lẻ..."
-                                    />
-                                  </div>
-                                </td>
-
-                                <td className="py-3 text-center">
-                                  {discountPct > 0 ? (
-                                    <span className="px-2.5 py-1 rounded-full text-[11px] font-black bg-rose-50 text-rose-700 border border-rose-200">
-                                      -{discountPct}%
-                                    </span>
-                                  ) : (
-                                    <span className="text-slate-400 text-xs">Giá chuẩn</span>
-                                  )}
-                                </td>
-
-                                <td className="py-3 text-right">
-                                  <button
-                                    onClick={() => handleSavePhonePrice(phone.id, cap.size)}
-                                    className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-black text-white font-bold text-xs flex items-center gap-1.5 ml-auto transition-transform active:scale-95 cursor-pointer shadow-sm"
-                                  >
-                                    <Save className="w-3.5 h-3.5 text-amber-400" />
-                                    <span>Lưu Giá</span>
-                                  </button>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                ))}
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs text-slate-600 font-medium">Áp dụng giảm nhanh:</span>
+                <button
+                  onClick={() => handleBatchApplyPhoneDiscount(5)}
+                  className="px-2.5 py-1 rounded-lg bg-white border border-amber-300 hover:bg-amber-100 font-bold text-xs text-amber-900 transition-colors cursor-pointer"
+                >
+                  -5%
+                </button>
+                <button
+                  onClick={() => handleBatchApplyPhoneDiscount(10)}
+                  className="px-2.5 py-1 rounded-lg bg-white border border-amber-300 hover:bg-amber-100 font-bold text-xs text-amber-900 transition-colors cursor-pointer"
+                >
+                  -10%
+                </button>
+                <button
+                  onClick={() => handleBatchApplyPhoneDiscount(15)}
+                  className="px-2.5 py-1 rounded-lg bg-white border border-amber-300 hover:bg-amber-100 font-bold text-xs text-amber-900 transition-colors cursor-pointer"
+                >
+                  -15%
+                </button>
+                <button
+                  onClick={() => handleBatchApplyPhoneDiscount(20)}
+                  className="px-2.5 py-1 rounded-lg bg-white border border-amber-300 hover:bg-amber-100 font-bold text-xs text-amber-900 transition-colors cursor-pointer"
+                >
+                  -20%
+                </button>
+                <button
+                  onClick={() => handleBatchApplyPhoneDiscount(0)}
+                  className="px-2.5 py-1 rounded-lg bg-slate-200 hover:bg-slate-300 font-bold text-xs text-slate-800 transition-colors cursor-pointer"
+                >
+                  Khôi phục giá gốc
+                </button>
+                <button
+                  onClick={() => setSelectedPhoneIds([])}
+                  className="p-1 text-slate-400 hover:text-slate-600 text-xs underline ml-2 cursor-pointer"
+                >
+                  Hủy chọn
+                </button>
               </div>
             </div>
           )}
 
-          {/* Section: ACCESSORIES PRICING */}
-          {productTypeFilter !== 'phones' && (
-            <div className="space-y-4 pt-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
-                  <Headphones className="w-5 h-5 text-emerald-600" />
-                  <span>Bảng Giá Bán Lẻ & Chiết Khấu Kèm Máy Của Phụ Kiện</span>
-                </h2>
-                <span className="text-xs text-slate-500">
-                  Hiển thị {filteredAccessories.length} phụ kiện
-                </span>
-              </div>
-
-              <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead className="bg-slate-100 text-slate-700 uppercase text-[10px] font-bold border-b border-slate-200">
-                      <tr>
-                        <th className="p-4">Tên Phụ Kiện &amp; Barcode</th>
-                        <th className="p-4">Hãng</th>
-                        <th className="p-4">Giá Gốc Niêm Yết</th>
-                        <th className="p-4">Giá Bán Lẻ Hiện Tại</th>
-                        <th className="p-4 text-center">Giảm Khi Mua Kèm Máy</th>
-                        <th className="p-4 text-center">Điểm Đổi Thưởng</th>
-                        <th className="p-4 text-right">Thao Tác</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {filteredAccessories.map((acc) => {
-                        const edit = accPriceEdits[acc.id] || {
-                          sellingPrice: acc.sellingPrice,
-                          originalPrice: acc.originalPrice,
-                          discountWhenBoughtWithPhone: acc.discountWhenBoughtWithPhone,
-                          pointsToRedeem: acc.pointsToRedeem,
-                        };
-
-                        return (
-                          <tr key={acc.id} className="hover:bg-amber-50/30 transition-colors">
-                            <td className="p-4">
-                              <span className="font-black text-slate-900 block">{acc.name}</span>
-                              <span className="text-[11px] font-mono text-slate-500">
-                                Barcode: {acc.barcode} • Tồn kho: {acc.stock}
-                              </span>
-                            </td>
-
-                            <td className="p-4 font-semibold text-slate-700">{acc.brand}</td>
-
-                            <td className="p-4">
-                              <input
-                                type="number"
-                                step="10000"
-                                value={edit.originalPrice}
-                                onChange={(e) =>
-                                  setAccPriceEdits((prev) => ({
-                                    ...prev,
-                                    [acc.id]: {
-                                      ...edit,
-                                      originalPrice: Number(e.target.value),
-                                    },
-                                  }))
-                                }
-                                className="w-28 p-2 bg-slate-50 border border-slate-200 rounded-xl font-mono text-xs text-slate-600 focus:bg-white focus:border-emerald-500 focus:outline-none"
-                              />
-                            </td>
-
-                            <td className="p-4">
-                              <input
-                                type="number"
-                                step="10000"
-                                value={edit.sellingPrice}
-                                onChange={(e) =>
-                                  setAccPriceEdits((prev) => ({
-                                    ...prev,
-                                    [acc.id]: {
-                                      ...edit,
-                                      sellingPrice: Number(e.target.value),
-                                    },
-                                  }))
-                                }
-                                className="w-28 p-2 bg-emerald-50/50 border-2 border-emerald-300 rounded-xl font-mono font-black text-xs text-emerald-900 focus:bg-white focus:border-emerald-500 focus:outline-none shadow-sm"
-                              />
-                            </td>
-
-                            <td className="p-4 text-center">
-                              <div className="inline-flex items-center gap-1">
-                                <input
-                                  type="number"
-                                  min="0"
-                                  max="100"
-                                  value={edit.discountWhenBoughtWithPhone}
-                                  onChange={(e) =>
-                                    setAccPriceEdits((prev) => ({
-                                      ...prev,
-                                      [acc.id]: {
-                                        ...edit,
-                                        discountWhenBoughtWithPhone: Number(e.target.value),
-                                      },
-                                    }))
-                                  }
-                                  className="w-14 p-1.5 bg-slate-50 border border-slate-200 rounded-lg text-center font-bold text-xs"
-                                />
-                                <span className="font-bold text-slate-600">%</span>
-                              </div>
-                            </td>
-
-                            <td className="p-4 text-center">
-                              <div className="inline-flex items-center gap-1">
-                                <input
-                                  type="number"
-                                  step="10"
-                                  value={edit.pointsToRedeem}
-                                  onChange={(e) =>
-                                    setAccPriceEdits((prev) => ({
-                                      ...prev,
-                                      [acc.id]: {
-                                        ...edit,
-                                        pointsToRedeem: Number(e.target.value),
-                                      },
-                                    }))
-                                  }
-                                  className="w-16 p-1.5 bg-amber-50 border border-amber-300 text-amber-900 rounded-lg text-center font-black text-xs"
-                                />
-                                <span className="text-[10px] text-slate-500 font-semibold">pts</span>
-                              </div>
-                            </td>
-
-                            <td className="p-4 text-right">
-                              <button
-                                onClick={() => handleSaveAccessoryPrice(acc.id)}
-                                className="px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs flex items-center gap-1 ml-auto transition-transform active:scale-95 cursor-pointer shadow-sm"
-                              >
-                                <Save className="w-3.5 h-3.5" />
-                                <span>Lưu</span>
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* TAB 2: CÀI ĐẶT FLASH SALE & THỜI GIAN KHUYẾN MÃI */}
-      {/* ========================================================================= */}
-      {activeTab === 'campaigns' && (
-        <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h2 className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
-                <Clock className="w-5 h-5 text-amber-600" />
-                <span>Danh Sách Chiến Dịch Khuyến Mãi &amp; Flash Sale Có Đếm Ngược</span>
-              </h2>
-              <p className="text-xs text-slate-500">
-                Setup giờ vàng, ngày bắt đầu và kết thúc. Hệ thống tự động kích hoạt và kết thúc đúng hạn.
-              </p>
-            </div>
-
-            <button
-              onClick={openNewCampaignModal}
-              className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white font-bold text-xs shadow-md flex items-center gap-2 transition-transform hover:scale-105 cursor-pointer shrink-0"
-            >
-              <Plus className="w-4 h-4 text-amber-400" />
-              <span>Thiết Lập Chiến Dịch Mới</span>
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {campaigns.map((camp) => {
-              const isExpired = new Date(camp.endDate).getTime() <= now;
-              const isUpcoming = new Date(camp.startDate).getTime() > now;
-              const isRunning = camp.isActive && !isExpired && !isUpcoming;
-
-              return (
-                <div
-                  key={camp.id}
-                  className={`bg-white rounded-3xl border ${
-                    isRunning ? 'border-amber-300 shadow-lg shadow-amber-500/10' : 'border-slate-200'
-                  } overflow-hidden flex flex-col justify-between`}
-                >
-                  {/* Top Gradient Banner */}
-                  <div
-                    className={`p-5 bg-gradient-to-r ${
-                      camp.bannerGradient || 'from-amber-500 to-orange-600'
-                    } text-white space-y-2`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-black/25 backdrop-blur-sm border border-white/20">
-                        {camp.badgeText || 'KHUYẾN MÃI'}
-                      </span>
-                      <span
-                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
-                          isRunning
-                            ? 'bg-emerald-500 text-white animate-pulse'
-                            : isUpcoming
-                            ? 'bg-amber-400 text-black'
-                            : 'bg-slate-700 text-white'
-                        }`}
-                      >
-                        {isRunning ? '● ĐANG DIỄN RA' : isUpcoming ? '⏳ SẮP DIỄN RA' : '✕ HẾT HẠN'}
-                      </span>
-                    </div>
-
-                    <h3 className="font-black text-base leading-snug">{camp.title}</h3>
-
-                    <div className="flex items-baseline gap-2 pt-1">
-                      <span className="text-2xl font-black">
-                        {camp.discountType === 'percentage'
-                          ? `Giảm ${camp.discountValue}%`
-                          : `Giảm ${formatVND(camp.discountValue)}`}
-                      </span>
-                      <span className="text-[11px] opacity-80 font-medium">
-                        (Áp dụng: {camp.targetCategory === 'all' ? 'Toàn shop' : camp.targetCategory})
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Body Info */}
-                  <div className="p-5 space-y-4 flex-1 flex flex-col justify-between">
-                    <p className="text-xs text-slate-600 leading-relaxed">{camp.description}</p>
-
-                    {/* Countdown Box */}
-                    <div className="p-3.5 rounded-2xl bg-amber-50/60 border border-amber-200/80 space-y-1">
-                      <div className="flex items-center justify-between text-[11px] font-bold text-amber-900">
-                        <span className="flex items-center gap-1.5">
-                          <Clock className="w-3.5 h-3.5 text-amber-600" />
-                          <span>Thời hạn hiệu lực còn lại:</span>
-                        </span>
-                        <span className="font-mono text-xs font-black text-rose-600">
-                          {formatCountdown(camp.endDate)}
-                        </span>
-                      </div>
-                      <div className="text-[10px] text-slate-500 font-mono">
-                        Bắt đầu: {new Date(camp.startDate).toLocaleString('vi-VN')}
-                        <br />
-                        Kết thúc: {new Date(camp.endDate).toLocaleString('vi-VN')}
-                      </div>
-                    </div>
-
-                    {/* Bottom Actions */}
-                    <div className="pt-2 flex items-center justify-between border-t border-slate-100">
-                      <button
-                        onClick={() => handleToggleCampaign(camp.id, camp.isActive)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
-                          camp.isActive
-                            ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100'
-                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                        }`}
-                      >
-                        {camp.isActive ? 'Bật (Active)' : 'Tắt (Pause)'}
-                      </button>
-
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => openEditCampaignModal(camp)}
-                          className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
-                          title="Chỉnh sửa thời gian & nội dung"
-                        >
-                          <Edit3 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteCampaign(camp.id)}
-                          className="p-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 transition-colors cursor-pointer"
-                          title="Xóa chiến dịch"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* TAB 3: MÃ QR KHUYẾN MÃI (QUÉT GIẢM GIÁ) */}
-      {/* ========================================================================= */}
-      {activeTab === 'qrcodes' && (
-        <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h2 className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
-                <QrCode className="w-5 h-5 text-indigo-600" />
-                <span>Quản Lý Mã QR Khuyến Mãi Có Thời Gian Hiệu Lực</span>
-              </h2>
-              <p className="text-xs text-slate-500">
-                Tạo mã QR in tại quầy hoặc gửi khách quét bằng camera điện thoại để tự động áp dụng mã giảm giá khi thanh toán.
-              </p>
-            </div>
-
-            <button
-              onClick={openNewQrModal}
-              className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md flex items-center gap-2 transition-transform hover:scale-105 cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Tạo Mã QR Mới</span>
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {promoQRs.map((qr) => {
-              const isExpired = new Date(qr.endDate).getTime() <= now;
-
-              return (
-                <div
-                  key={qr.id}
-                  className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm flex flex-col justify-between"
-                >
-                  <div className="p-5 space-y-4">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <span className="font-mono text-xs font-black px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 inline-block">
-                          {qr.code}
-                        </span>
-                        <h3 className="font-bold text-slate-900 text-sm mt-1.5">{qr.title}</h3>
-                      </div>
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          qr.isActive && !isExpired
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                            : 'bg-slate-100 text-slate-500'
-                        }`}
-                      >
-                        {qr.isActive && !isExpired ? 'Đang hiệu lực' : 'Đã kết thúc'}
-                      </span>
-                    </div>
-
-                    <p className="text-xs text-slate-600 leading-relaxed">{qr.description}</p>
-
-                    {/* QR Preview Box */}
-                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col items-center justify-center text-center space-y-2">
-                      <img
-                        src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(
-                          qr.code
-                        )}`}
-                        alt={qr.code}
-                        className="w-32 h-32 rounded-xl border border-white shadow-sm bg-white p-2"
-                      />
-                      <span className="text-[11px] font-mono text-slate-500">
-                        Quét mã tại POS hoặc giỏ hàng
-                      </span>
-                    </div>
-
-                    {/* Value & Min Order */}
-                    <div className="space-y-1 text-xs">
-                      <div className="flex justify-between">
-                        <span className="text-slate-500">Mức giảm:</span>
-                        <strong className="text-rose-600 font-bold">
-                          {qr.discountType === 'percentage'
-                            ? `-${qr.discountValue}%`
-                            : `-${formatVND(qr.discountValue)}`}
-                        </strong>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-500">Đơn tối thiểu:</span>
-                        <strong className="text-slate-800 font-medium">
-                          {formatVND(qr.minOrderValue)}
-                        </strong>
-                      </div>
-                      <div className="flex justify-between pt-1 border-t border-slate-100">
-                        <span className="text-slate-500">Thời hạn còn lại:</span>
-                        <strong className="text-amber-800 font-mono font-bold">
-                          {formatCountdown(qr.endDate)}
-                        </strong>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
-                    <button
-                      onClick={() => handleToggleQR(qr.id, qr.isActive)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
-                        qr.isActive
-                          ? 'bg-emerald-100 text-emerald-800'
-                          : 'bg-slate-200 text-slate-700'
-                      }`}
-                    >
-                      {qr.isActive ? 'Đang bật' : 'Đang tạm dừng'}
-                    </button>
-
-                    <button
-                      onClick={() => handleDeleteQR(qr.id)}
-                      className="p-2 rounded-xl text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* TAB 4: CẤU HÌNH ĐIỂM ĐỔI PHỤ KIỆN */}
-      {/* ========================================================================= */}
-      {activeTab === 'redeem' && (
-        <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h2 className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
-                <Gift className="w-5 h-5 text-amber-600" />
-                <span>Quy Đổi Phụ Kiện Bằng Điểm Tích Lũy Thành Viên</span>
-              </h2>
-              <p className="text-xs text-slate-500">
-                Thiết lập số điểm cần thiết để khách hàng đổi quà tặng hoặc phụ kiện cao cấp (VD: 99 điểm cho Kính KingKong, 390 điểm cho Củ sạc GaN).
-              </p>
-            </div>
-          </div>
-
+          {/* Main Phones Table List View */}
           <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
-                <thead className="bg-slate-100 text-slate-700 uppercase text-[10px] font-bold border-b border-slate-200">
+                <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 uppercase text-[10px] font-bold">
                   <tr>
-                    <th className="p-4">Hình Ảnh &amp; Phụ Kiện</th>
-                    <th className="p-4">Giá Bán Lẻ Hiện Tại</th>
-                    <th className="p-4">Tồn Kho</th>
-                    <th className="p-4 text-center">Số Điểm Cần Đổi (Points)</th>
-                    <th className="p-4 text-center">Quy Đổi Thành Tiền</th>
-                    <th className="p-4 text-right">Lưu Cấu Hình</th>
+                    <th className="p-3.5 w-10 text-center">
+                      <input
+                        type="checkbox"
+                        checked={
+                          filteredPhones.length > 0 &&
+                          selectedPhoneIds.length === filteredPhones.length
+                        }
+                        onChange={handleToggleSelectAllPhones}
+                        className="rounded border-slate-300 text-amber-600 focus:ring-amber-500 cursor-pointer"
+                      />
+                    </th>
+                    <th className="p-3.5">Dòng Máy & Thương Hiệu</th>
+                    <th className="p-3.5">Các Phiên Bản Dung Lượng & Giá Niêm Yết</th>
+                    <th className="p-3.5">Khoảng Giá Bán Hiện Tại</th>
+                    <th className="p-3.5 text-center">Mức Khuyến Mãi</th>
+                    <th className="p-3.5 text-center">Cấu Hình Nhanh (Preset)</th>
+                    <th className="p-3.5 text-right">Chi Tiết</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {accessories.map((acc) => {
-                    const edit = accPriceEdits[acc.id] || {
-                      sellingPrice: acc.sellingPrice,
-                      originalPrice: acc.originalPrice,
-                      discountWhenBoughtWithPhone: acc.discountWhenBoughtWithPhone,
-                      pointsToRedeem: acc.pointsToRedeem || Math.round(acc.sellingPrice / 1000),
-                    };
+                  {filteredPhones.map((phone) => {
+                    const isSelected = selectedPhoneIds.includes(phone.id);
+                    const prices = phone.capacities.map((c) => c.price);
+                    const origPrices = phone.capacities.map((c) =>
+                      c.originalPrice > 0 ? c.originalPrice : c.price
+                    );
+                    const minPrice = Math.min(...prices);
+                    const maxPrice = Math.max(...prices);
+                    const minOrig = Math.min(...origPrices);
+                    const maxOrig = Math.max(...origPrices);
+
+                    const hasDiscount = phone.capacities.some((c) => c.originalPrice > c.price);
+                    const maxDiscountPct = Math.max(
+                      ...phone.capacities.map((c) => {
+                        const o = c.originalPrice > 0 ? c.originalPrice : c.price;
+                        return o > c.price ? Math.round(((o - c.price) / o) * 100) : 0;
+                      })
+                    );
 
                     return (
-                      <tr key={acc.id} className="hover:bg-amber-50/30 transition-colors">
-                        <td className="p-4">
+                      <tr
+                        key={phone.id}
+                        className={`hover:bg-amber-50/30 transition-colors ${
+                          isSelected ? 'bg-amber-50/50' : ''
+                        }`}
+                      >
+                        {/* Checkbox */}
+                        <td className="p-3.5 text-center">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => handleToggleSelectPhone(phone.id)}
+                            className="rounded border-slate-300 text-amber-600 focus:ring-amber-500 cursor-pointer"
+                          />
+                        </td>
+
+                        {/* Product & Brand */}
+                        <td className="p-3.5">
+                          <div className="flex items-center gap-2.5">
+                            <span
+                              className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase ${
+                                phone.brand === 'Apple'
+                                  ? 'bg-slate-900 text-white'
+                                  : phone.brand === 'Samsung'
+                                  ? 'bg-blue-600 text-white'
+                                  : phone.brand === 'Xiaomi'
+                                  ? 'bg-orange-600 text-white'
+                                  : 'bg-emerald-600 text-white'
+                              }`}
+                            >
+                              {phone.brand}
+                            </span>
+                            <div>
+                              <strong className="text-slate-900 text-xs sm:text-sm block">
+                                {phone.name}
+                              </strong>
+                              <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
+                                <span>BH: {phone.warrantyInfo}</span>
+                                <span>•</span>
+                                <Link
+                                  href={`/phones/${phone.slug}`}
+                                  target="_blank"
+                                  className="text-amber-700 hover:underline flex items-center gap-0.5"
+                                >
+                                  <span>Xem web</span>
+                                  <ExternalLink className="w-3 h-3" />
+                                </Link>
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Capacities chip list */}
+                        <td className="p-3.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {phone.capacities.map((cap) => {
+                              const isCapDiscounted = cap.originalPrice > cap.price;
+                              const capPct = isCapDiscounted
+                                ? Math.round(
+                                    ((cap.originalPrice - cap.price) / cap.originalPrice) * 100
+                                  )
+                                : 0;
+
+                              return (
+                                <div
+                                  key={cap.size}
+                                  className={`px-2.5 py-1 rounded-xl border text-[11px] font-mono flex items-center gap-1.5 ${
+                                    isCapDiscounted
+                                      ? 'bg-rose-50/60 border-rose-200 text-rose-900'
+                                      : 'bg-slate-50 border-slate-200 text-slate-700'
+                                  }`}
+                                >
+                                  <span className="font-black font-sans">{cap.size}:</span>
+                                  <span className="font-bold">{formatVND(cap.price)}</span>
+                                  {isCapDiscounted && (
+                                    <span className="text-[10px] font-black text-rose-600 bg-rose-100 px-1 rounded">
+                                      -{capPct}%
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </td>
+
+                        {/* Current price range */}
+                        <td className="p-3.5 whitespace-nowrap">
+                          <div className="font-mono">
+                            <span className="text-sm font-black text-amber-900 block">
+                              {minPrice === maxPrice
+                                ? formatVND(minPrice)
+                                : `${formatVND(minPrice)} - ${formatVND(maxPrice)}`}
+                            </span>
+                            {hasDiscount && (
+                              <span className="text-[11px] text-slate-400 line-through block">
+                                Gốc:{' '}
+                                {minOrig === maxOrig
+                                  ? formatVND(minOrig)
+                                  : `${formatVND(minOrig)} - ${formatVND(maxOrig)}`}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* Discount Status Badge */}
+                        <td className="p-3.5 text-center">
+                          {hasDiscount ? (
+                            <span className="px-2.5 py-1 rounded-full text-[11px] font-black bg-rose-50 text-rose-700 border border-rose-200 inline-flex items-center gap-1">
+                              <Zap className="w-3 h-3 text-rose-600" />
+                              Giảm đến {maxDiscountPct}%
+                            </span>
+                          ) : (
+                            <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-500 border border-slate-200">
+                              Giá chuẩn
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Quick Presets dropdown / buttons */}
+                        <td className="p-3.5 text-center">
+                          <div className="inline-flex items-center gap-1 bg-slate-50 p-1 rounded-xl border border-slate-200">
+                            <button
+                              onClick={() => applyQuickPhoneDiscount(phone.id, 0)}
+                              className="px-2 py-0.5 text-[11px] font-semibold text-slate-600 hover:bg-white hover:text-slate-900 rounded-lg transition-colors cursor-pointer"
+                              title="Khôi phục giá gốc"
+                            >
+                              0%
+                            </button>
+                            <button
+                              onClick={() => applyQuickPhoneDiscount(phone.id, 5)}
+                              className="px-2 py-0.5 text-[11px] font-bold text-amber-800 hover:bg-amber-100 rounded-lg transition-colors cursor-pointer"
+                            >
+                              -5%
+                            </button>
+                            <button
+                              onClick={() => applyQuickPhoneDiscount(phone.id, 10)}
+                              className="px-2 py-0.5 text-[11px] font-bold text-amber-800 hover:bg-amber-100 rounded-lg transition-colors cursor-pointer"
+                            >
+                              -10%
+                            </button>
+                            <button
+                              onClick={() => applyQuickPhoneDiscount(phone.id, 15)}
+                              className="px-2 py-0.5 text-[11px] font-bold text-amber-800 hover:bg-amber-100 rounded-lg transition-colors cursor-pointer"
+                            >
+                              -15%
+                            </button>
+                          </div>
+                        </td>
+
+                        {/* Action Details button */}
+                        <td className="p-3.5 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <Link
+                              href="/admin/inventory/phones"
+                              className="px-2.5 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold text-xs inline-flex items-center gap-1 transition-transform active:scale-95 shadow-sm"
+                              title="Quản lý số lượng tồn kho và Còn/Hết hàng theo từng màu và dung lượng"
+                            >
+                              <Package className="w-3.5 h-3.5 text-amber-700" />
+                              <span>Tồn Kho</span>
+                            </Link>
+                            <button
+                              onClick={() => openDetailPhoneModal(phone)}
+                              className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-black text-white font-bold text-xs inline-flex items-center gap-1.5 transition-transform active:scale-95 cursor-pointer shadow-sm"
+                            >
+                              <Sliders className="w-3.5 h-3.5 text-amber-400" />
+                              <span>Cấu Hình</span>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+
+              {filteredPhones.length === 0 && (
+                <div className="p-8 text-center text-slate-500 text-xs">
+                  Không tìm thấy dòng máy nào phù hợp với bộ lọc hiện tại.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB 2: CẤU HÌNH GIÁ & KHUYẾN MÃI PHỤ KIỆN (DẠNG LIST THÔNG MINH) */}
+      {/* ========================================================================= */}
+      {activeTab === 'accessories' && (
+        <div className="space-y-4">
+          {/* Filter Bar */}
+          <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm space-y-3">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <div className="relative flex-1 max-w-md">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={accSearch}
+                  onChange={(e) => setAccSearch(e.target.value)}
+                  placeholder="Tìm phụ kiện (Củ sạc GaN, Kính KingKong, Barcode)..."
+                  className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white"
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleAutoCalcPointsAllAccessories}
+                  className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                  title="Quy đổi 1 điểm = 1.000 VNĐ cho toàn bộ phụ kiện"
+                >
+                  <RefreshCw className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Chuẩn hóa 1 điểm = 1.000đ</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Category Chips */}
+            <div className="flex items-center gap-1.5 flex-wrap pt-2 border-t border-slate-100">
+              <span className="text-xs font-bold text-slate-400 mr-1 flex items-center gap-1">
+                <Filter className="w-3.5 h-3.5" />
+                Danh mục:
+              </span>
+              <button
+                onClick={() => setAccCategoryFilter('all')}
+                className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  accCategoryFilter === 'all'
+                    ? 'bg-slate-900 text-white shadow-sm'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                Tất Cả ({accessories.length})
+              </button>
+              {accCategories.map(([catKey, catName]) => (
+                <button
+                  key={catKey}
+                  onClick={() => setAccCategoryFilter(catKey)}
+                  className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    accCategoryFilter === catKey
+                      ? 'bg-emerald-600 text-white shadow-sm'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {catName} ({accessories.filter((a) => a.category === catKey).length})
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Bulk Action Bar for Accessories */}
+          {selectedAccIds.length > 0 && (
+            <div className="bg-emerald-50 border-2 border-emerald-300 p-3.5 rounded-2xl shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-lg bg-emerald-600 text-white font-black text-xs">
+                  {selectedAccIds.length}
+                </span>
+                <span className="text-xs font-bold text-emerald-900">
+                  Phụ kiện được chọn: Áp dụng mức giảm khi mua kèm máy:
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                {[10, 15, 20, 30, 50].map((pct) => (
+                  <button
+                    key={pct}
+                    onClick={() => handleBatchApplyAccDiscountWithPhone(pct)}
+                    className="px-2.5 py-1 rounded-lg bg-white border border-emerald-300 hover:bg-emerald-100 font-bold text-xs text-emerald-900 transition-colors cursor-pointer"
+                  >
+                    -{pct}%
+                  </button>
+                ))}
+                <button
+                  onClick={() => setSelectedAccIds([])}
+                  className="p-1 text-slate-400 hover:text-slate-600 text-xs underline ml-2 cursor-pointer"
+                >
+                  Hủy chọn
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Accessories Table List View */}
+          <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 uppercase text-[10px] font-bold">
+                  <tr>
+                    <th className="p-3.5 w-10 text-center">
+                      <input
+                        type="checkbox"
+                        checked={
+                          filteredAccessories.length > 0 &&
+                          selectedAccIds.length === filteredAccessories.length
+                        }
+                        onChange={() => {
+                          if (selectedAccIds.length === filteredAccessories.length) {
+                            setSelectedAccIds([]);
+                          } else {
+                            setSelectedAccIds(filteredAccessories.map((a) => a.id));
+                          }
+                        }}
+                        className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                      />
+                    </th>
+                    <th className="p-3.5">Phụ Kiện & Barcode</th>
+                    <th className="p-3.5">Thương Hiệu</th>
+                    <th className="p-3.5">Giá Niêm Yết Gốc</th>
+                    <th className="p-3.5">Giá Bán Lẻ Hiện Tại</th>
+                    <th className="p-3.5 text-center">Giảm Khi Mua Kèm Máy</th>
+                    <th className="p-3.5 text-center">Điểm Đổi Thưởng</th>
+                    <th className="p-3.5 text-right">Lưu Thay Đổi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredAccessories.map((acc) => {
+                    const isSelected = selectedAccIds.includes(acc.id);
+                    return (
+                      <tr
+                        key={acc.id}
+                        className={`hover:bg-emerald-50/20 transition-colors ${
+                          isSelected ? 'bg-emerald-50/40' : ''
+                        }`}
+                      >
+                        <td className="p-3.5 text-center">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => {
+                              setSelectedAccIds((prev) =>
+                                prev.includes(acc.id)
+                                  ? prev.filter((id) => id !== acc.id)
+                                  : [...prev, acc.id]
+                              );
+                            }}
+                            className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                          />
+                        </td>
+
+                        <td className="p-3.5">
                           <div className="flex items-center gap-3">
                             <img
                               src={acc.imageUrl}
                               alt={acc.name}
-                              className="w-12 h-12 rounded-xl object-cover bg-slate-100 border border-slate-200 shrink-0"
+                              className="w-10 h-10 rounded-xl object-cover bg-slate-100 border border-slate-200 shrink-0"
                             />
                             <div>
                               <strong className="text-slate-900 block text-xs sm:text-sm">
                                 {acc.name}
                               </strong>
-                              <span className="text-[11px] text-slate-500 font-mono">
-                                {acc.brand} • Barcode: {acc.barcode}
+                              <span className="text-[11px] font-mono text-slate-500">
+                                Barcode: {acc.barcode} • Tồn: {acc.stock}
                               </span>
                             </div>
                           </div>
                         </td>
 
-                        <td className="p-4 font-mono font-bold text-slate-900">
-                          {formatVND(acc.sellingPrice)}
-                        </td>
+                        <td className="p-3.5 font-semibold text-slate-700">{acc.brand}</td>
 
-                        <td className="p-4">
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                              acc.stock > 5
-                                ? 'bg-emerald-50 text-emerald-800'
-                                : 'bg-rose-50 text-rose-800'
-                            }`}
-                          >
-                            {acc.stock} cái
+                        <td className="p-3.5">
+                          <span className="font-mono text-slate-600 block">
+                            {formatVND(acc.originalPrice || acc.sellingPrice)}
                           </span>
                         </td>
 
-                        <td className="p-4 text-center">
-                          <div className="inline-flex items-center gap-1.5">
-                            <input
-                              type="number"
-                              step="10"
-                              min="10"
-                              value={edit.pointsToRedeem}
-                              onChange={(e) =>
-                                setAccPriceEdits((prev) => ({
-                                  ...prev,
-                                  [acc.id]: {
-                                    ...edit,
-                                    pointsToRedeem: Number(e.target.value),
-                                  },
-                                }))
-                              }
-                              className="w-24 p-2 bg-amber-50 border-2 border-amber-300 rounded-xl text-center font-mono font-black text-xs text-amber-900 focus:bg-white focus:outline-none focus:border-amber-500 shadow-sm"
-                            />
-                            <span className="font-black text-amber-700 text-xs">Điểm</span>
-                          </div>
+                        <td className="p-3.5">
+                          <span className="font-mono font-black text-emerald-900 text-sm block">
+                            {formatVND(acc.sellingPrice)}
+                          </span>
                         </td>
 
-                        <td className="p-4 text-center text-xs text-slate-500 font-medium">
-                          Tương đương ~{formatVND(edit.pointsToRedeem * 1000)}
-                        </td>
-
-                        <td className="p-4 text-right">
-                          <button
-                            onClick={() => handleSaveAccessoryPrice(acc.id)}
-                            className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-black text-white font-bold text-xs flex items-center gap-1.5 ml-auto transition-transform active:scale-95 cursor-pointer shadow-sm"
+                        {/* Discount with phone % (preset selector) */}
+                        <td className="p-3.5 text-center">
+                          <select
+                            value={acc.discountWhenBoughtWithPhone || 15}
+                            onChange={(e) =>
+                              handleSaveAccessory(acc.id, {
+                                discountWhenBoughtWithPhone: Number(e.target.value),
+                              })
+                            }
+                            className="p-1.5 bg-emerald-50 border border-emerald-300 text-emerald-900 font-bold rounded-xl text-xs focus:outline-none cursor-pointer"
                           >
-                            <Save className="w-3.5 h-3.5 text-amber-400" />
-                            <span>Lưu Điểm</span>
+                            <option value="0">0% (Không giảm)</option>
+                            <option value="10">-10%</option>
+                            <option value="15">-15% (Chuẩn)</option>
+                            <option value="20">-20%</option>
+                            <option value="30">-30%</option>
+                            <option value="50">-50% (Đặc biệt)</option>
+                          </select>
+                        </td>
+
+                        {/* Redeem points */}
+                        <td className="p-3.5 text-center">
+                          <span className="px-2.5 py-1 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 font-black text-xs font-mono inline-block">
+                            {acc.pointsToRedeem || Math.round(acc.sellingPrice / 1000)} pts
+                          </span>
+                        </td>
+
+                        <td className="p-3.5 text-right">
+                          <button
+                            onClick={() => {
+                              showToast(`✓ Đã đồng bộ giá phụ kiện ${acc.name}!`);
+                            }}
+                            className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-black text-white font-bold text-xs inline-flex items-center gap-1.5 transition-transform active:scale-95 cursor-pointer shadow-sm ml-auto"
+                          >
+                            <Save className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>Lưu</span>
                           </button>
                         </td>
                       </tr>
@@ -1304,6 +1340,594 @@ export default function AdminPromotionsPage() {
       )}
 
       {/* ========================================================================= */}
+      {/* TAB 3: CHIẾN DỊCH FLASH SALE (DANH SÁCH BẢNG GỌN GÀNG) */}
+      {/* ========================================================================= */}
+      {activeTab === 'campaigns' && (
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
+                <Clock className="w-5 h-5 text-amber-600" />
+                <span>Danh Sách Chiến Dịch Flash Sale & Giờ Vàng</span>
+              </h2>
+              <p className="text-xs text-slate-500">
+                Hiển thị theo dạng list có đồng hồ đếm ngược thời gian thực và công tắc Bật/Tắt nhanh chóng.
+              </p>
+            </div>
+
+            <button
+              onClick={openNewCampaignModal}
+              className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white font-bold text-xs shadow-md flex items-center gap-2 transition-transform hover:scale-105 cursor-pointer shrink-0"
+            >
+              <Plus className="w-4 h-4 text-amber-400" />
+              <span>+ Thiết Lập Chiến Dịch Mới</span>
+            </button>
+          </div>
+
+          <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 uppercase text-[10px] font-bold">
+                  <tr>
+                    <th className="p-3.5">Chiến Dịch & Huy Hiệu</th>
+                    <th className="p-3.5">Mức Khuyến Mãi</th>
+                    <th className="p-3.5">Phạm Vi Áp Dụng</th>
+                    <th className="p-3.5">Thời Gian Hiệu Lực</th>
+                    <th className="p-3.5 text-center">Đếm Ngược</th>
+                    <th className="p-3.5 text-center">Trạng Thái</th>
+                    <th className="p-3.5 text-right">Thao Tác</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {campaigns.map((camp) => {
+                    const isExpired = new Date(camp.endDate).getTime() <= now;
+                    const isUpcoming = new Date(camp.startDate).getTime() > now;
+                    const isRunning = camp.isActive && !isExpired && !isUpcoming;
+
+                    return (
+                      <tr key={camp.id} className="hover:bg-amber-50/20 transition-colors">
+                        <td className="p-3.5">
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase bg-amber-500 text-black">
+                              {camp.badgeText || 'PROMO'}
+                            </span>
+                            <div>
+                              <strong className="text-slate-900 block text-xs sm:text-sm">
+                                {camp.title}
+                              </strong>
+                              <span className="text-[11px] text-slate-500 line-clamp-1">
+                                {camp.description}
+                              </span>
+                            </div>
+                          </div>
+                        </td>
+
+                        <td className="p-3.5 whitespace-nowrap">
+                          <span className="text-sm font-black text-rose-600 font-mono">
+                            {camp.discountType === 'percentage'
+                              ? `-${camp.discountValue}%`
+                              : `-${formatVND(camp.discountValue)}`}
+                          </span>
+                        </td>
+
+                        <td className="p-3.5">
+                          <span className="px-2.5 py-1 rounded-xl bg-slate-100 text-slate-700 font-bold text-[11px]">
+                            {camp.targetCategory === 'all'
+                              ? 'Toàn bộ cửa hàng'
+                              : camp.targetCategory === 'phones'
+                              ? '📱 Chỉ Điện thoại'
+                              : camp.targetCategory === 'accessories'
+                              ? '🎧 Chỉ Phụ kiện'
+                              : '🛠️ Sửa chữa'}
+                          </span>
+                        </td>
+
+                        <td className="p-3.5 text-[11px] font-mono text-slate-600 whitespace-nowrap">
+                          <div>Từ: {new Date(camp.startDate).toLocaleString('vi-VN')}</div>
+                          <div>Đến: {new Date(camp.endDate).toLocaleString('vi-VN')}</div>
+                        </td>
+
+                        <td className="p-3.5 text-center whitespace-nowrap">
+                          <span
+                            className={`font-mono font-black text-xs px-2.5 py-1 rounded-xl ${
+                              isRunning
+                                ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                                : 'bg-slate-100 text-slate-500'
+                            }`}
+                          >
+                            {formatCountdown(camp.endDate)}
+                          </span>
+                        </td>
+
+                        <td className="p-3.5 text-center whitespace-nowrap">
+                          <button
+                            onClick={() => handleToggleCampaign(camp.id, camp.isActive)}
+                            className={`px-3 py-1 rounded-full text-[11px] font-bold cursor-pointer transition-colors ${
+                              camp.isActive
+                                ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
+                                : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                            }`}
+                          >
+                            {camp.isActive ? '● Đang Bật' : '○ Tạm Dừng'}
+                          </button>
+                        </td>
+
+                        <td className="p-3.5 text-right whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => openEditCampaignModal(camp)}
+                              className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
+                              title="Sửa chiến dịch"
+                            >
+                              <Edit3 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteCampaign(camp.id)}
+                              className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 transition-colors cursor-pointer"
+                              title="Xóa chiến dịch"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+
+              {campaigns.length === 0 && (
+                <div className="p-8 text-center text-slate-500 text-xs">
+                  Chưa có chiến dịch Flash Sale nào được tạo.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB 4: MÃ QR KHUYẾN MÃI (DANH SÁCH BẢNG GỌN GÀNG) */}
+      {/* ========================================================================= */}
+      {activeTab === 'qrcodes' && (
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
+                <QrCode className="w-5 h-5 text-indigo-600" />
+                <span>Danh Sách Mã QR Voucher Khuyến Mãi</span>
+              </h2>
+              <p className="text-xs text-slate-500">
+                Khách hàng có thể quét mã trực tiếp tại quầy hoặc giỏ hàng để được trừ tiền tự động.
+              </p>
+            </div>
+
+            <button
+              onClick={openNewQrModal}
+              className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md flex items-center gap-2 transition-transform hover:scale-105 cursor-pointer shrink-0"
+            >
+              <Plus className="w-4 h-4" />
+              <span>+ Tạo Mã QR Voucher Mới</span>
+            </button>
+          </div>
+
+          <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 uppercase text-[10px] font-bold">
+                  <tr>
+                    <th className="p-3.5">Mã Voucher & Tiêu Đề</th>
+                    <th className="p-3.5">Mức Giảm</th>
+                    <th className="p-3.5">Đơn Tối Thiểu</th>
+                    <th className="p-3.5 text-center">Mã QR</th>
+                    <th className="p-3.5 text-center">Đếm Ngược</th>
+                    <th className="p-3.5 text-center">Trạng Thái</th>
+                    <th className="p-3.5 text-right">Thao Tác</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {promoQRs.map((qr) => {
+                    const isExpired = new Date(qr.endDate).getTime() <= now;
+
+                    return (
+                      <tr key={qr.id} className="hover:bg-indigo-50/20 transition-colors">
+                        <td className="p-3.5">
+                          <div>
+                            <span className="font-mono text-xs font-black px-2 py-0.5 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 inline-block">
+                              {qr.code}
+                            </span>
+                            <strong className="text-slate-900 block text-xs sm:text-sm mt-1">
+                              {qr.title}
+                            </strong>
+                            <span className="text-[11px] text-slate-500 line-clamp-1">
+                              {qr.description}
+                            </span>
+                          </div>
+                        </td>
+
+                        <td className="p-3.5 whitespace-nowrap">
+                          <span className="text-sm font-black text-rose-600 font-mono">
+                            {qr.discountType === 'percentage'
+                              ? `-${qr.discountValue}%`
+                              : `-${formatVND(qr.discountValue)}`}
+                          </span>
+                        </td>
+
+                        <td className="p-3.5 font-mono text-slate-700 whitespace-nowrap">
+                          {formatVND(qr.minOrderValue)}
+                        </td>
+
+                        <td className="p-3.5 text-center">
+                          <button
+                            onClick={() => setPreviewQrModal(qr)}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
+                          >
+                            <QrCode className="w-4 h-4 text-indigo-600" />
+                            <span>Xem QR</span>
+                          </button>
+                        </td>
+
+                        <td className="p-3.5 text-center whitespace-nowrap">
+                          <span className="font-mono text-xs text-amber-800 font-bold">
+                            {formatCountdown(qr.endDate)}
+                          </span>
+                        </td>
+
+                        <td className="p-3.5 text-center whitespace-nowrap">
+                          <button
+                            onClick={() => handleToggleQR(qr.id, qr.isActive)}
+                            className={`px-3 py-1 rounded-full text-[11px] font-bold cursor-pointer transition-colors ${
+                              qr.isActive && !isExpired
+                                ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
+                                : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                            }`}
+                          >
+                            {qr.isActive && !isExpired ? '● Hoạt động' : '○ Tạm dừng'}
+                          </button>
+                        </td>
+
+                        <td className="p-3.5 text-right whitespace-nowrap">
+                          <button
+                            onClick={() => handleDeleteQR(qr.id)}
+                            className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 transition-colors cursor-pointer"
+                            title="Xóa mã QR"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+
+              {promoQRs.length === 0 && (
+                <div className="p-8 text-center text-slate-500 text-xs">
+                  Chưa có mã QR voucher nào được tạo.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB 5: CẤU HÌNH ĐIỂM ĐỔI QUÀ (DANH SÁCH BẢNG GỌN GÀNG) */}
+      {/* ========================================================================= */}
+      {activeTab === 'redeem' && (
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
+                <Gift className="w-5 h-5 text-amber-600" />
+                <span>Danh Sách Phụ Kiện Đổi Điểm Thưởng Tích Lũy</span>
+              </h2>
+              <p className="text-xs text-slate-500">
+                Quy đổi điểm thưởng (loyalty points) của khách hàng thành quà tặng phụ kiện chính hãng.
+              </p>
+            </div>
+
+            <button
+              onClick={handleAutoCalcPointsAllAccessories}
+              className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-black font-black text-xs shadow-md flex items-center gap-2 transition-transform hover:scale-105 cursor-pointer shrink-0"
+            >
+              <RefreshCw className="w-4 h-4" />
+              <span>Quy đổi tự động 1 điểm = 1.000đ cho tất cả</span>
+            </button>
+          </div>
+
+          <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 uppercase text-[10px] font-bold">
+                  <tr>
+                    <th className="p-3.5">Hình Ảnh & Phụ Kiện</th>
+                    <th className="p-3.5">Giá Bán Lẻ Hiện Tại</th>
+                    <th className="p-3.5">Tồn Kho</th>
+                    <th className="p-3.5 text-center">Số Điểm Cần Đổi (pts)</th>
+                    <th className="p-3.5 text-center">Tương Đương Giá Trị</th>
+                    <th className="p-3.5 text-right">Lưu</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {accessories.map((acc) => {
+                    const currentPts = acc.pointsToRedeem || Math.round(acc.sellingPrice / 1000);
+
+                    return (
+                      <tr key={acc.id} className="hover:bg-amber-50/20 transition-colors">
+                        <td className="p-3.5">
+                          <div className="flex items-center gap-3">
+                            <img
+                              src={acc.imageUrl}
+                              alt={acc.name}
+                              className="w-10 h-10 rounded-xl object-cover bg-slate-100 border border-slate-200 shrink-0"
+                            />
+                            <div>
+                              <strong className="text-slate-900 block text-xs sm:text-sm">
+                                {acc.name}
+                              </strong>
+                              <span className="text-[11px] font-mono text-slate-500">
+                                {acc.brand} • Barcode: {acc.barcode}
+                              </span>
+                            </div>
+                          </div>
+                        </td>
+
+                        <td className="p-3.5 font-mono font-bold text-slate-900">
+                          {formatVND(acc.sellingPrice)}
+                        </td>
+
+                        <td className="p-3.5">
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              acc.stock > 5
+                                ? 'bg-emerald-50 text-emerald-800'
+                                : 'bg-rose-50 text-rose-800'
+                            }`}
+                          >
+                            {acc.stock} cái
+                          </span>
+                        </td>
+
+                        <td className="p-3.5 text-center">
+                          <div className="inline-flex items-center gap-1.5">
+                            {[50, 99, 199, 390].map((preset) => (
+                              <button
+                                key={preset}
+                                onClick={() => handleSaveAccessory(acc.id, { pointsToRedeem: preset })}
+                                className={`px-2 py-0.5 rounded-lg text-[10px] font-bold cursor-pointer transition-colors ${
+                                  currentPts === preset
+                                    ? 'bg-amber-500 text-black font-black'
+                                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                                }`}
+                              >
+                                {preset}p
+                              </button>
+                            ))}
+                            <input
+                              type="number"
+                              step="10"
+                              min="10"
+                              value={currentPts}
+                              onChange={(e) =>
+                                handleSaveAccessory(acc.id, {
+                                  pointsToRedeem: Number(e.target.value),
+                                })
+                              }
+                              className="w-16 p-1 bg-amber-50 border border-amber-300 rounded-lg text-center font-mono font-black text-xs text-amber-900 focus:bg-white focus:outline-none"
+                            />
+                            <span className="text-[11px] font-bold text-slate-500">pts</span>
+                          </div>
+                        </td>
+
+                        <td className="p-3.5 text-center font-mono text-slate-500">
+                          ~{formatVND(currentPts * 1000)}
+                        </td>
+
+                        <td className="p-3.5 text-right">
+                          <button
+                            onClick={() => showToast(`✓ Đã lưu điểm đổi cho ${acc.name}!`)}
+                            className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-black text-white font-bold text-xs inline-flex items-center gap-1 transition-transform active:scale-95 cursor-pointer shadow-sm ml-auto"
+                          >
+                            <Save className="w-3.5 h-3.5 text-amber-400" />
+                            <span>Lưu</span>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL: CẤU HÌNH CHI TIẾT GIÁ & KHUYẾN MÃI CHO 1 DÒNG MÁY (DẠNG LIST BIẾN THỂ) */}
+      {/* ========================================================================= */}
+      {detailPhoneModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-3xl w-full border border-slate-200 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="p-5 bg-gradient-to-r from-amber-500 via-orange-500 to-rose-600 text-white flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2.5">
+                <Sliders className="w-5 h-5 text-amber-200" />
+                <div>
+                  <h3 className="font-black text-base leading-tight">
+                    Cấu Hình Giá & Khuyến Mãi: {detailPhoneModal.name}
+                  </h3>
+                  <span className="text-xs text-amber-100 font-medium">
+                    Hãng: {detailPhoneModal.brand} • Bảo hành: {detailPhoneModal.warrantyInfo}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => setDetailPhoneModal(null)}
+                className="p-1 rounded-full hover:bg-white/20 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto space-y-5 text-xs flex-1">
+              {/* Quick All-capacity discount bar */}
+              <div className="bg-amber-50 border border-amber-200 p-3.5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-amber-600" />
+                  <span className="font-bold text-amber-900">
+                    Áp dụng mức giảm chung cho tất cả dung lượng:
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {DISCOUNT_PRESETS.map((pct) => (
+                    <button
+                      key={pct}
+                      type="button"
+                      onClick={() => handleApplyAllCapacitiesInModal(pct)}
+                      className="px-2.5 py-1 rounded-lg bg-white border border-amber-300 hover:bg-amber-100 text-amber-900 font-bold text-xs transition-colors cursor-pointer"
+                    >
+                      {pct === 0 ? 'Giá gốc (0%)' : `-${pct}%`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Capacities Configuration List Table */}
+              <div className="border border-slate-200 rounded-2xl overflow-hidden">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead className="bg-slate-100 text-slate-700 uppercase text-[10px] font-bold border-b border-slate-200">
+                    <tr>
+                      <th className="p-3.5 w-24">Dung Lượng</th>
+                      <th className="p-3.5">Giá Gốc Niêm Yết</th>
+                      <th className="p-3.5 text-center">% Chiết Khấu</th>
+                      <th className="p-3.5">Giá Bán Khuyến Mãi (VNĐ)</th>
+                      <th className="p-3.5 text-right">Chênh Lệch Tiết Kiệm</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {detailCapacities.map((cap, idx) => {
+                      const diff = cap.originalPrice - cap.price;
+
+                      return (
+                        <tr key={cap.size} className="hover:bg-amber-50/20">
+                          {/* Capacity Badge */}
+                          <td className="p-3.5 font-mono font-black text-sm text-slate-900">
+                            {cap.size}
+                          </td>
+
+                          {/* Original Price Input */}
+                          <td className="p-3.5">
+                            <div className="space-y-1">
+                              <input
+                                type="number"
+                                step="50000"
+                                value={cap.originalPrice}
+                                onChange={(e) =>
+                                  handleDetailCapacityChange(
+                                    idx,
+                                    'originalPrice',
+                                    Number(e.target.value)
+                                  )
+                                }
+                                className="w-36 p-2 bg-slate-50 border border-slate-200 rounded-xl font-mono text-xs text-slate-700 focus:bg-white focus:border-amber-500 focus:outline-none"
+                              />
+                              <div className="text-[10px] text-slate-400 font-medium">
+                                {formatVietnameseWords(cap.originalPrice)}
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Discount % Selector */}
+                          <td className="p-3.5 text-center">
+                            <div className="inline-flex items-center gap-1">
+                              <select
+                                value={cap.discountPercent}
+                                onChange={(e) =>
+                                  handleDetailCapacityChange(idx, 'percent', Number(e.target.value))
+                                }
+                                className="p-1.5 bg-rose-50 border border-rose-300 text-rose-900 font-bold rounded-xl text-xs focus:outline-none cursor-pointer"
+                              >
+                                {DISCOUNT_PRESETS.map((p) => (
+                                  <option key={p} value={p}>
+                                    {p === 0 ? '0% (Gốc)' : `-${p}%`}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </td>
+
+                          {/* Promo Selling Price Input */}
+                          <td className="p-3.5">
+                            <div className="space-y-1">
+                              <input
+                                type="number"
+                                step="50000"
+                                value={cap.price}
+                                onChange={(e) =>
+                                  handleDetailCapacityChange(idx, 'price', Number(e.target.value))
+                                }
+                                className="w-36 p-2 bg-amber-50/60 border-2 border-amber-300 rounded-xl font-mono font-black text-xs text-amber-900 focus:bg-white focus:border-amber-500 focus:outline-none shadow-sm"
+                              />
+                              <div className="text-[10px] text-amber-700 font-bold">
+                                {formatVietnameseWords(cap.price)}
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Difference preview */}
+                          <td className="p-3.5 text-right font-mono">
+                            {diff > 0 ? (
+                              <div className="text-rose-600 font-bold">
+                                <span>- {formatVND(diff)}</span>
+                                <span className="block text-[10px] text-slate-500">
+                                  (-{cap.discountPercent}%)
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-slate-400 text-xs">Giá gốc</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-500 text-[11px] flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>
+                  Hệ thống tự động đồng bộ giá bán này sang tồn kho máy chưa bán (in_stock) và giỏ hàng của khách hàng.
+                </span>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-3 shrink-0">
+              <button
+                type="button"
+                onClick={() => setDetailPhoneModal(null)}
+                className="px-4 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
+              >
+                Hủy Bỏ
+              </button>
+              <button
+                type="button"
+                onClick={handleSavePhoneDetail}
+                className="px-5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-black text-xs shadow-md shadow-amber-500/20 flex items-center gap-1.5 transition-transform active:scale-95 cursor-pointer"
+              >
+                <Save className="w-4 h-4" />
+                <span>Lưu Cấu Hình Máy Này</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
       {/* MODAL: TẠO / SỬA CHIẾN DỊCH KHUYẾN MÃI (FLASH SALE) */}
       {/* ========================================================================= */}
       {isCampaignModalOpen && (
@@ -1311,14 +1935,14 @@ export default function AdminPromotionsPage() {
           <div className="bg-white rounded-3xl max-w-lg w-full border border-slate-200 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="p-5 bg-gradient-to-r from-amber-500 via-orange-500 to-rose-600 text-white flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Zap className="w-5 h-5" />
+                <Zap className="w-5 h-5 text-amber-200" />
                 <h3 className="font-black text-base">
                   {editingCampaignId ? 'Chỉnh Sửa Chiến Dịch Khuyến Mãi' : 'Thiết Lập Flash Sale Mới'}
                 </h3>
               </div>
               <button
                 onClick={() => setIsCampaignModalOpen(false)}
-                className="p-1 rounded-full hover:bg-white/20 transition-colors"
+                className="p-1 rounded-full hover:bg-white/20 transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1332,7 +1956,7 @@ export default function AdminPromotionsPage() {
                   required
                   value={campaignTitle}
                   onChange={(e) => setCampaignTitle(e.target.value)}
-                  placeholder="VD: Flash Sale Giờ Vàng 2026..."
+                  placeholder="VD: Flash Sale Giờ Vàng Giáng Sinh 2026..."
                   className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-medium focus:bg-white focus:border-amber-500 focus:outline-none"
                 />
               </div>
@@ -1343,7 +1967,7 @@ export default function AdminPromotionsPage() {
                   rows={2}
                   value={campaignDesc}
                   onChange={(e) => setCampaignDesc(e.target.value)}
-                  placeholder="VD: Giảm ngay 15% cho iPhone 16 Series và phụ kiện..."
+                  placeholder="VD: Giảm ngay 15% cho toàn bộ iPhone và phụ kiện..."
                   className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:bg-white focus:border-amber-500 focus:outline-none"
                 />
               </div>
@@ -1371,6 +1995,11 @@ export default function AdminPromotionsPage() {
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono font-bold text-slate-900"
                     placeholder="VD: 15 hoặc 500000"
                   />
+                  {campaignType === 'fixed_amount' && (
+                    <span className="text-[10px] text-slate-500 mt-0.5 block">
+                      {formatVietnameseWords(campaignValue)}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -1400,7 +2029,7 @@ export default function AdminPromotionsPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="font-bold text-slate-700 block mb-1">Áp dụng cho:</label>
+                  <label className="font-bold text-slate-700 block mb-1">Phạm vi áp dụng:</label>
                   <select
                     value={campaignTarget}
                     onChange={(e: any) => setCampaignTarget(e.target.value)}
@@ -1429,15 +2058,15 @@ export default function AdminPromotionsPage() {
                 <button
                   type="button"
                   onClick={() => setIsCampaignModalOpen(false)}
-                  className="w-1/2 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 font-bold text-slate-700"
+                  className="w-1/2 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 font-bold text-slate-700 cursor-pointer"
                 >
                   Hủy Bỏ
                 </button>
                 <button
                   type="submit"
-                  className="w-1/2 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-black shadow-lg"
+                  className="w-1/2 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-black shadow-lg cursor-pointer"
                 >
-                  Lưu &amp; Áp Dụng Ngay
+                  Lưu & Áp Dụng Ngay
                 </button>
               </div>
             </form>
@@ -1446,7 +2075,7 @@ export default function AdminPromotionsPage() {
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL: TẠO MÃ QR KHUYẾN MÃI MỚI */}
+      {/* MODAL: TẠO MÃ QR VOUCHER MỚI */}
       {/* ========================================================================= */}
       {isQrModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
@@ -1458,7 +2087,7 @@ export default function AdminPromotionsPage() {
               </div>
               <button
                 onClick={() => setIsQrModalOpen(false)}
-                className="p-1 rounded-full hover:bg-white/20 transition-colors"
+                className="p-1 rounded-full hover:bg-white/20 transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1554,18 +2183,76 @@ export default function AdminPromotionsPage() {
                 <button
                   type="button"
                   onClick={() => setIsQrModalOpen(false)}
-                  className="w-1/2 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 font-bold text-slate-700"
+                  className="w-1/2 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 font-bold text-slate-700 cursor-pointer"
                 >
                   Hủy Bỏ
                 </button>
                 <button
                   type="submit"
-                  className="w-1/2 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black shadow-lg"
+                  className="w-1/2 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black shadow-lg cursor-pointer"
                 >
                   Tạo Mã QR Ngay
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL: XEM PHÓNG TO MÃ QR KHUYẾN MÃI */}
+      {/* ========================================================================= */}
+      {previewQrModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-sm w-full border border-slate-200 shadow-2xl overflow-hidden p-6 text-center space-y-4 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center">
+              <span className="font-mono text-xs font-black px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200">
+                {previewQrModal.code}
+              </span>
+              <button
+                onClick={() => setPreviewQrModal(null)}
+                className="p-1 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div>
+              <h3 className="font-black text-slate-900 text-base">{previewQrModal.title}</h3>
+              <p className="text-xs text-slate-500 mt-1">{previewQrModal.description}</p>
+            </div>
+
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex justify-center">
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(
+                  previewQrModal.code
+                )}`}
+                alt={previewQrModal.code}
+                className="w-48 h-48 rounded-xl bg-white p-2 shadow-sm border border-slate-200"
+              />
+            </div>
+
+            <div className="text-xs space-y-1">
+              <div className="text-rose-600 font-bold">
+                Ưu đãi:{' '}
+                {previewQrModal.discountType === 'percentage'
+                  ? `Giảm ${previewQrModal.discountValue}%`
+                  : `Giảm ${formatVND(previewQrModal.discountValue)}`}
+              </div>
+              <div className="text-slate-500">
+                Đơn tối thiểu: {formatVND(previewQrModal.minOrderValue)}
+              </div>
+            </div>
+
+            <div className="pt-2 flex gap-2">
+              <button
+                onClick={() => window.print()}
+                className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+              >
+                <Printer className="w-4 h-4" />
+                <span>In Mã QR Này</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

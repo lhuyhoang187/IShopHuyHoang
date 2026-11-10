@@ -16,6 +16,7 @@ import {
   Search,
   ChevronRight,
   ShieldAlert,
+  X,
 } from 'lucide-react';
 import { IShopStore } from '@/lib/store';
 import { Role } from '@/lib/types';
@@ -120,19 +121,15 @@ export default function AdminStaffPage() {
       });
       const json = await res.json();
       if (json.success) {
-        // Now if admin chose a specific role directly, update it
-        if (newRole !== 'pending' && json.data?.id) {
-          await fetch('/api/admin/staff', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: json.data.id, role: newRole }),
-          });
+        // If created, automatically set desired role
+        if (json.data && json.data.id && newRole !== 'pending') {
+          await handleUpdateRole(json.data.id, newRole);
         }
-
+        setStatusMessage(`Đã tạo tài khoản nhân viên ${newName} thành công!`);
         setIsAddModalOpen(false);
         setNewName('');
         setNewUsername('');
-        setStatusMessage(`Đã tạo tài khoản nhân viên ${newName} thành công!`);
+        setNewPassword('password123');
         loadStaff();
         setTimeout(() => setStatusMessage(null), 4000);
       } else {
@@ -143,30 +140,31 @@ export default function AdminStaffPage() {
     }
   };
 
-  // RBAC Access Gate: Strictly Admin Only
   if (currentRole !== 'admin') {
     return (
-      <div className="max-w-2xl mx-auto py-16 px-4 text-center space-y-6 animate-in fade-in duration-300">
-        <div className="w-20 h-20 rounded-3xl bg-rose-500/10 border border-rose-500/30 text-rose-400 mx-auto flex items-center justify-center shadow-[0_0_30px_rgba(244,63,94,0.2)]">
-          <ShieldAlert className="w-10 h-10" />
+      <div className="max-w-xl mx-auto my-16 p-8 rounded-3xl bg-white border border-slate-200 shadow-sm text-center space-y-4 text-slate-800">
+        <div className="w-16 h-16 rounded-3xl bg-rose-50 border border-rose-200 text-rose-600 mx-auto flex items-center justify-center shadow-sm">
+          <ShieldAlert className="w-8 h-8" />
         </div>
         <div className="space-y-2">
-          <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-rose-500/20 text-rose-300 border border-rose-500/30">
-            KHU VỰC BẢO MẬT TỐI CAO
+          <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-rose-50 text-rose-700 border border-rose-200">
+            KHU VỰC BẢO MẬT
           </span>
-          <h1 className="text-2xl sm:text-3xl font-black text-white">
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900">
             Chỉ Chủ Cửa Hàng Mới Có Quyền Phân Bổ Nhân Sự
           </h1>
-          <p className="text-sm text-gray-400 max-w-lg mx-auto">
+          <p className="text-xs sm:text-sm text-slate-600 max-w-lg mx-auto leading-relaxed">
             Chỉ tài khoản Chủ Shop (Admin) mới có thẩm quyền xét duyệt, cấp quyền hạn nhân viên và quản trị nhân sự nội bộ.
           </p>
         </div>
-        <Link
-          href="/admin"
-          className="inline-flex px-6 py-3 rounded-2xl bg-white/10 hover:bg-white/15 text-white font-bold text-xs border border-white/10"
-        >
-          Quay lại Bảng điều khiển
-        </Link>
+        <div className="pt-2">
+          <Link
+            href="/admin"
+            className="inline-flex px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white font-bold text-xs shadow-md transition-colors"
+          >
+            Quay lại Bảng điều khiển
+          </Link>
+        </div>
       </div>
     );
   }
@@ -181,37 +179,37 @@ export default function AdminStaffPage() {
   );
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 text-slate-800">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/10">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-amber-400 uppercase">Hệ Thống Phân Quyền RBAC</span>
-            <span className="text-gray-500">•</span>
-            <span className="text-xs text-gray-400">Do Chủ Shop Quản Trị Trực Tiếp</span>
+            <span className="text-xs font-bold text-amber-700 uppercase tracking-wider">Hệ Thống Phân Quyền RBAC</span>
+            <span className="text-slate-300">•</span>
+            <span className="text-xs text-slate-500 font-medium">Do Chủ Shop Quản Trị Trực Tiếp</span>
           </div>
-          <h1 className="text-xl sm:text-3xl font-black text-white flex items-center gap-2.5 mt-1">
-            <Users className="w-7 h-7 text-amber-400" />
-            <span>Quản Lý Nhân Viên & Phê Duyệt Cấp Quyền</span>
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2.5 mt-1">
+            <Users className="w-6 h-6 text-amber-600" />
+            <span>Quản Lý Nhân Viên &amp; Phê Duyệt Cấp Quyền</span>
           </h1>
-          <p className="text-xs text-gray-400 mt-1">
+          <p className="text-xs text-slate-600 mt-1">
             Nhân viên mới đăng ký tài khoản cần được Chủ Shop phê duyệt và phân quyền trước khi được phép đăng nhập làm việc.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <button
             onClick={loadStaff}
-            className="p-3 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white border border-white/10 transition-colors"
+            className="p-2.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 transition-colors shadow-sm cursor-pointer"
             title="Làm mới danh sách"
           >
             <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
           </button>
           <button
             onClick={() => setIsAddModalOpen(true)}
-            className="btn-gold px-5 py-3 rounded-xl text-xs font-black flex items-center gap-2 shadow-lg"
+            className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs flex items-center gap-2 transition-transform hover:scale-105 shadow-md shadow-amber-500/20 cursor-pointer"
           >
-            <Plus className="w-4 h-4 text-black" />
+            <Plus className="w-4 h-4 text-slate-950" />
             <span>Thêm Nhân Viên Mới</span>
           </button>
         </div>
@@ -219,34 +217,34 @@ export default function AdminStaffPage() {
 
       {/* Status Notice Toast */}
       {statusMessage && (
-        <div className="p-4 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-semibold flex items-center gap-2 animate-in fade-in">
-          <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs sm:text-sm font-semibold flex items-center gap-2.5 shadow-sm animate-in fade-in">
+          <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
           <span>{statusMessage}</span>
         </div>
       )}
 
       {/* KPI Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="glass-panel p-5 rounded-2xl border-white/10 space-y-1">
-          <span className="text-gray-400 text-xs">Tổng nhân sự:</span>
-          <p className="text-2xl font-black text-white">{staffList.length}</p>
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
+          <span className="text-slate-500 text-xs font-semibold">Tổng nhân sự:</span>
+          <p className="text-2xl font-black text-slate-900">{staffList.length}</p>
         </div>
-        <div className="glass-panel p-5 rounded-2xl border-amber-500/30 bg-amber-500/5 space-y-1">
-          <span className="text-amber-400 text-xs font-bold flex items-center gap-1.5">
-            <Clock className="w-3.5 h-3.5 animate-spin" />
+        <div className="bg-white p-5 rounded-2xl border border-amber-300 shadow-sm space-y-1">
+          <span className="text-amber-800 text-xs font-bold flex items-center gap-1.5">
+            <Clock className="w-3.5 h-3.5 animate-spin text-amber-600" />
             <span>Chờ duyệt quyền:</span>
           </span>
-          <p className="text-2xl font-black text-amber-300">{pendingStaff.length}</p>
+          <p className="text-2xl font-black text-amber-700">{pendingStaff.length}</p>
         </div>
-        <div className="glass-panel p-5 rounded-2xl border-cyan-500/20 space-y-1">
-          <span className="text-cyan-400 text-xs">Thu ngân (POS):</span>
-          <p className="text-2xl font-black text-cyan-300">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
+          <span className="text-slate-500 text-xs font-semibold">Thu ngân (POS):</span>
+          <p className="text-2xl font-black text-blue-700">
             {staffList.filter((s) => s.role === 'cashier').length}
           </p>
         </div>
-        <div className="glass-panel p-5 rounded-2xl border-purple-500/20 space-y-1">
-          <span className="text-purple-400 text-xs">Kỹ thuật viên iCare:</span>
-          <p className="text-2xl font-black text-purple-300">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
+          <span className="text-slate-500 text-xs font-semibold">Kỹ thuật viên iCare:</span>
+          <p className="text-2xl font-black text-purple-700">
             {staffList.filter((s) => s.role === 'technician').length}
           </p>
         </div>
@@ -254,37 +252,37 @@ export default function AdminStaffPage() {
 
       {/* PENDING APPROVAL SECTION */}
       {pendingStaff.length > 0 && (
-        <div className="glass-panel rounded-3xl p-6 sm:p-7 border-amber-500/40 bg-gradient-to-b from-amber-500/10 to-transparent space-y-5 shadow-2xl">
+        <div className="rounded-3xl p-6 sm:p-7 border border-amber-300 bg-amber-50/70 space-y-5 shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center justify-center animate-pulse">
-              <AlertTriangle className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-800 border border-amber-300 flex items-center justify-center animate-pulse">
+              <AlertTriangle className="w-5 h-5 text-amber-700" />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-black text-white">
+              <h2 className="text-base sm:text-lg font-black text-slate-900">
                 Có {pendingStaff.length} nhân viên mới đang chờ bạn phê duyệt cấp quyền!
               </h2>
-              <p className="text-xs text-gray-300">
+              <p className="text-xs text-slate-600 mt-0.5">
                 Hãy lựa chọn vai trò phân quyền phù hợp để nhân viên có thể đăng nhập vào làm việc.
               </p>
             </div>
           </div>
 
-          <div className="divide-y divide-white/10 rounded-2xl bg-black/40 border border-white/10 overflow-hidden">
+          <div className="divide-y divide-slate-200 rounded-2xl bg-white border border-amber-200 overflow-hidden shadow-2xs">
             {pendingStaff.map((staff) => (
               <div
                 key={staff.id}
-                className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-white/[0.02] transition-colors"
+                className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-amber-50/40 transition-colors"
               >
                 <div className="flex items-center gap-3.5">
-                  <div className="w-12 h-12 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-300 font-bold text-sm">
+                  <div className="w-12 h-12 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-800 font-bold text-sm">
                     {staff.name.charAt(0)}
                   </div>
                   <div>
-                    <h3 className="font-bold text-white text-sm">{staff.name}</h3>
-                    <p className="text-xs text-gray-400 font-mono">
-                      Username: <strong className="text-amber-300">{staff.username}</strong> • Tạo lúc: {new Date(staff.createdAt).toLocaleDateString('vi-VN')}
+                    <h3 className="font-bold text-slate-900 text-sm">{staff.name}</h3>
+                    <p className="text-xs text-slate-600 font-mono">
+                      Username: <strong className="text-amber-800 font-bold">{staff.username}</strong> • Tạo lúc: {new Date(staff.createdAt).toLocaleDateString('vi-VN')}
                     </p>
-                    <span className="inline-block mt-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                    <span className="inline-block mt-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
                       Chờ Chủ Shop Cấp Quyền
                     </span>
                   </div>
@@ -293,25 +291,25 @@ export default function AdminStaffPage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     onClick={() => handleUpdateRole(staff.id, 'cashier')}
-                    className="px-3.5 py-2 rounded-xl bg-cyan-600/20 hover:bg-cyan-600 text-cyan-300 hover:text-white border border-cyan-500/30 text-xs font-bold transition-all"
+                    className="px-3.5 py-2 rounded-xl bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white border border-blue-200 text-xs font-bold transition-all cursor-pointer shadow-2xs"
                   >
                     ✓ Cấp quyền Thu Ngân
                   </button>
                   <button
                     onClick={() => handleUpdateRole(staff.id, 'technician')}
-                    className="px-3.5 py-2 rounded-xl bg-purple-600/20 hover:bg-purple-600 text-purple-300 hover:text-white border border-purple-500/30 text-xs font-bold transition-all"
+                    className="px-3.5 py-2 rounded-xl bg-purple-50 hover:bg-purple-600 text-purple-700 hover:text-white border border-purple-200 text-xs font-bold transition-all cursor-pointer shadow-2xs"
                   >
                     ✓ Cấp quyền Kỹ Thuật Viên
                   </button>
                   <button
                     onClick={() => handleUpdateRole(staff.id, 'admin')}
-                    className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-black shadow-md transition-all"
+                    className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black shadow-sm transition-all cursor-pointer"
                   >
                     ★ Cấp quyền Quản Trị
                   </button>
                   <button
                     onClick={() => handleDeleteStaff(staff.id, staff.name)}
-                    className="px-3 py-2 rounded-xl bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white text-xs font-semibold"
+                    className="px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 text-xs font-semibold transition-colors cursor-pointer"
                     title="Từ chối / Xóa"
                   >
                     Từ chối
@@ -324,84 +322,84 @@ export default function AdminStaffPage() {
       )}
 
       {/* ALL STAFF TABLE */}
-      <div className="glass-panel rounded-3xl border border-white/10 overflow-hidden shadow-2xl">
-        <div className="p-4 sm:p-6 border-b border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
+        <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="relative flex-1 max-w-md">
-            <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Tìm kiếm nhân viên theo họ tên hoặc username..."
-              className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-amber-400"
+              className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-xs placeholder-slate-400 focus:outline-none focus:border-amber-500 focus:bg-white"
             />
           </div>
-          <span className="text-xs text-gray-400">
+          <span className="text-xs text-slate-500 font-medium">
             Hiển thị {filtered.length} nhân sự
           </span>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-[#0b101d] text-gray-400 uppercase text-[11px] border-b border-white/10">
+            <thead className="bg-slate-50 text-slate-600 uppercase text-[11px] border-b border-slate-200 font-bold">
               <tr>
-                <th className="p-4">Nhân Viên</th>
-                <th className="p-4">Tài Khoản (Username)</th>
-                <th className="p-4">Vai Trò Hiện Tại</th>
-                <th className="p-4">Ngày Tham Gia</th>
-                <th className="p-4 text-right">Điều Chỉnh Phân Quyền</th>
+                <th className="p-4 sm:p-5">Nhân Viên</th>
+                <th className="p-4 sm:p-5">Tài Khoản (Username)</th>
+                <th className="p-4 sm:p-5">Vai Trò Hiện Tại</th>
+                <th className="p-4 sm:p-5">Ngày Tham Gia</th>
+                <th className="p-4 sm:p-5 text-right">Điều Chỉnh Phân Quyền</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
+            <tbody className="divide-y divide-slate-100">
               {filtered.map((staff) => {
                 const isSuperAdmin = staff.username === 'admin';
                 return (
-                  <tr key={staff.id} className="hover:bg-white/[0.02] transition-colors">
-                    <td className="p-4 font-semibold text-white flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center font-bold text-amber-300">
+                  <tr key={staff.id} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="p-4 sm:p-5 font-semibold text-slate-900 flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center font-bold text-amber-700">
                         {staff.name.charAt(0)}
                       </div>
                       <div>
-                        <span>{staff.name}</span>
+                        <span className="font-bold text-slate-900 text-sm">{staff.name}</span>
                         {isSuperAdmin && (
-                          <span className="text-[10px] text-amber-400 font-normal block font-mono">
+                          <span className="text-[10px] text-amber-700 font-bold block font-mono">
                             ★ Chủ Cửa Hàng
                           </span>
                         )}
                       </div>
                     </td>
-                    <td className="p-4 font-mono text-gray-300 font-semibold">{staff.username}</td>
-                    <td className="p-4">
+                    <td className="p-4 sm:p-5 font-mono text-slate-700 font-semibold">{staff.username}</td>
+                    <td className="p-4 sm:p-5">
                       {staff.role === 'admin' ? (
-                        <span className="px-3 py-1 rounded-full text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                        <span className="px-3 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-300">
                           Chủ Shop (Toàn Quyền)
                         </span>
                       ) : staff.role === 'cashier' ? (
-                        <span className="px-3 py-1 rounded-full text-[11px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                        <span className="px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
                           Thu Ngân (POS)
                         </span>
                       ) : staff.role === 'technician' ? (
-                        <span className="px-3 py-1 rounded-full text-[11px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                        <span className="px-3 py-1 rounded-full text-[11px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
                           Kỹ Thuật Viên (iCare)
                         </span>
                       ) : (
-                        <span className="px-3 py-1 rounded-full text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 animate-pulse">
+                        <span className="px-3 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-300 animate-pulse">
                           Chờ Duyệt Quyền
                         </span>
                       )}
                     </td>
-                    <td className="p-4 text-gray-400 font-mono">
+                    <td className="p-4 sm:p-5 text-slate-500 font-mono">
                       {new Date(staff.createdAt).toLocaleDateString('vi-VN')}
                     </td>
-                    <td className="p-4 text-right">
+                    <td className="p-4 sm:p-5 text-right">
                       {isSuperAdmin ? (
-                        <span className="text-gray-500 italic text-[11px]">Không thể thay đổi</span>
+                        <span className="text-slate-400 italic text-[11px]">Không thể thay đổi</span>
                       ) : (
                         <div className="inline-flex items-center gap-1.5">
                           <select
                             value={staff.role}
                             onChange={(e) => handleUpdateRole(staff.id, e.target.value as Role)}
-                            className="p-1.5 bg-[#0e1422] border border-white/10 rounded-lg text-white text-xs font-medium focus:outline-none focus:border-amber-400"
+                            className="p-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 text-xs font-semibold focus:bg-white focus:outline-none focus:border-amber-500 cursor-pointer"
                           >
                             <option value="cashier">Thu Ngân (Cashier)</option>
                             <option value="technician">Kỹ Thuật Viên (Technician)</option>
@@ -410,7 +408,7 @@ export default function AdminStaffPage() {
                           </select>
                           <button
                             onClick={() => handleDeleteStaff(staff.id, staff.name)}
-                            className="p-1.5 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                            className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                             title="Xóa tài khoản"
                           >
                             <UserX className="w-4 h-4" />
@@ -428,52 +426,62 @@ export default function AdminStaffPage() {
 
       {/* CREATE STAFF MODAL */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
-          <div className="bg-[#121826] border border-white/15 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-5">
-            <h3 className="font-bold text-white text-lg">Tạo Tài Khoản Nhân Viên Mới</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-5 text-slate-800">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <h3 className="font-black text-slate-900 text-lg">Tạo Tài Khoản Nhân Viên Mới</h3>
+              <button
+                type="button"
+                onClick={() => setIsAddModalOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
             <form onSubmit={handleCreateStaff} className="space-y-4 text-xs">
               <div>
-                <label className="text-gray-300 font-semibold mb-1 block">Họ và tên nhân viên *:</label>
+                <label className="text-slate-700 font-bold mb-1 block">Họ và tên nhân viên *:</label>
                 <input
                   type="text"
                   required
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   placeholder="VD: Trần Văn Bình"
-                  className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-amber-400"
+                  className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-medium focus:bg-white focus:outline-none focus:border-amber-500"
                 />
               </div>
 
               <div>
-                <label className="text-gray-300 font-semibold mb-1 block">Tên đăng nhập (Username) *:</label>
+                <label className="text-slate-700 font-bold mb-1 block">Tên đăng nhập (Username) *:</label>
                 <input
                   type="text"
                   required
                   value={newUsername}
                   onChange={(e) => setNewUsername(e.target.value)}
                   placeholder="VD: tranbinh"
-                  className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white font-mono focus:outline-none focus:border-amber-400"
+                  className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono font-bold focus:bg-white focus:outline-none focus:border-amber-500"
                 />
               </div>
 
               <div>
-                <label className="text-gray-300 font-semibold mb-1 block">Mật khẩu ban đầu *:</label>
+                <label className="text-slate-700 font-bold mb-1 block">Mật khẩu ban đầu *:</label>
                 <input
                   type="password"
                   required
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="Nhập mật khẩu..."
-                  className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white font-mono focus:outline-none focus:border-amber-400"
+                  className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono focus:bg-white focus:outline-none focus:border-amber-500"
                 />
               </div>
 
               <div>
-                <label className="text-gray-300 font-semibold mb-1 block">Cấp quyền ngay cho nhân viên:</label>
+                <label className="text-slate-700 font-bold mb-1 block">Cấp quyền ngay cho nhân viên:</label>
                 <select
                   value={newRole}
                   onChange={(e) => setNewRole(e.target.value as Role)}
-                  className="w-full p-3 rounded-xl bg-[#0d1320] border border-white/10 text-white focus:outline-none focus:border-amber-400"
+                  className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-medium focus:bg-white focus:outline-none focus:border-amber-500 cursor-pointer"
                 >
                   <option value="cashier">Thu Ngân (Bán hàng POS, ẩn giá vốn, ẩn sổ quỹ)</option>
                   <option value="technician">Kỹ Thuật Viên (iCare sửa chữa, kho linh kiện)</option>
@@ -485,14 +493,14 @@ export default function AdminStaffPage() {
               <div className="pt-2 flex gap-3">
                 <button
                   type="submit"
-                  className="flex-1 py-3 rounded-xl btn-gold text-xs font-black"
+                  className="flex-1 py-3.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black shadow-md transition-transform hover:scale-[1.01] cursor-pointer"
                 >
                   Xác Nhận Tạo Tài Khoản
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="px-5 py-3 rounded-xl bg-white/10 text-white text-xs font-semibold hover:bg-white/15"
+                  className="px-5 py-3.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors cursor-pointer"
                 >
                   Hủy
                 </button>

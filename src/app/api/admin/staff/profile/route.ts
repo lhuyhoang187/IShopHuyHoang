@@ -10,7 +10,7 @@ import {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, username, name, phone, email, avatar, currentPassword, newPassword } = body;
+    const { id, username, name, phone, email, avatar, department, birthday, address, bio, currentPassword, newPassword } = body;
 
     if (!id && !username) {
       return NextResponse.json(
@@ -74,6 +74,10 @@ export async function POST(request: NextRequest) {
     }
 
     if (avatar !== undefined) updateData.avatar = avatar;
+    if (department !== undefined) updateData.department = sanitizeString(department, 100);
+    if (birthday !== undefined) updateData.birthday = sanitizeString(birthday, 50);
+    if (address !== undefined) updateData.address = sanitizeString(address, 191);
+    if (bio !== undefined) updateData.bio = bio;
     if (newPassword) updateData.password = String(newPassword);
 
     const updated = await prisma.user.update({
@@ -87,6 +91,10 @@ export async function POST(request: NextRequest) {
         phone: true,
         email: true,
         avatar: true,
+        department: true,
+        birthday: true,
+        address: true,
+        bio: true,
         createdAt: true,
       },
     });

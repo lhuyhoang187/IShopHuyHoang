@@ -53,10 +53,10 @@ export default function PhoneDetailPage() {
     const found = IShopStore.getPhoneBySlug(slug);
     if (found) {
       setPhone(found);
-      const col = selectedColor || found.colors[0];
-      const cap = selectedCapacity || found.capacities[0];
-      if (!selectedColor) setSelectedColor(col);
-      if (!selectedCapacity) setSelectedCapacity(cap);
+      const col = found.colors.find((c) => c.id === selectedColor?.id) || found.colors[0];
+      const cap = found.capacities.find((c) => c.size === selectedCapacity?.size) || found.capacities[0];
+      setSelectedColor(col);
+      setSelectedCapacity(cap);
 
       updateVariantStock(found, col, cap);
     }
@@ -156,7 +156,7 @@ export default function PhoneDetailPage() {
   const isComparing = IShopStore.getComparisonList().includes(phone.id);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       {/* Breadcrumb */}
       <nav className="text-xs text-slate-500 flex items-center gap-2">
         <Link href="/" className="hover:text-slate-900 transition-colors">Trang chủ</Link>
@@ -200,25 +200,40 @@ export default function PhoneDetailPage() {
 
           {/* Color Thumbnails Selector */}
           <div className="grid grid-cols-4 gap-3">
-            {phone.colors.map((c) => (
-              <button
-                key={c.id}
-                onClick={() => setSelectedColor(c)}
-                className={`p-2.5 rounded-2xl border text-center transition-all ${
-                  selectedColor.id === c.id
-                    ? 'border-amber-500 bg-amber-50 text-slate-900 shadow-sm scale-[1.03]'
-                    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                }`}
-              >
-                <div
-                  style={{ backgroundColor: c.hex }}
-                  className="w-6 h-6 rounded-full mx-auto mb-1.5 border border-slate-300 shadow-sm"
-                />
-                <span className="text-[11px] font-bold block truncate">
-                  {c.name.split(' ')[0]}
-                </span>
-              </button>
-            ))}
+            {phone.colors.map((c) => {
+              const isColOut = Boolean(c.isOutOfStock || c.stock === 0);
+              return (
+                <button
+                  key={c.id}
+                  onClick={() => {
+                    setSelectedColor(c);
+                    updateVariantStock(phone, c, selectedCapacity);
+                  }}
+                  className={`p-2.5 rounded-2xl border text-center transition-all relative overflow-hidden cursor-pointer ${
+                    selectedColor.id === c.id
+                      ? isColOut
+                        ? 'border-red-400 bg-red-50 text-slate-900 shadow-sm scale-[1.03]'
+                        : 'border-amber-500 bg-amber-50 text-slate-900 shadow-sm scale-[1.03]'
+                      : isColOut
+                      ? 'border-slate-200 bg-slate-100/80 text-slate-400 hover:bg-slate-100 opacity-70'
+                      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <div
+                    style={{ backgroundColor: c.hex }}
+                    className="w-6 h-6 rounded-full mx-auto mb-1.5 border border-slate-300 shadow-sm"
+                  />
+                  <span className={`text-[11px] font-bold block truncate ${isColOut ? 'line-through text-slate-400' : ''}`}>
+                    {c.name.split(' ')[0]}
+                  </span>
+                  {isColOut && (
+                    <span className="block text-[8px] font-black text-red-600 mt-0.5 leading-none">
+                      Hết hàng
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
 
           {/* Value Commitments */}
@@ -255,7 +270,7 @@ export default function PhoneDetailPage() {
             </p>
           </div>
 
-          {/* Luxury Pricing Box */}
+          {/* Luxury Pricing Box with Live Stock Status */}
           <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-white p-5 sm:p-6 rounded-3xl border border-amber-200 shadow-md space-y-3">
             <div className="flex items-baseline justify-between">
               <div>
@@ -271,15 +286,28 @@ export default function PhoneDetailPage() {
                   </span>
                 )}
               </div>
-              <div className="text-right">
-                <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-200 shadow-sm">
-                  Tiết kiệm {formatVND((selectedCapacity.originalPrice - selectedCapacity.price) * quantity)}
-                </span>
-                <div className="text-[11px] text-emerald-700 mt-2 flex items-center gap-1.5 justify-end font-bold">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                  <span>Còn {availableStockCount > 0 ? `${availableStockCount} máy sẵn IMEI` : 'Sẵn hàng kích hoạt'}</span>
+
+              {availableStockCount <= 0 ? (
+                <div className="text-right">
+                  <span className="px-3.5 py-1.5 rounded-full text-xs font-black bg-red-100 text-red-700 border border-red-300 shadow-sm animate-pulse inline-block">
+                    ✕ TẠM HẾT HÀNG
+                  </span>
+                  <div className="text-[11px] text-red-600 mt-2 flex items-center gap-1.5 justify-end font-bold">
+                    <span className="w-2 h-2 rounded-full bg-red-500" />
+                    <span>Phiên bản này tạm hết hàng</span>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="text-right">
+                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-200 shadow-sm">
+                    Tiết kiệm {formatVND((selectedCapacity.originalPrice - selectedCapacity.price) * quantity)}
+                  </span>
+                  <div className="text-[11px] text-emerald-700 mt-2 flex items-center gap-1.5 justify-end font-bold">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                    <span>Còn {availableStockCount} máy sẵn IMEI</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Hiển thị điểm thưởng theo tỷ lệ 100k = 10 điểm */}
@@ -294,30 +322,67 @@ export default function PhoneDetailPage() {
             </div>
           </div>
 
-          {/* Storage selector */}
+          {/* Storage selector with Stock Count & In/Out-of-Stock Badges */}
           <div className="space-y-2.5">
-            <label className="text-xs font-extrabold text-slate-800 uppercase tracking-wider block">
-              1. Chọn Dung Lượng Bộ Nhớ:
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-extrabold text-slate-800 uppercase tracking-wider block">
+                1. Chọn Dung Lượng Bộ Nhớ:
+              </label>
+              <span className="text-[11px] text-slate-500 font-medium">
+                Tình trạng: {selectedCapacity.isOutOfStock || availableStockCount <= 0 ? (
+                  <span className="font-bold text-red-600">Hết hàng</span>
+                ) : (
+                  <span className="font-bold text-emerald-600">Còn hàng ({availableStockCount} máy)</span>
+                )}
+              </span>
+            </div>
+
             <div className="grid grid-cols-3 gap-3">
               {phone.capacities.map((cap) => {
                 const isSelected = selectedCapacity.size === cap.size;
                 const diff = cap.price - phone.capacities[0].price;
+
+                const capStock = IShopStore.getProductAvailableStock({
+                  productId: phone.id,
+                  type: 'phone',
+                  capacity: cap.size,
+                });
+                const isCapOut = Boolean(cap.isOutOfStock || cap.stock === 0 || capStock === 0);
+
                 return (
                   <button
                     key={cap.size}
+                    type="button"
                     onClick={() => {
                       setSelectedCapacity(cap);
                       updateVariantStock(phone, selectedColor, cap);
                     }}
-                    className={`p-3.5 rounded-2xl border text-left transition-all ${
+                    className={`p-3.5 rounded-2xl border text-left transition-all relative overflow-hidden cursor-pointer ${
                       isSelected
-                        ? 'border-amber-500 bg-amber-50 text-slate-900 shadow-sm scale-[1.02]'
+                        ? isCapOut
+                          ? 'border-red-400 bg-red-50/70 text-slate-900 shadow-sm scale-[1.02]'
+                          : 'border-amber-500 bg-amber-50 text-slate-900 shadow-sm scale-[1.02]'
+                        : isCapOut
+                        ? 'border-slate-200 bg-slate-100/70 text-slate-500 hover:bg-slate-100 opacity-80'
                         : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                     }`}
                   >
-                    <div className="font-black text-base">{cap.size}</div>
-                    <div className="text-xs text-amber-700 font-black mt-0.5">
+                    <div className="flex items-center justify-between gap-1">
+                      <div className={`font-black text-base ${isCapOut ? 'line-through text-slate-500' : ''}`}>
+                        {cap.size}
+                      </div>
+                      {isCapOut ? (
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-red-100 text-red-700 border border-red-200">
+                          Hết hàng
+                        </span>
+                      ) : (
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          {capStock > 0 ? `Còn ${capStock}` : 'Sẵn hàng'}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="text-xs text-amber-700 font-black mt-1">
                       {formatVND(cap.price)}
                     </div>
                     {diff > 0 && (
@@ -331,32 +396,70 @@ export default function PhoneDetailPage() {
             </div>
           </div>
 
-          {/* Color selector */}
+          {/* Color selector with Stock Count & In/Out-of-Stock Badges */}
           <div className="space-y-2.5">
-            <label className="text-xs font-extrabold text-slate-800 uppercase tracking-wider block">
-              2. Chọn Màu Sắc Máy:
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-extrabold text-slate-800 uppercase tracking-wider block">
+                2. Chọn Màu Sắc Máy:
+              </label>
+              <span className="text-[11px] text-slate-500 font-medium">
+                {selectedColor.name} &bull; {selectedColor.isOutOfStock || availableStockCount <= 0 ? (
+                  <span className="font-bold text-red-600">Tạm hết hàng</span>
+                ) : (
+                  <span className="font-bold text-emerald-600">Sẵn hàng</span>
+                )}
+              </span>
+            </div>
+
             <div className="grid grid-cols-2 gap-2.5">
               {phone.colors.map((c) => {
                 const isSelected = selectedColor.id === c.id;
+
+                const colStock = IShopStore.getProductAvailableStock({
+                  productId: phone.id,
+                  type: 'phone',
+                  color: c.name,
+                  capacity: selectedCapacity.size,
+                });
+                const isColOut = Boolean(c.isOutOfStock || c.stock === 0 || colStock === 0);
+
                 return (
                   <button
                     key={c.id}
+                    type="button"
                     onClick={() => {
                       setSelectedColor(c);
                       updateVariantStock(phone, c, selectedCapacity);
                     }}
-                    className={`p-3 rounded-2xl border flex items-center gap-2.5 text-xs font-bold transition-all ${
+                    className={`p-3 rounded-2xl border flex items-center justify-between gap-2 text-xs font-bold transition-all cursor-pointer ${
                       isSelected
-                        ? 'border-amber-500 bg-amber-50 text-slate-900 shadow-sm'
+                        ? isColOut
+                          ? 'border-red-400 bg-red-50/70 text-slate-900 shadow-sm'
+                          : 'border-amber-500 bg-amber-50 text-slate-900 shadow-sm'
+                        : isColOut
+                        ? 'border-slate-200 bg-slate-100/70 text-slate-500 hover:bg-slate-100 opacity-80'
                         : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                     }`}
                   >
-                    <div
-                      style={{ backgroundColor: c.hex }}
-                      className="w-4 h-4 rounded-full border border-slate-300 shrink-0"
-                    />
-                    <span className="truncate">{c.name}</span>
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div
+                        style={{ backgroundColor: c.hex }}
+                        className="w-4 h-4 rounded-full border border-slate-300 shrink-0"
+                      />
+                      <span className={`truncate ${isColOut ? 'line-through text-slate-500' : ''}`}>
+                        {c.name}
+                      </span>
+                    </div>
+
+                    {isColOut ? (
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-red-100 text-red-700 border border-red-200 shrink-0">
+                        Hết hàng
+                      </span>
+                    ) : (
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
+                        {colStock > 0 ? `Còn ${colStock}` : 'Sẵn hàng'}
+                      </span>
+                    )}
                   </button>
                 );
               })}
@@ -464,6 +567,7 @@ export default function PhoneDetailPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               {/* Buy now with VietQR */}
               <button
+                disabled={availableStockCount <= 0}
                 onClick={() => {
                   if (availableStockCount <= 0) {
                     setToastMessage({
@@ -483,19 +587,37 @@ export default function PhoneDetailPage() {
                   }
                   setIsVietQROpen(true);
                 }}
-                className="btn-gold w-full py-4 px-4 rounded-2xl text-sm font-black flex items-center justify-center gap-2 shadow-md cursor-pointer"
+                className={`w-full py-4 px-4 rounded-2xl text-sm font-black flex items-center justify-center gap-2 shadow-md transition-all ${
+                  availableStockCount <= 0
+                    ? 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300'
+                    : 'btn-gold cursor-pointer hover:scale-[1.01]'
+                }`}
               >
-                <Zap className="w-4 h-4 text-white fill-current" />
-                <span>MUA NGAY (VIETQR 247)</span>
+                {availableStockCount <= 0 ? (
+                  <>
+                    <AlertCircle className="w-4 h-4 text-slate-400" />
+                    <span>TẠM HẾT HÀNG</span>
+                  </>
+                ) : (
+                  <>
+                    <Zap className="w-4 h-4 text-white fill-current" />
+                    <span>MUA NGAY (VIETQR 247)</span>
+                  </>
+                )}
               </button>
 
               {/* Add to Cart */}
               <button
+                disabled={availableStockCount <= 0}
                 onClick={handleAddToCart}
-                className="w-full py-4 px-4 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
+                className={`w-full py-4 px-4 rounded-2xl font-bold text-sm shadow-md flex items-center justify-center gap-2 transition-all ${
+                  availableStockCount <= 0
+                    ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
+                    : 'bg-slate-900 hover:bg-slate-800 text-white cursor-pointer hover:scale-[1.01]'
+                }`}
               >
                 <ShoppingCart className="w-4 h-4 text-amber-300" />
-                <span>Thêm Vào Giỏ Hàng</span>
+                <span>{availableStockCount <= 0 ? 'Tạm Hết Hàng Trong Kho' : 'Thêm Vào Giỏ Hàng'}</span>
               </button>
             </div>
 

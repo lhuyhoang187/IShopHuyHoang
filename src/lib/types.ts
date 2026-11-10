@@ -51,12 +51,23 @@ export interface PhoneColor {
   name: string;
   hex: string;
   imageUrl: string;
+  stock?: number; // Số lượng tồn kho theo màu
+  isOutOfStock?: boolean; // Còn hàng (false) hay hết hàng (true) cho màu này
 }
 
 export interface PhoneCapacity {
   size: string; // '128GB' | '256GB' | '512GB' | '1TB'
   price: number;
   originalPrice: number;
+  stock?: number; // Số lượng tồn kho theo dung lượng
+  isOutOfStock?: boolean; // Còn hàng (false) hay hết hàng (true) cho dung lượng này
+}
+
+export interface VariantStockItem {
+  color: string;
+  capacity: string;
+  stock: number;
+  isOutOfStock?: boolean;
 }
 
 export interface PhoneProduct {
@@ -73,6 +84,7 @@ export interface PhoneProduct {
   capacities: PhoneCapacity[];
   specs: PhoneSpec;
   warrantyInfo: string;
+  variantStocks?: Record<string, { stock: number; isOutOfStock?: boolean }>; // Key: `${color}_${capacity}`
 }
 
 export interface PhoneStockItem {
@@ -95,11 +107,19 @@ export interface PhoneStockItem {
   rewardPoints?: number;
 }
 
+export interface AccessoryCategoryItem {
+  id: string;
+  code: string; // e.g. 'charger', 'cable', 'pencil'
+  name: string; // e.g. 'Củ sạc GaN', 'Cáp sạc'
+  description?: string;
+  productCount?: number;
+}
+
 export interface AccessoryProduct {
   id: string;
   name: string;
   slug: string;
-  category: 'charger' | 'cable' | 'powerbank' | 'case' | 'screen_protector' | 'audio' | 'other';
+  category: 'charger' | 'cable' | 'powerbank' | 'case' | 'screen_protector' | 'audio' | 'other' | string;
   categoryName: string;
   barcode: string;
   brand: string;
@@ -117,10 +137,18 @@ export interface AccessoryProduct {
   pointsToRedeem?: number; // Số điểm thưởng cần thiết để đổi phụ kiện này (VD: 390 pts)
 }
 
+export interface SparePartCategoryItem {
+  id: string;
+  code: string; // e.g. 'screen', 'battery', 'camera'
+  name: string; // e.g. 'Màn hình zin & OEM', 'Pin Pisen'
+  description?: string;
+  productCount?: number;
+}
+
 export interface SparePartItem {
   id: string;
   name: string;
-  category: 'screen' | 'battery' | 'camera' | 'back_glass' | 'charge_port' | 'motherboard' | 'other';
+  category: 'screen' | 'battery' | 'camera' | 'back_glass' | 'charge_port' | 'motherboard' | 'other' | string;
   categoryName: string;
   barcode: string;
   compatibleModels: string[];

@@ -23,6 +23,9 @@ import {
   Zap,
   ShieldCheck,
   Gauge,
+  Check,
+  Filter,
+  AlertCircle,
 } from 'lucide-react';
 import { IShopStore } from '@/lib/store';
 import { PhoneProduct } from '@/lib/types';
@@ -33,12 +36,15 @@ export default function ComparePage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [onlyDifferences, setOnlyDifferences] = useState(false);
   const [showAddPicker, setShowAddPicker] = useState(false);
+  const [selectedStorage, setSelectedStorage] = useState<string>('All');
+  const [tempSelectedIds, setTempSelectedIds] = useState<string[]>([]);
+  const [pickerWarning, setPickerWarning] = useState<string>('');
 
   const loadData = () => {
     const list = IShopStore.getComparisonList();
     const phones = IShopStore.getPhones();
     setAllPhones(phones);
-    setSelectedIds(list.length > 0 ? list : ['p-1', 'p-3']); // Default iPhone 16 Pro Max vs S24 Ultra
+    setSelectedIds(list);
   };
 
   useEffect(() => {
@@ -54,10 +60,49 @@ export default function ComparePage() {
     IShopStore.toggleComparison(id);
   };
 
-  const addPhone = (id: string) => {
-    IShopStore.toggleComparison(id);
+  const openPicker = () => {
+    setTempSelectedIds([...selectedIds]);
+    setSelectedStorage('All');
+    setPickerWarning('');
+    setShowAddPicker(true);
+  };
+
+  const togglePickerPhone = (id: string) => {
+    if (tempSelectedIds.includes(id)) {
+      setTempSelectedIds(tempSelectedIds.filter((item) => item !== id));
+      setPickerWarning('');
+    } else {
+      if (tempSelectedIds.length >= 3) {
+        setPickerWarning('Bạn chỉ có thể chọn tối đa 3 máy để so sánh cùng lúc.');
+        return;
+      }
+      setPickerWarning('');
+      setTempSelectedIds([...tempSelectedIds, id]);
+    }
+  };
+
+  const handleStartCompare = () => {
+    if (tempSelectedIds.length < 2) return;
+    IShopStore.setComparisonList(tempSelectedIds);
+    setSelectedIds(tempSelectedIds);
     setShowAddPicker(false);
   };
+
+  const storageOptions = ['All', '128GB', '256GB', '512GB', '1TB'];
+
+  const getStorageCount = (storage: string) => {
+    if (storage === 'All') return allPhones.length;
+    return allPhones.filter((p) =>
+      p.capacities.some((c) => c.size.toLowerCase().includes(storage.toLowerCase()))
+    ).length;
+  };
+
+  const filteredPhonesForPicker = allPhones.filter((phone) => {
+    if (selectedStorage === 'All') return true;
+    return phone.capacities.some((c) =>
+      c.size.toLowerCase().includes(selectedStorage.toLowerCase())
+    );
+  });
 
   // Grouped specs definitions with icons and categories
   const specCategories = [
@@ -132,22 +177,22 @@ export default function ComparePage() {
             <span>{onlyDifferences ? 'Đang chỉ xem điểm khác biệt' : 'Chỉ xem điểm khác biệt'}</span>
           </button>
 
-          {selectedPhones.length < 3 && (
-            <button
-              onClick={() => setShowAddPicker(true)}
-              className="btn-gold px-5 py-3 rounded-2xl text-xs font-black flex items-center gap-2 shadow-sm text-white hover:opacity-90 transition-opacity"
-            >
-              <Plus className="w-4 h-4 text-white" />
-              <span className="text-white">Thêm máy thứ {selectedPhones.length + 1}</span>
-            </button>
-          )}
+          <button
+            onClick={openPicker}
+            className="btn-gold px-5 py-3 rounded-2xl text-xs font-black flex items-center gap-2 shadow-sm text-white hover:opacity-90 transition-opacity cursor-pointer"
+          >
+            <Plus className="w-4 h-4 text-white" />
+            <span className="text-white">
+              {selectedPhones.length < 3 ? `Chọn máy so sánh (${selectedPhones.length}/3)` : 'Đổi máy so sánh'}
+            </span>
+          </button>
         </div>
       </div>
 
-      {/* Comparison Matrix Table */}
+      {/* Comparison Matrix Table - Always rendered */}
       <div className="bg-white rounded-3xl border border-slate-300/80 overflow-hidden shadow-lg">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[750px]">
+          <table className="w-full text-left border-collapse min-w-[750px] table-fixed">
             {/* Header Row with Phone Cards */}
             <thead>
               <tr className="border-b-2 border-slate-200 bg-gradient-to-r from-slate-100/90 via-slate-50 to-slate-100/90">
@@ -208,17 +253,27 @@ export default function ComparePage() {
                   </th>
                 ))}
 
-                {/* Slot placeholder if less than 3 phones */}
+                {/* Progressive Single Slot: only 1 slot shown at a time */}
                 {selectedPhones.length < 3 && (
-                  <th className="p-5 sm:p-6 w-1/4 align-top text-center">
+                  <th
+                    className={`p-5 sm:p-6 align-top text-center border-r border-slate-200 last:border-r-0 ${
+                      selectedPhones.length >= 2
+                        ? 'w-1/4'
+                        : selectedPhones.length === 1
+                        ? 'w-1/3 sm:w-1/4'
+                        : 'w-1/2 sm:w-1/3'
+                    }`}
+                  >
                     <button
-                      onClick={() => setShowAddPicker(true)}
-                      className="w-full h-[270px] rounded-3xl border-2 border-dashed border-slate-300 hover:border-amber-500 flex flex-col items-center justify-center gap-2 text-slate-500 hover:text-amber-700 transition-all bg-slate-50/50 hover:bg-amber-50/30 group"
+                      onClick={openPicker}
+                      className="w-full max-w-sm mx-auto h-[270px] rounded-3xl border-2 border-dashed border-slate-300 hover:border-amber-500 flex flex-col items-center justify-center gap-2 text-slate-500 hover:text-amber-700 transition-all bg-slate-50/50 hover:bg-amber-50/30 group cursor-pointer"
                     >
                       <div className="w-12 h-12 rounded-2xl bg-amber-100 flex items-center justify-center group-hover:scale-110 transition-transform">
                         <Plus className="w-6 h-6 text-amber-600" />
                       </div>
-                      <span className="text-xs font-bold mt-1">Thêm máy thứ {selectedPhones.length + 1}</span>
+                      <span className="text-xs font-bold mt-1">
+                        Thêm máy thứ {selectedPhones.length + 1}
+                      </span>
                       <span className="text-[11px] text-slate-400">Chọn từ danh mục</span>
                     </button>
                   </th>
@@ -231,7 +286,7 @@ export default function ComparePage() {
               {specCategories.map((cat, catIdx) => {
                 // Filter rows if onlyDifferences
                 const visibleRows = cat.rows.filter((row) => {
-                  if (!onlyDifferences) return true;
+                  if (!onlyDifferences || selectedPhones.length < 2) return true;
                   const values = selectedPhones.map((p) => row.getVal(p));
                   return new Set(values).size > 1;
                 });
@@ -260,7 +315,7 @@ export default function ComparePage() {
                     {/* Spec Rows inside Category */}
                     {visibleRows.map((row, rowIdx) => {
                       const values = selectedPhones.map((p) => row.getVal(p));
-                      const isDifferent = new Set(values).size > 1;
+                      const isDifferent = selectedPhones.length > 1 && new Set(values).size > 1;
                       const RowIcon = row.icon;
                       const isEven = rowIdx % 2 === 0;
 
@@ -276,7 +331,7 @@ export default function ComparePage() {
                           }`}
                         >
                           {/* Label Cell */}
-                          <td className="p-4 sm:p-5 font-bold text-slate-800 border-r border-slate-200 bg-inherit">
+                          <td className="p-4 sm:p-5 font-bold text-slate-800 border-r border-slate-200 bg-inherit w-1/4">
                             <div className="flex items-center gap-2.5">
                               {isDifferent ? (
                                 <span
@@ -292,13 +347,13 @@ export default function ComparePage() {
                             </div>
                           </td>
 
-                          {/* Values per Phone */}
+                          {/* Values per Selected Phone */}
                           {selectedPhones.map((phone) => {
                             const val = row.getVal(phone);
                             return (
                               <td
                                 key={phone.id}
-                                className={`p-4 sm:p-5 text-center border-r border-slate-200 last:border-r-0 leading-relaxed ${
+                                className={`p-4 sm:p-5 text-center border-r border-slate-200 last:border-r-0 leading-relaxed w-1/4 ${
                                   row.highlightPrice
                                     ? 'text-amber-700 font-black text-sm sm:text-base'
                                     : isDifferent
@@ -311,9 +366,19 @@ export default function ComparePage() {
                             );
                           })}
 
-                          {/* Empty placeholder column if < 3 phones */}
+                          {/* Empty placeholder cell for the single next slot */}
                           {selectedPhones.length < 3 && (
-                            <td className="p-4 text-center text-slate-300 font-medium">-</td>
+                            <td
+                              className={`p-4 sm:p-5 text-center text-slate-300 font-medium border-r border-slate-200 last:border-r-0 ${
+                                selectedPhones.length >= 2
+                                  ? 'w-1/4'
+                                  : selectedPhones.length === 1
+                                  ? 'w-1/3 sm:w-1/4'
+                                  : 'w-1/2 sm:w-1/3'
+                              }`}
+                            >
+                              -
+                            </td>
                           )}
                         </tr>
                       );
@@ -326,48 +391,242 @@ export default function ComparePage() {
         </div>
       </div>
 
-      {/* Modal Add Phone to Compare */}
+      {/* Modal Add / Select Phone to Compare */}
       {showAddPicker && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 max-w-xl w-full shadow-2xl">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
-              <h3 className="font-bold text-slate-900 text-base">Chọn Điện Thoại Để Đưa Lên Bàn Cân</h3>
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-7 max-w-2xl w-full shadow-2xl flex flex-col max-h-[90vh]">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 shadow-sm">
+                  <Scale className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-base sm:text-lg">
+                    Chọn Điện Thoại Để Đưa Lên Bàn Cân
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Lọc dung lượng, tích chọn 2 - 3 máy và bấm nút "So Sánh Ngay"
+                  </p>
+                </div>
+              </div>
               <button
                 onClick={() => setShowAddPicker(false)}
-                className="p-1.5 text-slate-500 hover:text-slate-900 rounded-xl bg-slate-100 hover:bg-slate-200"
+                className="p-2 text-slate-400 hover:text-slate-800 rounded-xl bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer"
+                title="Đóng"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="space-y-2.5 max-h-96 overflow-y-auto pr-1">
-              {allPhones
-                .filter((p) => !selectedIds.includes(p.id))
-                .map((phone) => (
-                  <div
-                    key={phone.id}
-                    onClick={() => addPhone(phone.id)}
-                    className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 hover:bg-amber-50/60 border border-slate-200 hover:border-amber-300 cursor-pointer transition-all shadow-sm"
-                  >
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={phone.colors[0]?.imageUrl}
-                        alt={phone.name}
-                        className="w-12 h-12 object-contain rounded-xl bg-gradient-to-b from-slate-100 to-slate-200 border border-slate-200 p-1"
-                      />
-                      <div>
-                        <h4 className="text-sm font-bold text-slate-900">{phone.name}</h4>
-                        <p className="text-xs text-slate-500">{phone.specs.chip}</p>
+            {/* Storage Filter Bar */}
+            <div className="py-4 border-b border-slate-100">
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                  <HardDrive className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Bộ Lọc Dung Lượng Máy:</span>
+                </label>
+                <span className="text-[11px] text-slate-500 font-medium">
+                  Hiển thị {filteredPhonesForPicker.length} dòng máy
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {storageOptions.map((storage) => {
+                  const isSelected = selectedStorage === storage;
+                  const count = getStorageCount(storage);
+                  return (
+                    <button
+                      key={storage}
+                      type="button"
+                      onClick={() => setSelectedStorage(storage)}
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                        isSelected
+                          ? 'btn-gold text-white shadow-sm ring-2 ring-amber-300'
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
+                      }`}
+                    >
+                      <span>{storage === 'All' ? 'Tất Cả Dung Lượng' : storage}</span>
+                      <span
+                        className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+                          isSelected ? 'bg-black/20 text-white' : 'bg-white text-slate-600 border border-slate-200'
+                        }`}
+                      >
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Phone Selection List with Checkboxes */}
+            <div className="flex-1 overflow-y-auto py-3 space-y-2.5 pr-1 min-h-[220px]">
+              {filteredPhonesForPicker.length === 0 ? (
+                <div className="text-center py-12 text-slate-400 text-xs">
+                  Không tìm thấy điện thoại nào có phiên bản {selectedStorage}.
+                </div>
+              ) : (
+                filteredPhonesForPicker.map((phone) => {
+                  const isChecked = tempSelectedIds.includes(phone.id);
+                  const matchedCap =
+                    selectedStorage !== 'All'
+                      ? phone.capacities.find((c) =>
+                          c.size.toLowerCase().includes(selectedStorage.toLowerCase())
+                        )
+                      : null;
+                  const displayPrice = matchedCap ? matchedCap.price : phone.capacities[0].price;
+
+                  return (
+                    <div
+                      key={phone.id}
+                      onClick={() => togglePickerPhone(phone.id)}
+                      className={`flex items-center justify-between p-3.5 rounded-2xl border cursor-pointer transition-all ${
+                        isChecked
+                          ? 'bg-amber-50/80 border-amber-500 ring-2 ring-amber-200/80 shadow-sm'
+                          : 'bg-white hover:bg-slate-50 border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        {/* Custom Checkbox */}
+                        <div
+                          className={`w-5 h-5 rounded-lg border flex items-center justify-center transition-all shrink-0 ${
+                            isChecked
+                              ? 'bg-amber-600 border-amber-600 text-white shadow-sm'
+                              : 'border-slate-300 bg-white hover:border-amber-400'
+                          }`}
+                        >
+                          {isChecked && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                        </div>
+
+                        <img
+                          src={phone.colors[0]?.imageUrl}
+                          alt={phone.name}
+                          className="w-12 h-12 sm:w-14 sm:h-14 object-contain rounded-xl bg-slate-100 border border-slate-200 p-1 shrink-0"
+                        />
+
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 shrink-0">
+                              {phone.brand}
+                            </span>
+                            <h4 className="text-xs sm:text-sm font-bold text-slate-900 truncate">
+                              {phone.name}
+                            </h4>
+                          </div>
+                          <p className="text-[11px] text-slate-500 mt-0.5 truncate">
+                            {phone.specs.chip}
+                          </p>
+
+                          {/* Capacities list badges */}
+                          <div className="flex flex-wrap gap-1 mt-1.5">
+                            {phone.capacities.map((c) => {
+                              const isMatch =
+                                selectedStorage !== 'All' &&
+                                c.size.toLowerCase().includes(selectedStorage.toLowerCase());
+                              return (
+                                <span
+                                  key={c.size}
+                                  className={`text-[10px] px-1.5 py-0.2 rounded font-medium ${
+                                    isMatch
+                                      ? 'bg-amber-600 text-white font-bold'
+                                      : 'bg-slate-100 text-slate-600'
+                                  }`}
+                                >
+                                  {c.size}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="text-right shrink-0 ml-3">
+                        <span className="text-xs sm:text-sm font-black text-amber-700 block">
+                          {formatVND(displayPrice)}
+                        </span>
+                        {matchedCap && (
+                          <span className="text-[10px] text-slate-500 font-medium">
+                            Bản {matchedCap.size}
+                          </span>
+                        )}
+                        <span
+                          className={`inline-block text-[10px] sm:text-[11px] font-bold mt-1 px-2.5 py-0.5 rounded-lg transition-colors ${
+                            isChecked
+                              ? 'bg-amber-600 text-white shadow-sm'
+                              : 'bg-slate-100 text-slate-600'
+                          }`}
+                        >
+                          {isChecked ? '✓ Đã tích chọn' : '+ Tích chọn'}
+                        </span>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <span className="text-sm font-black text-amber-700">
-                        {formatVND(phone.capacities[0].price)}
-                      </span>
-                      <span className="block text-[11px] text-sky-700 font-bold mt-0.5">+ Chọn So Sánh</span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })
+              )}
+            </div>
+
+            {/* Modal Footer with "So Sánh Ngay" Button */}
+            <div className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-slate-700">Đã tích chọn:</span>
+                  <span
+                    className={`text-xs font-black px-2 py-0.5 rounded-lg ${
+                      tempSelectedIds.length >= 2
+                        ? 'bg-amber-100 text-amber-800'
+                        : 'bg-slate-100 text-slate-600'
+                    }`}
+                  >
+                    {tempSelectedIds.length}/3 máy
+                  </span>
+                  {tempSelectedIds.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setTempSelectedIds([])}
+                      className="text-[11px] text-slate-400 hover:text-rose-600 underline ml-1 cursor-pointer"
+                    >
+                      Bỏ chọn tất cả
+                    </button>
+                  )}
+                </div>
+
+                {pickerWarning && (
+                  <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5" />
+                    <span>{pickerWarning}</span>
+                  </p>
+                )}
+
+                {tempSelectedIds.length < 2 && !pickerWarning && (
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Vui lòng tích chọn tối thiểu 2 máy để bắt đầu so sánh
+                  </p>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => setShowAddPicker(false)}
+                  className="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer"
+                >
+                  Đóng
+                </button>
+                <button
+                  type="button"
+                  disabled={tempSelectedIds.length < 2}
+                  onClick={handleStartCompare}
+                  className={`flex-1 sm:flex-initial px-6 py-2.5 rounded-xl text-xs font-black flex items-center justify-center gap-2 transition-all shadow-md ${
+                    tempSelectedIds.length >= 2
+                      ? 'btn-gold text-white hover:opacity-90 cursor-pointer shadow-amber-500/20 hover:scale-[1.02]'
+                      : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                  }`}
+                >
+                  <Scale className="w-4 h-4 text-white" />
+                  <span>So Sánh Ngay ({tempSelectedIds.length} máy)</span>
+                  <ArrowRight className="w-4 h-4 text-white" />
+                </button>
+              </div>
             </div>
           </div>
         </div>
