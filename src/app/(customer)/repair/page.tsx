@@ -20,6 +20,10 @@ import {
   AlertCircle,
   Tag,
   Phone,
+  Search,
+  ChevronDown,
+  ChevronUp,
+  Filter,
 } from 'lucide-react';
 import { formatVND } from '@/lib/vietqr';
 import confetti from 'canvas-confetti';
@@ -55,6 +59,16 @@ export default function RepairPriceListPage() {
   ]);
   const [extraNotes, setExtraNotes] = useState('');
   const [customModelText, setCustomModelText] = useState('');
+
+  // Smart Selector States for Device Selection (Gọn gàng & Thông minh)
+  const [selectedBrand, setSelectedBrand] = useState<string>('Apple');
+  const [deviceSearchQuery, setDeviceSearchQuery] = useState('');
+  const [isDeviceDropdownOpen, setIsDeviceDropdownOpen] = useState(false);
+
+  // Smart Selector States for Service Selection
+  const [selectedServiceCategory, setSelectedServiceCategory] = useState<string>('all');
+  const [serviceSearchQuery, setServiceSearchQuery] = useState('');
+  const [isServiceDropdownOpen, setIsServiceDropdownOpen] = useState(false);
 
   const getTodayStr = () => new Date().toISOString().split('T')[0];
   const getTomorrowStr = () => new Date(Date.now() + 86400000).toISOString().split('T')[0];
@@ -139,6 +153,64 @@ export default function RepairPriceListPage() {
 
     return () => window.removeEventListener('ishop_data_changed', listener);
   }, []);
+
+  // Devices filtered by Brand
+  const brandDevices = useMemo(() => {
+    if (selectedBrand === 'Khác') return [];
+    return deviceList.filter((d) => (d.brand || 'Khác') === selectedBrand);
+  }, [deviceList, selectedBrand]);
+
+  // Hot devices for quick 1-click selection (Gợi ý máy phổ biến)
+  const hotDevicesForBrand = useMemo(() => {
+    if (selectedBrand === 'Apple') {
+      return ['iPhone 16 Pro Max', 'iPhone 15 Pro Max', 'iPhone 14 Pro Max', 'iPhone 13 Pro Max', 'iPhone 15 Pro'];
+    }
+    if (selectedBrand === 'Samsung') {
+      return ['Samsung Galaxy S24 Ultra', 'Samsung Galaxy S23 Ultra', 'Samsung Galaxy Z Fold / Z Flip'];
+    }
+    return brandDevices.slice(0, 4).map((d) => d.name);
+  }, [selectedBrand, brandDevices]);
+
+  // Search filtered devices for combobox
+  const searchedDevices = useMemo(() => {
+    const q = deviceSearchQuery.trim().toLowerCase();
+    if (!q) return brandDevices;
+    return deviceList.filter(
+      (d) =>
+        d.name.toLowerCase().includes(q) ||
+        (d.brand && d.brand.toLowerCase().includes(q))
+    );
+  }, [brandDevices, deviceList, deviceSearchQuery]);
+
+  // Hot services for quick 1-click selection
+  const hotServices = useMemo(() => {
+    return [
+      { name: 'Thay Pin Pisen Chính Hãng (Hiển thị 100% dung lượng)', label: '🔋 Pin Pisen Chuẩn' },
+      { name: 'Thay Màn Hình Zin OLED 120Hz ProMotion', label: '📱 Màn Hình Zin OLED' },
+      { name: 'Ép Kính Cảm Ứng Chân Không (Giữ màn zin)', label: '✨ Ép Kính Chân Không' },
+      { name: 'Thay Cụm Chân Sạc Type-C & Mic Đàm Thoại', label: '⚡ Chân Sạc Type-C' },
+      { name: 'Kiểm Tra Toàn Diện & Báo Giá Miễn Phí Tại Chỗ', label: '🔍 Kiểm Tra 0đ' },
+    ];
+  }, []);
+
+  // Filtered services by category and search
+  const filteredServices = useMemo(() => {
+    return serviceCatalog.filter((s) => {
+      // Category filter
+      if (selectedServiceCategory !== 'all') {
+        if (selectedServiceCategory === 'battery' && s.category !== 'battery') return false;
+        if (selectedServiceCategory === 'screen' && s.category !== 'screen') return false;
+        if (selectedServiceCategory === 'glass' && s.category !== 'glass') return false;
+        if (selectedServiceCategory === 'charge_port' && s.category !== 'charge_port') return false;
+      }
+      // Search filter
+      if (serviceSearchQuery.trim()) {
+        const q = serviceSearchQuery.toLowerCase();
+        return s.name.toLowerCase().includes(q) || (s.description && s.description.toLowerCase().includes(q));
+      }
+      return true;
+    });
+  }, [serviceCatalog, selectedServiceCategory, serviceSearchQuery]);
 
   // Group devices by Brand
   const groupedDevices = useMemo(() => {
@@ -411,11 +483,15 @@ export default function RepairPriceListPage() {
                           const matchedModel = deviceList.find((d) =>
                             item.models.toLowerCase().includes(d.name.toLowerCase())
                           );
+                          const targetModel = matchedModel ? matchedModel.name : item.models.split('/')[0].trim();
                           setBookingForm({
                             ...bookingForm,
-                            model: matchedModel ? matchedModel.name : item.models.split('/')[0].trim(),
+                            model: targetModel,
                             service: item.service,
                           });
+                          setSelectedBrand(activeTab === 'iphone' ? 'Apple' : 'Samsung');
+                          setIsDeviceDropdownOpen(false);
+                          setIsServiceDropdownOpen(false);
                           const el = document.getElementById('booking-form');
                           el?.scrollIntoView({ behavior: 'smooth' });
                         }}
@@ -595,74 +671,356 @@ export default function RepairPriceListPage() {
                   </div>
                 </div>
 
-                {/* 2. Dòng máy cần sửa: DẠNG LIST ĐỂ KHÁCH CHỌN */}
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-slate-700 font-bold block">
-                      Dòng máy cần sửa (Chọn từ danh sách): *
+                {/* 2. Dòng máy cần sửa: BỘ LỌC THÔNG MINH 2 TẦNG (Hãng -> Dòng máy) */}
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-slate-800 font-bold flex items-center gap-1.5 text-xs sm:text-sm">
+                      <Smartphone className="w-4 h-4 text-amber-600" />
+                      <span>Dòng máy cần sửa: *</span>
                     </label>
-                    <span className="text-[11px] text-slate-500">
-                      {deviceList.length} model hỗ trợ
+                    <span className="text-[11px] text-slate-500 font-medium">
+                      {bookingForm.model === 'custom' ? 'Khách tự nhập' : `Đang chọn: ${bookingForm.model}`}
                     </span>
                   </div>
-                  <select
-                    value={bookingForm.model}
-                    onChange={(e) => setBookingForm({ ...bookingForm, model: e.target.value })}
-                    className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-bold focus:bg-white focus:outline-none focus:border-amber-500 shadow-xs cursor-pointer"
-                  >
-                    {Object.entries(groupedDevices).map(([brand, items]) => (
-                      <optgroup key={brand} label={`--- Hãng ${brand} ---`}>
-                        {items.map((dev) => (
-                          <option key={dev.id} value={dev.name}>
-                            {dev.name}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))}
-                    <option value="custom">+ Dòng máy khác (khách tự nhập tên bên dưới)...</option>
-                  </select>
 
-                  {bookingForm.model === 'custom' && (
-                    <div className="mt-2 animate-in fade-in">
+                  {/* Tầng 1: Chọn Hãng / Thương hiệu (Thanh chọn 4 nút gọn gàng) */}
+                  <div className="grid grid-cols-4 gap-1 p-1 rounded-2xl bg-slate-100 border border-slate-200 text-xs">
+                    {[
+                      { key: 'Apple', label: 'Apple', sub: 'iPhone/iPad', icon: '🍏' },
+                      { key: 'Samsung', label: 'Samsung', sub: 'Galaxy/Fold', icon: '🔷' },
+                      { key: 'Xiaomi', label: 'Xiaomi', sub: 'Redmi/Mi', icon: '⚡' },
+                      { key: 'Khác', label: 'Khác', sub: 'Tự nhập máy', icon: '📱' },
+                    ].map((b) => (
+                      <button
+                        key={b.key}
+                        type="button"
+                        onClick={() => {
+                          setSelectedBrand(b.key);
+                          if (b.key === 'Khác') {
+                            setBookingForm((prev) => ({ ...prev, model: 'custom' }));
+                          } else {
+                            const brandDevs = deviceList.filter((d) => d.brand === b.key);
+                            if (brandDevs.length > 0 && !brandDevs.some((d) => d.name === bookingForm.model)) {
+                              setBookingForm((prev) => ({ ...prev, model: brandDevs[0].name }));
+                            }
+                          }
+                          setIsDeviceDropdownOpen(false);
+                        }}
+                        className={`py-2 px-1 rounded-xl text-center transition-all cursor-pointer ${
+                          selectedBrand === b.key
+                            ? 'bg-white text-slate-900 font-black shadow-sm border border-slate-200'
+                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50 font-semibold'
+                        }`}
+                      >
+                        <span className="block font-bold truncate">{b.icon} {b.label}</span>
+                        <span className="text-[10px] text-slate-400 block font-normal truncate hidden sm:block">{b.sub}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {selectedBrand !== 'Khác' && (
+                    <>
+                      {/* Tầng 2: Gợi ý nhanh các dòng máy phổ biến nhất (1 Chạm) */}
+                      {hotDevicesForBrand.length > 0 && (
+                        <div className="space-y-1">
+                          <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">
+                            Chọn nhanh dòng máy phổ biến:
+                          </span>
+                          <div className="flex flex-wrap gap-1.5">
+                            {hotDevicesForBrand.map((hotName) => {
+                              const isSelected = bookingForm.model === hotName;
+                              return (
+                                <button
+                                  key={hotName}
+                                  type="button"
+                                  onClick={() => {
+                                    setBookingForm((prev) => ({ ...prev, model: hotName }));
+                                    setIsDeviceDropdownOpen(false);
+                                  }}
+                                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                                    isSelected
+                                      ? 'bg-amber-500 text-slate-950 font-black shadow-sm ring-2 ring-amber-400/40'
+                                      : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs'
+                                  }`}
+                                >
+                                  {hotName}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Tầng 3: Custom Searchable Dropdown (Gọn gàng, max-h-48, KHÔNG TRÀN MÀN HÌNH) */}
+                      <div className="relative">
+                        {isDeviceDropdownOpen && (
+                          <div
+                            className="fixed inset-0 z-20"
+                            onClick={() => setIsDeviceDropdownOpen(false)}
+                          />
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => setIsDeviceDropdownOpen((prev) => !prev)}
+                          className="w-full p-3 rounded-xl bg-slate-50 hover:bg-white border border-slate-200 text-left flex items-center justify-between shadow-2xs hover:border-amber-400 transition-all cursor-pointer relative z-10"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 font-bold text-xs">
+                              {selectedBrand === 'Apple' ? '🍏' : selectedBrand === 'Samsung' ? '🔷' : '⚡'}
+                            </div>
+                            <div className="min-w-0">
+                              <span className="text-xs font-black text-slate-900 block truncate">
+                                {bookingForm.model === 'custom' ? (customModelText || 'Dòng máy khác...') : bookingForm.model}
+                              </span>
+                              <span className="text-[10px] text-slate-500 font-medium block truncate">
+                                Click để tìm hoặc chọn từ toàn bộ {brandDevices.length} model {selectedBrand}
+                              </span>
+                            </div>
+                          </div>
+                          <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isDeviceDropdownOpen ? 'rotate-180 text-amber-600' : ''}`} />
+                        </button>
+
+                        {isDeviceDropdownOpen && (
+                          <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-slate-200 rounded-2xl shadow-xl z-30 p-2 space-y-2 animate-in fade-in slide-in-from-top-2 duration-150">
+                            {/* Search Input */}
+                            <div className="relative">
+                              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                              <input
+                                type="text"
+                                value={deviceSearchQuery}
+                                onChange={(e) => setDeviceSearchQuery(e.target.value)}
+                                placeholder={`Tìm dòng máy (VD: 15 Pro, S24, Note...)...`}
+                                className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:border-amber-500 placeholder:text-slate-400"
+                                autoFocus
+                              />
+                            </div>
+
+                            {/* Scrollable list strictly bounded with max-h-48 */}
+                            <div className="max-h-48 overflow-y-auto space-y-1 pr-1">
+                              {searchedDevices.map((dev) => {
+                                const isSelected = bookingForm.model === dev.name;
+                                return (
+                                  <button
+                                    key={dev.id}
+                                    type="button"
+                                    onClick={() => {
+                                      setBookingForm((prev) => ({ ...prev, model: dev.name }));
+                                      setIsDeviceDropdownOpen(false);
+                                      setDeviceSearchQuery('');
+                                    }}
+                                    className={`w-full px-3 py-2 rounded-xl text-left text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
+                                      isSelected
+                                        ? 'bg-amber-500 text-slate-950 font-black'
+                                        : 'hover:bg-slate-100 text-slate-700'
+                                    }`}
+                                  >
+                                    <span className="truncate">{dev.name}</span>
+                                    {isSelected && <Check className="w-4 h-4 shrink-0 text-slate-950 ml-2" />}
+                                  </button>
+                                );
+                              })}
+
+                              {searchedDevices.length === 0 && (
+                                <div className="p-3 text-center text-xs text-slate-500 font-medium">
+                                  Không tìm thấy model khớp &quot;{deviceSearchQuery}&quot;
+                                </div>
+                              )}
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setBookingForm((prev) => ({ ...prev, model: 'custom' }));
+                                  setIsDeviceDropdownOpen(false);
+                                }}
+                                className="w-full px-3 py-2 rounded-xl text-left text-xs font-bold text-amber-700 hover:bg-amber-50 border-t border-slate-100 transition-colors cursor-pointer block mt-1"
+                              >
+                                + Dòng máy khác (tự nhập tên)...
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
+
+                  {/* Nhập tên dòng máy cụ thể khi chọn 'custom' hoặc hãng 'Khác' */}
+                  {(bookingForm.model === 'custom' || selectedBrand === 'Khác') && (
+                    <div className="p-3 rounded-2xl bg-amber-50/70 border border-amber-300 space-y-1 animate-in fade-in">
+                      <label className="text-[11px] font-bold text-amber-900 block">
+                        Nhập chính xác tên máy của bạn: *
+                      </label>
                       <input
                         type="text"
                         required
                         value={customModelText}
                         onChange={(e) => setCustomModelText(e.target.value)}
-                        placeholder="Nhập tên dòng máy cụ thể của bạn (VD: Xiaomi 14 Ultra, iPad Mini 6, Google Pixel...)"
-                        className="w-full p-2.5 rounded-xl bg-amber-50/50 border border-amber-400 text-slate-900 text-xs font-bold focus:outline-none focus:bg-white"
+                        placeholder="VD: Xiaomi 14 Ultra, iPad Mini 6, Google Pixel 8 Pro..."
+                        className="w-full p-2.5 rounded-xl bg-white border border-amber-400 text-slate-900 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-amber-500"
                         autoFocus
                       />
                     </div>
                   )}
                 </div>
 
-                {/* 3. Dịch vụ cần làm: DẠNG LIST ĐỂ KHÁCH CHỌN */}
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-slate-700 font-bold block">
-                      Dịch vụ cần làm (Chọn từ danh mục dịch vụ iCare): *
+                {/* 3. Dịch vụ cần làm: BỘ LỌC THÔNG MINH & CHỌN NHANH */}
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-slate-800 font-bold flex items-center gap-1.5 text-xs sm:text-sm">
+                      <Tag className="w-4 h-4 text-amber-600" />
+                      <span>Dịch vụ cần làm: *</span>
                     </label>
-                    <span className="text-[11px] text-slate-500">
+                    <span className="text-[11px] text-slate-500 font-medium">
                       {serviceCatalog.length} dịch vụ niêm yết
                     </span>
                   </div>
-                  <select
-                    value={bookingForm.service}
-                    onChange={(e) => setBookingForm({ ...bookingForm, service: e.target.value })}
-                    className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-bold focus:bg-white focus:outline-none focus:border-amber-500 shadow-xs cursor-pointer"
-                  >
-                    {serviceCatalog.map((srv) => (
-                      <option key={srv.id} value={srv.name}>
-                        {srv.name} — {srv.price > 0 ? formatVND(srv.price) : 'Miễn phí'} ({srv.warranty})
-                      </option>
-                    ))}
-                    <option value="Kiểm tra & Báo giá tại quầy">Kiểm tra tổng thể vi mạch &amp; Báo giá tại quầy (Miễn phí 100%)</option>
-                  </select>
 
-                  {/* Service highlight preview card */}
+                  {/* Gợi ý nhanh các dịch vụ phổ biến (1 Chạm) */}
+                  <div className="space-y-1">
+                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">
+                      Chọn nhanh dịch vụ phổ biến:
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {hotServices.map((hs) => {
+                        const isSelected = bookingForm.service === hs.name;
+                        return (
+                          <button
+                            key={hs.name}
+                            type="button"
+                            onClick={() => {
+                              setBookingForm((prev) => ({ ...prev, service: hs.name }));
+                              setIsServiceDropdownOpen(false);
+                            }}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                              isSelected
+                                ? 'bg-amber-500 text-slate-950 font-black shadow-sm ring-2 ring-amber-400/40'
+                                : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs'
+                            }`}
+                          >
+                            {hs.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Custom Searchable Service Dropdown (Gọn gàng, max-h-52) */}
+                  <div className="relative">
+                    {isServiceDropdownOpen && (
+                      <div
+                        className="fixed inset-0 z-20"
+                        onClick={() => setIsServiceDropdownOpen(false)}
+                      />
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => setIsServiceDropdownOpen((prev) => !prev)}
+                      className="w-full p-3 rounded-xl bg-slate-50 hover:bg-white border border-slate-200 text-left flex items-center justify-between shadow-2xs hover:border-amber-400 transition-all cursor-pointer relative z-10"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center shrink-0 font-bold text-xs border border-blue-200/60">
+                          🔧
+                        </div>
+                        <div className="min-w-0">
+                          <span className="text-xs font-black text-slate-900 block truncate">
+                            {bookingForm.service}
+                          </span>
+                          <span className="text-[10px] text-slate-500 font-medium block truncate">
+                            {selectedServiceObj
+                              ? `${selectedServiceObj.price > 0 ? formatVND(selectedServiceObj.price) : 'Miễn phí'} • BH: ${selectedServiceObj.warranty} • ${selectedServiceObj.estimatedMinutes || 30} phút`
+                              : 'Bấm để tìm kiếm hoặc chọn dịch vụ khác...'}
+                          </span>
+                        </div>
+                      </div>
+                      <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isServiceDropdownOpen ? 'rotate-180 text-amber-600' : ''}`} />
+                    </button>
+
+                    {isServiceDropdownOpen && (
+                      <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-slate-200 rounded-2xl shadow-xl z-30 p-2 space-y-2 animate-in fade-in slide-in-from-top-2 duration-150">
+                        {/* Search Input & Category Filter */}
+                        <div className="space-y-1.5">
+                          <div className="relative">
+                            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                            <input
+                              type="text"
+                              value={serviceSearchQuery}
+                              onChange={(e) => setServiceSearchQuery(e.target.value)}
+                              placeholder="Tìm dịch vụ (VD: pin, màn hình, ép kính, sạc...)..."
+                              className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:border-amber-500 placeholder:text-slate-400"
+                              autoFocus
+                            />
+                          </div>
+
+                          <div className="flex items-center gap-1 overflow-x-auto pb-0.5 text-[11px]">
+                            {[
+                              { id: 'all', label: 'Tất cả' },
+                              { id: 'battery', label: 'Pin' },
+                              { id: 'screen', label: 'Màn hình' },
+                              { id: 'glass', label: 'Ép kính' },
+                              { id: 'charge_port', label: 'Chân sạc' },
+                            ].map((c) => (
+                              <button
+                                key={c.id}
+                                type="button"
+                                onClick={() => setSelectedServiceCategory(c.id)}
+                                className={`px-2.5 py-1 rounded-lg font-bold shrink-0 cursor-pointer transition-colors ${
+                                  selectedServiceCategory === c.id
+                                    ? 'bg-slate-900 text-white'
+                                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                }`}
+                              >
+                                {c.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Scrollable service list bounded with max-h-48 */}
+                        <div className="max-h-48 overflow-y-auto space-y-1 pr-1">
+                          {filteredServices.map((srv) => {
+                            const isSelected = bookingForm.service === srv.name;
+                            return (
+                              <button
+                                key={srv.id}
+                                type="button"
+                                onClick={() => {
+                                  setBookingForm((prev) => ({ ...prev, service: srv.name }));
+                                  setIsServiceDropdownOpen(false);
+                                  setServiceSearchQuery('');
+                                }}
+                                className={`w-full px-3 py-2 rounded-xl text-left text-xs transition-all flex items-center justify-between cursor-pointer ${
+                                  isSelected
+                                    ? 'bg-amber-500 text-slate-950 font-bold'
+                                    : 'hover:bg-slate-100 text-slate-700'
+                                }`}
+                              >
+                                <div className="min-w-0 pr-2">
+                                  <span className="font-bold block truncate">{srv.name}</span>
+                                  <span className={`text-[10px] block ${isSelected ? 'text-slate-900' : 'text-slate-500'}`}>
+                                    BH: {srv.warranty} • {srv.estimatedMinutes || 30}p lấy ngay
+                                  </span>
+                                </div>
+                                <span className={`text-xs font-black font-mono shrink-0 ${isSelected ? 'text-slate-950' : 'text-amber-700'}`}>
+                                  {srv.price > 0 ? formatVND(srv.price) : 'Miễn phí'}
+                                </span>
+                              </button>
+                            );
+                          })}
+
+                          {filteredServices.length === 0 && (
+                            <div className="p-3 text-center text-xs text-slate-500 font-medium">
+                              Không tìm thấy dịch vụ khớp từ khóa
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Highlight card for selected service */}
                   {selectedServiceObj && (
-                    <div className="mt-2.5 p-3 rounded-2xl bg-amber-50/80 border border-amber-200 text-[11px] text-amber-950 flex flex-wrap items-center justify-between gap-2 shadow-xs">
+                    <div className="p-3 rounded-2xl bg-amber-50/80 border border-amber-200 text-[11px] text-amber-950 flex flex-wrap items-center justify-between gap-2 shadow-xs">
                       <div className="flex items-center gap-1.5 font-bold">
                         <Tag className="w-3.5 h-3.5 text-amber-700" />
                         <span>Giá niêm yết: <strong className="text-emerald-700 font-mono text-xs">{selectedServiceObj.price > 0 ? formatVND(selectedServiceObj.price) : 'Miễn phí'}</strong></span>
