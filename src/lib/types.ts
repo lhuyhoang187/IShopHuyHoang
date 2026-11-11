@@ -432,3 +432,43 @@ export interface RedeemedGiftItem {
   status: 'active' | 'used' | 'delivered';
 }
 
+// 5. Danh Mục Cấu Hình Đặt Lịch Sửa Chữa (Shop Quản Lý & Khách Chọn Dạng List)
+export interface RepairDeviceOption {
+  id: string;
+  name: string;
+  brand: string; // 'Apple' | 'Samsung' | 'Xiaomi' | 'Khác'
+  order?: number;
+  isActive?: boolean;
+}
+
+export interface RepairServiceCatalogItem {
+  id: string;
+  name: string;
+  category: string;
+  deviceBrand?: string;
+  price: number;
+  warranty: string;
+  estimatedMinutes?: number;
+  description?: string;
+  isActive?: boolean;
+}
+
+export interface RepairSymptomOption {
+  id: string;
+  code?: string;
+  title: string;
+  icon?: string; // emoji e.g. '📱'
+  description?: string;
+  category?: string;
+  isActive?: boolean;
+}
+
+export interface RepairTimeSlotOption {
+  id: string;
+  time: string; // e.g. "09:00"
+  label: string; // e.g. "09:00 - Sáng (Đầu ca)"
+  period: 'morning' | 'afternoon' | 'evening';
+  isActive?: boolean;
+}
+
+

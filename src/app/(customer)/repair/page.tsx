@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import {
   Wrench,
@@ -11,12 +11,26 @@ import {
   Send,
   ArrowRight,
   Smartphone,
+  Lock,
+  UserCheck,
+  Shield,
+  Layers,
+  Sparkles,
+  Check,
+  AlertCircle,
+  Tag,
+  Phone,
 } from 'lucide-react';
 import { formatVND } from '@/lib/vietqr';
 import confetti from 'canvas-confetti';
 import { IShopStore } from '@/lib/store';
-import { CustomerUser } from '@/lib/types';
-import { Lock, UserCheck, Shield } from 'lucide-react';
+import {
+  CustomerUser,
+  RepairDeviceOption,
+  RepairServiceCatalogItem,
+  RepairSymptomOption,
+  RepairTimeSlotOption,
+} from '@/lib/types';
 
 export default function RepairPriceListPage() {
   const [activeTab, setActiveTab] = useState<'iphone' | 'samsung'>('iphone');
@@ -29,17 +43,38 @@ export default function RepairPriceListPage() {
   const [quickLoginName, setQuickLoginName] = useState('');
   const [quickLoginPhone, setQuickLoginPhone] = useState('');
 
+  // Repair Catalog & Lists loaded from Store
+  const [deviceList, setDeviceList] = useState<RepairDeviceOption[]>([]);
+  const [serviceCatalog, setServiceCatalog] = useState<RepairServiceCatalogItem[]>([]);
+  const [symptomList, setSymptomList] = useState<RepairSymptomOption[]>([]);
+  const [timeSlots, setTimeSlots] = useState<RepairTimeSlotOption[]>([]);
+
+  // Selected Symptoms (multiple choice from list)
+  const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([
+    'Màn hình nứt vỡ kính, sọc xanh, chảy mực',
+  ]);
+  const [extraNotes, setExtraNotes] = useState('');
+  const [customModelText, setCustomModelText] = useState('');
+
+  const getTodayStr = () => new Date().toISOString().split('T')[0];
+  const getTomorrowStr = () => new Date(Date.now() + 86400000).toISOString().split('T')[0];
+  const getDayAfterStr = () => new Date(Date.now() + 172800000).toISOString().split('T')[0];
+
+  const formatDateDisplay = (d: Date) => {
+    const days = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
+    return `${days[d.getDay()]}, ${d.getDate()}/${d.getMonth() + 1}`;
+  };
+
   const [bookingForm, setBookingForm] = useState({
     name: '',
     phone: '',
     model: 'iPhone 15 Pro Max',
-    service: 'Thay Màn Hình Zin OLED 120Hz',
-    date: '2026-08-28',
-    time: '10:00',
-    notes: '',
+    service: 'Thay Màn Hình Zin OLED 120Hz ProMotion',
+    date: getTodayStr(),
+    time: '09:30',
   });
 
-  useEffect(() => {
+  const loadData = () => {
     const cust = IShopStore.getCustomerUser();
     if (cust) {
       setCustomerUser(cust);
@@ -49,7 +84,84 @@ export default function RepairPriceListPage() {
         phone: cust.phone,
       }));
     }
+
+    const devs = IShopStore.getRepairDeviceOptions();
+    const srvs = IShopStore.getRepairServiceCatalog();
+    const syms = IShopStore.getRepairSymptomOptions();
+    const slots = IShopStore.getRepairTimeSlotOptions();
+
+    setDeviceList(devs);
+    setServiceCatalog(srvs);
+    setSymptomList(syms);
+    setTimeSlots(slots);
+
+    // Initial defaults if not already set
+    if (devs.length > 0 && !bookingForm.model) {
+      setBookingForm((prev) => ({ ...prev, model: devs[0].name }));
+    }
+    if (srvs.length > 0 && !bookingForm.service) {
+      setBookingForm((prev) => ({ ...prev, service: srvs[0].name }));
+    }
+    if (slots.length > 0 && !bookingForm.time) {
+      setBookingForm((prev) => ({ ...prev, time: slots[0].time }));
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+    const listener = () => loadData();
+    window.addEventListener('ishop_data_changed', listener);
+
+    // Also sync from backend API
+    fetch('/api/repairs/config')
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && json.data) {
+          if (Array.isArray(json.data.devices) && json.data.devices.length > 0) {
+            setDeviceList(json.data.devices);
+            IShopStore.setRepairDeviceOptions(json.data.devices);
+          }
+          if (Array.isArray(json.data.services) && json.data.services.length > 0) {
+            setServiceCatalog(json.data.services);
+            IShopStore.setRepairServiceCatalog(json.data.services);
+          }
+          if (Array.isArray(json.data.symptoms) && json.data.symptoms.length > 0) {
+            setSymptomList(json.data.symptoms);
+            IShopStore.setRepairSymptomOptions(json.data.symptoms);
+          }
+          if (Array.isArray(json.data.timeSlots) && json.data.timeSlots.length > 0) {
+            setTimeSlots(json.data.timeSlots);
+            IShopStore.setRepairTimeSlotOptions(json.data.timeSlots);
+          }
+        }
+      })
+      .catch((e) => console.warn('Could not fetch repair config from API:', e));
+
+    return () => window.removeEventListener('ishop_data_changed', listener);
   }, []);
+
+  // Group devices by Brand
+  const groupedDevices = useMemo(() => {
+    const map: Record<string, RepairDeviceOption[]> = {};
+    deviceList.forEach((d) => {
+      const brand = d.brand || 'Khác';
+      if (!map[brand]) map[brand] = [];
+      map[brand].push(d);
+    });
+    return map;
+  }, [deviceList]);
+
+  // Selected Service details
+  const selectedServiceObj = useMemo(() => {
+    return serviceCatalog.find((s) => s.name === bookingForm.service);
+  }, [serviceCatalog, bookingForm.service]);
+
+  // Toggle symptom selection
+  const toggleSymptom = (title: string) => {
+    setSelectedSymptoms((prev) =>
+      prev.includes(title) ? prev.filter((t) => t !== title) : [...prev, title]
+    );
+  };
 
   const handleCustomerQuickLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,22 +238,36 @@ export default function RepairPriceListPage() {
     e.preventDefault();
     setIsSubmitting(true);
 
+    const actualModel =
+      bookingForm.model === 'custom' && customModelText.trim()
+        ? customModelText.trim()
+        : bookingForm.model;
+
+    const partsDescription: string[] = [];
+    if (selectedSymptoms.length > 0) {
+      partsDescription.push(`Triệu chứng: ${selectedSymptoms.join(', ')}`);
+    }
+    if (extraNotes.trim()) {
+      partsDescription.push(`Ghi chú thêm: ${extraNotes.trim()}`);
+    }
+    const finalNotes = partsDescription.join(' | ') || 'Máy đặt hẹn sửa chữa trực tiếp';
+
     try {
       // 1. Create client-side repair ticket in IShopStore
       const ticket = IShopStore.createRepairTicket({
         customerName: bookingForm.name,
         customerPhone: bookingForm.phone,
         customerAddress: 'Đặt hẹn online qua website iShop',
-        deviceModel: bookingForm.model,
+        deviceModel: actualModel,
         imeiOrSerial: 'OL-' + Math.floor(100000 + Math.random() * 900000),
         unlockPasscode: 'Chưa cung cấp',
         appearanceCondition: 'Máy gửi hẹn tiếp nhận online',
         accessoriesIncluded: 'Khách mang máy trực tiếp đến shop',
-        issueDescription: `${bookingForm.service} (Ghi chú: ${bookingForm.notes || 'Không'})`,
+        issueDescription: `${bookingForm.service} (${finalNotes})`,
         laborFee: 150000,
         estimatedDeliveryDate: `${bookingForm.date} ${bookingForm.time}:00`,
         technicianName: 'Trần Trọng Nghĩa',
-        warrantyPeriod: 'Bảo hành chính hãng 12 tháng',
+        warrantyPeriod: selectedServiceObj?.warranty || 'Bảo hành 12 tháng',
         status: 'received',
         receivedAt: new Date().toISOString().replace('T', ' ').substring(0, 19),
       });
@@ -156,10 +282,10 @@ export default function RepairPriceListPage() {
           customerName: bookingForm.name,
           customerPhone: bookingForm.phone,
           customerAddress: 'Đặt online qua website',
-          deviceModel: bookingForm.model,
+          deviceModel: actualModel,
           imeiOrSerial: ticket.imeiOrSerial,
           unlockPasscode: 'Chưa cung cấp',
-          issueDescription: `${bookingForm.service}. Hẹn: ${bookingForm.date} lúc ${bookingForm.time}. Ghi chú: ${bookingForm.notes || 'Không'}`,
+          issueDescription: `${bookingForm.service}. Hẹn: ${bookingForm.date} lúc ${bookingForm.time}. ${finalNotes}`,
           laborFee: 150000,
         }),
       }).catch((err) => console.warn('API sync background notice:', err));
@@ -171,15 +297,15 @@ export default function RepairPriceListPage() {
         body: JSON.stringify({
           name: bookingForm.name,
           phone: bookingForm.phone,
-          model: bookingForm.model,
+          model: actualModel,
           service: bookingForm.service,
           date: bookingForm.date,
           time: bookingForm.time,
-          notes: bookingForm.notes,
+          notes: finalNotes,
         }),
       }).catch((err) => console.warn('API booking notice:', err));
 
-      // 3. Trigger confetti celebration
+      // 4. Trigger confetti celebration
       confetti({
         particleCount: 90,
         spread: 80,
@@ -204,7 +330,7 @@ export default function RepairPriceListPage() {
           <span>TRUNG TÂM DỊCH VỤ SỬA CHỮA iCARE</span>
         </div>
         <h1 className="text-2xl sm:text-4xl font-extrabold text-slate-900">
-          Bảng Giá Sửa Chữa & Đặt Lịch Lấy Liền 30 Phút
+          Bảng Giá Sửa Chữa &amp; Đặt Lịch Lấy Liền 30 Phút
         </h1>
         <p className="text-xs sm:text-sm text-slate-600 max-w-2xl mx-auto">
           Minh bạch linh kiện, bảo hành rõ ràng, khách hàng trực tiếp quan sát kỹ thuật viên thao tác. Nhận máy có in mã QR theo dõi tiến độ thời gian thực.
@@ -282,15 +408,18 @@ export default function RepairPriceListPage() {
                     <td className="p-4 text-center">
                       <button
                         onClick={() => {
+                          const matchedModel = deviceList.find((d) =>
+                            item.models.toLowerCase().includes(d.name.toLowerCase())
+                          );
                           setBookingForm({
                             ...bookingForm,
-                            model: item.models.split('/')[0].trim(),
+                            model: matchedModel ? matchedModel.name : item.models.split('/')[0].trim(),
                             service: item.service,
                           });
                           const el = document.getElementById('booking-form');
                           el?.scrollIntoView({ behavior: 'smooth' });
                         }}
-                        className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-blue-600 text-slate-700 hover:text-white border border-slate-200 text-xs font-semibold transition-colors"
+                        className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-blue-600 text-slate-700 hover:text-white border border-slate-200 text-xs font-semibold transition-colors cursor-pointer"
                       >
                         Đặt hẹn
                       </button>
@@ -311,7 +440,7 @@ export default function RepairPriceListPage() {
               Đặt Lịch Hẹn Mang Máy Đến Cửa Hàng
             </h2>
             <p className="text-xs text-slate-600">
-              Đặt hẹn trước để kỹ thuật viên chuẩn bị sẵn linh kiện zin, đến nơi được phục vụ ngay không phải chờ đợi.
+              Chọn nhanh dòng máy, dịch vụ và tình trạng lỗi từ danh mục có sẵn. Kỹ thuật viên sẽ chuẩn bị linh kiện trước khi bạn đến!
             </p>
           </div>
 
@@ -338,9 +467,12 @@ export default function RepairPriceListPage() {
                 </div>
                 <div className="space-y-1.5 text-slate-700 font-sans">
                   <p><span className="text-slate-500 font-medium">Khách hàng:</span> <strong className="text-slate-900 font-bold">{bookingForm.name}</strong> ({bookingForm.phone})</p>
-                  <p><span className="text-slate-500 font-medium">Thiết bị:</span> <strong className="text-blue-700 font-bold">{bookingForm.model}</strong></p>
+                  <p><span className="text-slate-500 font-medium">Thiết bị:</span> <strong className="text-blue-700 font-bold">{bookingForm.model === 'custom' ? customModelText : bookingForm.model}</strong></p>
                   <p><span className="text-slate-500 font-medium">Dịch vụ:</span> <strong className="text-slate-800">{bookingForm.service}</strong></p>
                   <p><span className="text-slate-500 font-medium">Khung giờ hẹn:</span> <strong className="text-amber-800 font-bold">{bookingForm.time} • Ngày {bookingForm.date}</strong></p>
+                  {selectedSymptoms.length > 0 && (
+                    <p><span className="text-slate-500 font-medium">Tình trạng:</span> <span className="text-slate-700">{selectedSymptoms.join(', ')}</span></p>
+                  )}
                 </div>
               </div>
 
@@ -357,7 +489,7 @@ export default function RepairPriceListPage() {
                 <button
                   type="button"
                   onClick={() => setBookingSuccess(false)}
-                  className="w-full sm:w-auto px-5 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 text-xs font-bold border border-slate-200 transition-colors"
+                  className="w-full sm:w-auto px-5 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 text-xs font-bold border border-slate-200 transition-colors cursor-pointer"
                 >
                   Đặt thêm lịch khác
                 </button>
@@ -390,7 +522,7 @@ export default function RepairPriceListPage() {
                     value={quickLoginName}
                     onChange={(e) => setQuickLoginName(e.target.value)}
                     placeholder="VD: Nguyễn Văn Nam"
-                    className="w-full p-3 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-amber-500 shadow-sm placeholder:text-slate-400"
+                    className="w-full p-3 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-amber-500 shadow-sm placeholder:text-slate-400 font-medium"
                   />
                 </div>
                 <div>
@@ -401,15 +533,15 @@ export default function RepairPriceListPage() {
                     value={quickLoginPhone}
                     onChange={(e) => setQuickLoginPhone(e.target.value)}
                     placeholder="VD: 0909123456"
-                    className="w-full p-3 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-amber-500 shadow-sm placeholder:text-slate-400"
+                    className="w-full p-3 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-amber-500 shadow-sm placeholder:text-slate-400 font-mono font-bold text-amber-700"
                   />
                 </div>
                 <button
                   type="submit"
-                  className="w-full py-3.5 rounded-xl btn-gold text-xs font-black flex items-center justify-center gap-2 shadow-md"
+                  className="w-full py-3.5 rounded-xl btn-gold text-xs font-black flex items-center justify-center gap-2 shadow-md cursor-pointer"
                 >
                   <UserCheck className="w-4 h-4 text-white" />
-                  <span>Xác Nhận & Tiếp Tục Đặt Hẹn Lấy Ngay</span>
+                  <span>Xác Nhận &amp; Tiếp Tục Đặt Hẹn Lấy Ngay</span>
                 </button>
               </form>
             </div>
@@ -426,109 +558,259 @@ export default function RepairPriceListPage() {
                 <button
                   type="button"
                   onClick={handleLogoutCustomer}
-                  className="text-slate-500 hover:text-slate-900 text-[11px] underline font-semibold"
+                  className="text-slate-500 hover:text-slate-900 text-[11px] underline font-semibold cursor-pointer"
                 >
                   Đổi tài khoản
                 </button>
               </div>
 
-              <form onSubmit={handleBooking} className="space-y-4 text-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-slate-700 font-bold mb-1 block">Họ và tên của bạn:</label>
-                  <input
-                    type="text"
-                    required
-                    value={bookingForm.name}
-                    onChange={(e) => setBookingForm({ ...bookingForm, name: e.target.value })}
-                    placeholder="VD: Nguyễn Văn Nam"
-                    className="w-full p-3 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-blue-500 shadow-sm placeholder:text-slate-400"
-                  />
+              <form onSubmit={handleBooking} className="space-y-5 text-xs">
+                {/* 1. Full name & Phone number (Retained as text inputs as requested) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-slate-700 font-bold mb-1 block">
+                      Họ và tên của bạn: *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={bookingForm.name}
+                      onChange={(e) => setBookingForm({ ...bookingForm, name: e.target.value })}
+                      placeholder="VD: Nguyễn Văn Nam"
+                      className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-medium focus:bg-white focus:outline-none focus:border-amber-500 shadow-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-slate-700 font-bold mb-1 block">
+                      Số điện thoại liên hệ: *
+                    </label>
+                    <input
+                      type="tel"
+                      required
+                      value={bookingForm.phone}
+                      onChange={(e) => setBookingForm({ ...bookingForm, phone: e.target.value })}
+                      placeholder="VD: 0909123456"
+                      className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-amber-700 font-mono font-bold focus:bg-white focus:outline-none focus:border-amber-500 shadow-xs"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="text-slate-700 font-bold mb-1 block">Số điện thoại liên hệ:</label>
-                  <input
-                    type="tel"
-                    required
-                    value={bookingForm.phone}
-                    onChange={(e) => setBookingForm({ ...bookingForm, phone: e.target.value })}
-                    placeholder="VD: 0909123456"
-                    className="w-full p-3 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-blue-500 shadow-sm placeholder:text-slate-400"
-                  />
-                </div>
-              </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* 2. Dòng máy cần sửa: DẠNG LIST ĐỂ KHÁCH CHỌN */}
                 <div>
-                  <label className="text-slate-700 font-bold mb-1 block">Dòng máy cần sửa:</label>
-                  <input
-                    type="text"
-                    required
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-slate-700 font-bold block">
+                      Dòng máy cần sửa (Chọn từ danh sách): *
+                    </label>
+                    <span className="text-[11px] text-slate-500">
+                      {deviceList.length} model hỗ trợ
+                    </span>
+                  </div>
+                  <select
                     value={bookingForm.model}
                     onChange={(e) => setBookingForm({ ...bookingForm, model: e.target.value })}
-                    placeholder="VD: iPhone 15 Pro Max"
-                    className="w-full p-3 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-blue-500 shadow-sm placeholder:text-slate-400"
-                  />
+                    className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-bold focus:bg-white focus:outline-none focus:border-amber-500 shadow-xs cursor-pointer"
+                  >
+                    {Object.entries(groupedDevices).map(([brand, items]) => (
+                      <optgroup key={brand} label={`--- Hãng ${brand} ---`}>
+                        {items.map((dev) => (
+                          <option key={dev.id} value={dev.name}>
+                            {dev.name}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                    <option value="custom">+ Dòng máy khác (khách tự nhập tên bên dưới)...</option>
+                  </select>
+
+                  {bookingForm.model === 'custom' && (
+                    <div className="mt-2 animate-in fade-in">
+                      <input
+                        type="text"
+                        required
+                        value={customModelText}
+                        onChange={(e) => setCustomModelText(e.target.value)}
+                        placeholder="Nhập tên dòng máy cụ thể của bạn (VD: Xiaomi 14 Ultra, iPad Mini 6, Google Pixel...)"
+                        className="w-full p-2.5 rounded-xl bg-amber-50/50 border border-amber-400 text-slate-900 text-xs font-bold focus:outline-none focus:bg-white"
+                        autoFocus
+                      />
+                    </div>
+                  )}
                 </div>
+
+                {/* 3. Dịch vụ cần làm: DẠNG LIST ĐỂ KHÁCH CHỌN */}
                 <div>
-                  <label className="text-slate-700 font-bold mb-1 block">Dịch vụ cần làm:</label>
-                  <input
-                    type="text"
-                    required
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-slate-700 font-bold block">
+                      Dịch vụ cần làm (Chọn từ danh mục dịch vụ iCare): *
+                    </label>
+                    <span className="text-[11px] text-slate-500">
+                      {serviceCatalog.length} dịch vụ niêm yết
+                    </span>
+                  </div>
+                  <select
                     value={bookingForm.service}
                     onChange={(e) => setBookingForm({ ...bookingForm, service: e.target.value })}
-                    placeholder="VD: Thay Pin Pisen / Ép kính"
-                    className="w-full p-3 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-blue-500 shadow-sm placeholder:text-slate-400"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-slate-700 font-bold mb-1 block">Ngày hẹn mang máy:</label>
-                  <input
-                    type="date"
-                    required
-                    value={bookingForm.date}
-                    onChange={(e) => setBookingForm({ ...bookingForm, date: e.target.value })}
-                    className="w-full p-3 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-blue-500 shadow-sm"
-                  />
-                </div>
-                <div>
-                  <label className="text-slate-700 font-bold mb-1 block">Khung giờ dự kiến:</label>
-                  <select
-                    value={bookingForm.time}
-                    onChange={(e) => setBookingForm({ ...bookingForm, time: e.target.value })}
-                    className="w-full p-3 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-blue-500 shadow-sm"
+                    className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-bold focus:bg-white focus:outline-none focus:border-amber-500 shadow-xs cursor-pointer"
                   >
-                    <option value="09:00">09:00 - Sáng</option>
-                    <option value="10:30">10:30 - Sáng</option>
-                    <option value="14:00">14:00 - Chiều</option>
-                    <option value="16:00">16:00 - Chiều</option>
-                    <option value="18:30">18:30 - Tối</option>
+                    {serviceCatalog.map((srv) => (
+                      <option key={srv.id} value={srv.name}>
+                        {srv.name} — {srv.price > 0 ? formatVND(srv.price) : 'Miễn phí'} ({srv.warranty})
+                      </option>
+                    ))}
+                    <option value="Kiểm tra & Báo giá tại quầy">Kiểm tra tổng thể vi mạch &amp; Báo giá tại quầy (Miễn phí 100%)</option>
                   </select>
+
+                  {/* Service highlight preview card */}
+                  {selectedServiceObj && (
+                    <div className="mt-2.5 p-3 rounded-2xl bg-amber-50/80 border border-amber-200 text-[11px] text-amber-950 flex flex-wrap items-center justify-between gap-2 shadow-xs">
+                      <div className="flex items-center gap-1.5 font-bold">
+                        <Tag className="w-3.5 h-3.5 text-amber-700" />
+                        <span>Giá niêm yết: <strong className="text-emerald-700 font-mono text-xs">{selectedServiceObj.price > 0 ? formatVND(selectedServiceObj.price) : 'Miễn phí'}</strong></span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
+                        <span>Bảo hành: <strong className="text-blue-800">{selectedServiceObj.warranty}</strong></span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-amber-600" />
+                        <span>Thời gian dự kiến: <strong>{selectedServiceObj.estimatedMinutes || 30} phút lấy liền</strong></span>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
 
-              <div>
-                <label className="text-slate-700 font-bold mb-1 block">Mô tả tình trạng lỗi của máy:</label>
-                <textarea
-                  rows={2}
-                  value={bookingForm.notes}
-                  onChange={(e) => setBookingForm({ ...bookingForm, notes: e.target.value })}
-                  placeholder="VD: Rơi nhẹ bị sọc màn hình, pin tụt nhanh sập nguồn..."
-                  className="w-full p-3 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-blue-500 shadow-sm placeholder:text-slate-400"
-                />
-              </div>
+                {/* 4. Ngày hẹn & Khung giờ: DẠNG LIST ĐỂ KHÁCH CHỌN */}
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-slate-700 font-bold mb-1.5 block">
+                      Ngày hẹn mang máy (Chọn ngày nhanh từ danh sách): *
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setBookingForm({ ...bookingForm, date: getTodayStr() })}
+                        className={`py-2.5 px-2 rounded-xl text-xs font-bold border transition-all text-center cursor-pointer ${
+                          bookingForm.date === getTodayStr()
+                            ? 'bg-amber-500 text-slate-950 border-amber-600 shadow-xs'
+                            : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        Hôm nay ({formatDateDisplay(new Date())})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setBookingForm({ ...bookingForm, date: getTomorrowStr() })}
+                        className={`py-2.5 px-2 rounded-xl text-xs font-bold border transition-all text-center cursor-pointer ${
+                          bookingForm.date === getTomorrowStr()
+                            ? 'bg-amber-500 text-slate-950 border-amber-600 shadow-xs'
+                            : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        Ngày mai ({formatDateDisplay(new Date(Date.now() + 86400000))})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setBookingForm({ ...bookingForm, date: getDayAfterStr() })}
+                        className={`py-2.5 px-2 rounded-xl text-xs font-bold border transition-all text-center cursor-pointer ${
+                          bookingForm.date === getDayAfterStr()
+                            ? 'bg-amber-500 text-slate-950 border-amber-600 shadow-xs'
+                            : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        Ngày mốt ({formatDateDisplay(new Date(Date.now() + 172800000))})
+                      </button>
+                    </div>
 
-              <button
-                type="submit"
-                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-white font-black text-sm shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 transition-transform hover:scale-[1.01]"
-              >
-                <Send className="w-4 h-4" />
-                <span>Xác Nhận Đặt Lịch Sửa Chữa</span>
-              </button>
-            </form>
+                    <div className="mt-2 flex items-center gap-2">
+                      <span className="text-[11px] text-slate-500">Hoặc chọn ngày khác:</span>
+                      <input
+                        type="date"
+                        required
+                        value={bookingForm.date}
+                        onChange={(e) => setBookingForm({ ...bookingForm, date: e.target.value })}
+                        className="px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold focus:bg-white focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-slate-700 font-bold mb-1 block">
+                      Khung giờ dự kiến (Chọn từ danh sách ca trực): *
+                    </label>
+                    <select
+                      value={bookingForm.time}
+                      onChange={(e) => setBookingForm({ ...bookingForm, time: e.target.value })}
+                      className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-bold focus:bg-white focus:outline-none focus:border-amber-500 shadow-xs cursor-pointer"
+                    >
+                      {timeSlots.map((ts) => (
+                        <option key={ts.id} value={ts.time}>
+                          {ts.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* 5. Mô tả tình trạng lỗi của máy: DẠNG LIST ĐỂ KHÁCH CHỌN */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-slate-700 font-bold block">
+                      Mô tả tình trạng lỗi của máy (Chọn 1 hoặc nhiều triệu chứng từ danh sách): *
+                    </label>
+                    <span className="text-[11px] text-amber-800 font-bold">
+                      Đã chọn {selectedSymptoms.length} lỗi
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-56 overflow-y-auto p-2 border border-slate-200 rounded-2xl bg-slate-50">
+                    {symptomList.map((sym) => {
+                      const isSelected = selectedSymptoms.includes(sym.title);
+                      return (
+                        <button
+                          key={sym.id}
+                          type="button"
+                          onClick={() => toggleSymptom(sym.title)}
+                          className={`p-2.5 rounded-xl text-left border transition-all flex items-start gap-2.5 cursor-pointer ${
+                            isSelected
+                              ? 'bg-amber-500 text-slate-950 font-bold border-amber-600 shadow-xs'
+                              : 'bg-white text-slate-700 hover:bg-slate-100 border-slate-200'
+                          }`}
+                        >
+                          <span className="text-base shrink-0">{sym.icon || '📱'}</span>
+                          <div className="flex-1 min-w-0">
+                            <span className="text-xs block font-bold leading-tight">{sym.title}</span>
+                            {sym.description && (
+                              <span className={`text-[10px] block mt-0.5 truncate ${isSelected ? 'text-slate-900 font-medium' : 'text-slate-500'}`}>
+                                {sym.description}
+                              </span>
+                            )}
+                          </div>
+                          {isSelected && <Check className="w-4 h-4 shrink-0 text-slate-950 mt-0.5" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div>
+                    <input
+                      type="text"
+                      value={extraNotes}
+                      onChange={(e) => setExtraNotes(e.target.value)}
+                      placeholder="Ghi chú thêm chi tiết (nếu có): VD: Máy rơi từ tầng 2 xuống, chập sau khi đi mưa..."
+                      className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:bg-white focus:outline-none focus:border-amber-500 placeholder:text-slate-400 font-medium"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full py-4 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-sm shadow-md shadow-amber-500/20 flex items-center justify-center gap-2 transition-transform hover:scale-[1.01] cursor-pointer disabled:opacity-50"
+                >
+                  <Send className="w-4 h-4 text-slate-950" />
+                  <span>{isSubmitting ? 'Đang Lưu Lịch Hẹn...' : 'Xác Nhận Đặt Lịch Sửa Chữa Ngay'}</span>
+                </button>
+              </form>
             </div>
           )}
         </div>
@@ -536,3 +818,4 @@ export default function RepairPriceListPage() {
     </div>
   );
 }
+

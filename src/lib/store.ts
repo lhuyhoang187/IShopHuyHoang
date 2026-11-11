@@ -25,6 +25,10 @@ import {
   EmailNotification,
   RegisteredDevice,
   RedeemedGiftItem,
+  RepairDeviceOption,
+  RepairServiceCatalogItem,
+  RepairSymptomOption,
+  RepairTimeSlotOption,
 } from './types';
 import {
   sendPurchaseInvoiceEmail,
@@ -179,6 +183,66 @@ export const defaultPermissions: PermissionItem[] = [
     tech: false,
     cashier: false,
   },
+];
+
+export const initialRepairDeviceOptions: RepairDeviceOption[] = [
+  { id: 'rd-1', name: 'iPhone 16 Pro Max', brand: 'Apple', isActive: true },
+  { id: 'rd-2', name: 'iPhone 16 Pro', brand: 'Apple', isActive: true },
+  { id: 'rd-3', name: 'iPhone 16 Plus', brand: 'Apple', isActive: true },
+  { id: 'rd-4', name: 'iPhone 16', brand: 'Apple', isActive: true },
+  { id: 'rd-5', name: 'iPhone 15 Pro Max', brand: 'Apple', isActive: true },
+  { id: 'rd-6', name: 'iPhone 15 Pro', brand: 'Apple', isActive: true },
+  { id: 'rd-7', name: 'iPhone 15 Plus / iPhone 15', brand: 'Apple', isActive: true },
+  { id: 'rd-8', name: 'iPhone 14 Pro Max', brand: 'Apple', isActive: true },
+  { id: 'rd-9', name: 'iPhone 14 Pro / iPhone 14', brand: 'Apple', isActive: true },
+  { id: 'rd-10', name: 'iPhone 13 Pro Max', brand: 'Apple', isActive: true },
+  { id: 'rd-11', name: 'iPhone 13 / 13 Pro', brand: 'Apple', isActive: true },
+  { id: 'rd-12', name: 'iPhone 12 Series', brand: 'Apple', isActive: true },
+  { id: 'rd-13', name: 'iPhone 11 Series', brand: 'Apple', isActive: true },
+  { id: 'rd-14', name: 'iPad Pro / iPad Air', brand: 'Apple', isActive: true },
+  { id: 'rd-15', name: 'Samsung Galaxy S24 Ultra', brand: 'Samsung', isActive: true },
+  { id: 'rd-16', name: 'Samsung Galaxy S23 Ultra', brand: 'Samsung', isActive: true },
+  { id: 'rd-17', name: 'Samsung Galaxy Z Fold / Z Flip', brand: 'Samsung', isActive: true },
+  { id: 'rd-18', name: 'Xiaomi / Dòng máy Android khác', brand: 'Khác', isActive: true },
+];
+
+export const initialRepairServiceCatalog: RepairServiceCatalogItem[] = [
+  { id: 'rs-1', name: 'Thay Màn Hình Zin OLED 120Hz ProMotion', category: 'screen', deviceBrand: 'Apple', price: 5200000, warranty: '06 Tháng', estimatedMinutes: 35, description: 'Màn zin bóc máy hiển thị TrueTone mượt mà', isActive: true },
+  { id: 'rs-2', name: 'Ép Kính Cảm Ứng Chân Không (Giữ màn zin)', category: 'glass', deviceBrand: 'Apple', price: 750000, warranty: '12 Tháng keo bọt', estimatedMinutes: 45, description: 'Công nghệ ép kính buồng chân không vô trùng', isActive: true },
+  { id: 'rs-3', name: 'Thay Pin Pisen Chính Hãng (Hiển thị 100% dung lượng)', category: 'battery', deviceBrand: 'Apple', price: 650000, warranty: '12 Tháng', estimatedMinutes: 20, description: 'Pin chuẩn Pisen chống cháy nổ, hiển thị dung lượng chuẩn', isActive: true },
+  { id: 'rs-4', name: 'Thay Pin Pisen Dung Lượng Cao Siêu Bền', category: 'battery', deviceBrand: 'Apple', price: 850000, warranty: '12 Tháng', estimatedMinutes: 20, description: 'Tăng 25% thời lượng onscreen cho máy', isActive: true },
+  { id: 'rs-5', name: 'Thay Màn Hình Dynamic AMOLED 2X Zin Samsung', category: 'screen', deviceBrand: 'Samsung', price: 5900000, warranty: '06 Tháng', estimatedMinutes: 40, description: 'Màn zin hãng Samsung nét căng 120Hz', isActive: true },
+  { id: 'rs-6', name: 'Sửa Face ID / Cảm Biến Tiệm Cận Chuyên Sâu', category: 'other', deviceBrand: 'Apple', price: 650000, warranty: '06 Tháng', estimatedMinutes: 60, description: 'Cứu Face ID báo di chuyển máy lên xuống', isActive: true },
+  { id: 'rs-7', name: 'Thay Cụm Chân Sạc Type-C & Mic Đàm Thoại', category: 'charge_port', deviceBrand: 'Apple', price: 650000, warranty: '06 Tháng', estimatedMinutes: 30, description: 'Khắc phục sạc chập chờn, mic gọi không nghe', isActive: true },
+  { id: 'rs-8', name: 'Thay Kính Lưng Sau Bằng Tia Laser Tự Động', category: 'glass', deviceBrand: 'Apple', price: 550000, warranty: '12 Tháng', estimatedMinutes: 40, description: 'Bắn tia laser bóc lưng không cần tháo máy', isActive: true },
+  { id: 'rs-9', name: 'Thay Cụm Camera Sau Zin Chính Hãng', category: 'camera', deviceBrand: 'Apple', price: 1850000, warranty: '06 Tháng', estimatedMinutes: 35, description: 'Camera chụp nét chuẩn 48MP không rung giật', isActive: true },
+  { id: 'rs-10', name: 'Kiểm Tra Toàn Diện & Báo Giá Miễn Phí Tại Chỗ', category: 'other', deviceBrand: 'All', price: 0, warranty: 'Miễn phí 100%', estimatedMinutes: 15, description: 'Kỹ thuật viên đo đạc vi mạch và báo giá trước khi sửa', isActive: true },
+];
+
+export const initialRepairSymptoms: RepairSymptomOption[] = [
+  { id: 'sym-1', code: 'screen_broken', title: 'Màn hình nứt vỡ kính, sọc xanh, chảy mực', icon: '📱', description: 'Rơi va đập, màn hình sọc hoặc liệt cảm ứng', isActive: true },
+  { id: 'sym-2', code: 'battery_drain', title: 'Pin chai, tụt nhanh, pin phù phồng hở viền', icon: '🔋', description: 'Pin báo ảo, sập nguồn đột ngột', isActive: true },
+  { id: 'sym-3', code: 'no_charging', title: 'Cắm sạc không vào, chân sạc lỏng, báo ẩm', icon: '⚡', description: 'Không nhận nguồn Type-C/Lightning', isActive: true },
+  { id: 'sym-4', code: 'dead_boot', title: 'Mất nguồn, treo logo Táo, máy không lên hình', icon: '🔌', description: 'Bật không lên màn hình hoặc tự khởi động lại', isActive: true },
+  { id: 'sym-5', code: 'camera_issue', title: 'Camera rung giật, chụp mờ, vỡ kính camera', icon: '📷', description: 'Camera sau đốm đen hoặc rung rè', isActive: true },
+  { id: 'sym-6', code: 'faceid_error', title: 'Lỗi Face ID không nhận diện khuôn mặt', icon: '👤', description: 'Báo lỗi TrueDepth hoặc không quét được khuôn mặt', isActive: true },
+  { id: 'sym-7', code: 'audio_mic', title: 'Loa trong / ngoài rè nhỏ, mất mic đàm thoại', icon: '🔊', description: 'Nghe gọi không rõ hoặc mất chuông', isActive: true },
+  { id: 'sym-8', code: 'water_damage', title: 'Máy bị rơi vào nước, vô chất lỏng, ẩm bo mạch', icon: '💧', description: 'Cần sấy khô siêu âm và cấp cứu mạch', isActive: true },
+  { id: 'sym-9', code: 'back_glass', title: 'Nắp lưng kính sau bị nứt vỡ, cấn móp vỏ', icon: '✨', description: 'Cần thay kính lưng laser hoặc thay vỏ mới', isActive: true },
+  { id: 'sym-10', code: 'other_issue', title: 'Tình trạng lỗi khác (khách ghi chú bổ sung)', icon: '🛠️', description: 'Ghi chú chi tiết trong mục mô tả', isActive: true },
+];
+
+export const initialRepairTimeSlots: RepairTimeSlotOption[] = [
+  { id: 'ts-1', time: '08:30', label: '08:30 - Sáng (Mở cửa)', period: 'morning', isActive: true },
+  { id: 'ts-2', time: '09:30', label: '09:30 - Sáng (Tiếp nhận ca sáng)', period: 'morning', isActive: true },
+  { id: 'ts-3', time: '10:30', label: '10:30 - Sáng (Giờ vàng chuẩn bị)', period: 'morning', isActive: true },
+  { id: 'ts-4', time: '11:30', label: '11:30 - Trưa (Giao nhận máy trưa)', period: 'morning', isActive: true },
+  { id: 'ts-5', time: '14:00', label: '14:00 - Chiều (Đầu ca chiều)', period: 'afternoon', isActive: true },
+  { id: 'ts-6', time: '15:30', label: '15:30 - Chiều (Cao điểm lấy ngay)', period: 'afternoon', isActive: true },
+  { id: 'ts-7', time: '17:00', label: '17:00 - Chiều (Khung giờ tan tầm)', period: 'afternoon', isActive: true },
+  { id: 'ts-8', time: '18:30', label: '18:30 - Tối (Cao điểm ca tối)', period: 'evening', isActive: true },
+  { id: 'ts-9', time: '19:30', label: '19:30 - Tối (Bảo dưỡng máy tối)', period: 'evening', isActive: true },
+  { id: 'ts-10', time: '20:30', label: '20:30 - Tối (Trước giờ đóng cửa)', period: 'evening', isActive: true },
 ];
 
 export const IShopStore = {
@@ -1012,6 +1076,89 @@ export const IShopStore = {
 
   useSparePart(ticketId: string, partId: string, quantity: number = 1) {
     return this.consumeSparePart(ticketId, partId, quantity);
+  },
+
+  // ==============================================================
+  // REPAIR BOOKING LISTS & CATALOG MANAGEMENT (Dành cho Khách & Shop)
+  // ==============================================================
+  getRepairDeviceOptions(): RepairDeviceOption[] {
+    return getStorage<RepairDeviceOption[]>('repair_device_options', initialRepairDeviceOptions);
+  },
+  setRepairDeviceOptions(options: RepairDeviceOption[]): void {
+    setStorage('repair_device_options', options);
+  },
+  addRepairDeviceOption(opt: RepairDeviceOption): void {
+    const list = this.getRepairDeviceOptions();
+    const exists = list.find((d) => d.id === opt.id || d.name.toLowerCase() === opt.name.toLowerCase());
+    if (exists) {
+      this.setRepairDeviceOptions(list.map((d) => (d.id === exists.id ? { ...d, ...opt } : d)));
+    } else {
+      this.setRepairDeviceOptions([...list, opt]);
+    }
+  },
+  deleteRepairDeviceOption(id: string): void {
+    const list = this.getRepairDeviceOptions();
+    this.setRepairDeviceOptions(list.filter((d) => d.id !== id));
+  },
+
+  getRepairServiceCatalog(): RepairServiceCatalogItem[] {
+    return getStorage<RepairServiceCatalogItem[]>('repair_service_catalog', initialRepairServiceCatalog);
+  },
+  setRepairServiceCatalog(services: RepairServiceCatalogItem[]): void {
+    setStorage('repair_service_catalog', services);
+  },
+  addRepairServiceCatalog(srv: RepairServiceCatalogItem): void {
+    const list = this.getRepairServiceCatalog();
+    const exists = list.find((s) => s.id === srv.id || s.name.toLowerCase() === srv.name.toLowerCase());
+    if (exists) {
+      this.setRepairServiceCatalog(list.map((s) => (s.id === exists.id ? { ...s, ...srv } : s)));
+    } else {
+      this.setRepairServiceCatalog([...list, srv]);
+    }
+  },
+  deleteRepairServiceCatalog(id: string): void {
+    const list = this.getRepairServiceCatalog();
+    this.setRepairServiceCatalog(list.filter((s) => s.id !== id));
+  },
+
+  getRepairSymptomOptions(): RepairSymptomOption[] {
+    return getStorage<RepairSymptomOption[]>('repair_symptom_options', initialRepairSymptoms);
+  },
+  setRepairSymptomOptions(symptoms: RepairSymptomOption[]): void {
+    setStorage('repair_symptom_options', symptoms);
+  },
+  addRepairSymptomOption(sym: RepairSymptomOption): void {
+    const list = this.getRepairSymptomOptions();
+    const exists = list.find((s) => s.id === sym.id || s.title.toLowerCase() === sym.title.toLowerCase());
+    if (exists) {
+      this.setRepairSymptomOptions(list.map((s) => (s.id === exists.id ? { ...s, ...sym } : s)));
+    } else {
+      this.setRepairSymptomOptions([...list, sym]);
+    }
+  },
+  deleteRepairSymptomOption(id: string): void {
+    const list = this.getRepairSymptomOptions();
+    this.setRepairSymptomOptions(list.filter((s) => s.id !== id));
+  },
+
+  getRepairTimeSlotOptions(): RepairTimeSlotOption[] {
+    return getStorage<RepairTimeSlotOption[]>('repair_time_slot_options', initialRepairTimeSlots);
+  },
+  setRepairTimeSlotOptions(slots: RepairTimeSlotOption[]): void {
+    setStorage('repair_time_slot_options', slots);
+  },
+  addRepairTimeSlotOption(slot: RepairTimeSlotOption): void {
+    const list = this.getRepairTimeSlotOptions();
+    const exists = list.find((s) => s.id === slot.id || s.time === slot.time);
+    if (exists) {
+      this.setRepairTimeSlotOptions(list.map((s) => (s.id === exists.id ? { ...s, ...slot } : s)));
+    } else {
+      this.setRepairTimeSlotOptions([...list, slot]);
+    }
+  },
+  deleteRepairTimeSlotOption(id: string): void {
+    const list = this.getRepairTimeSlotOptions();
+    this.setRepairTimeSlotOptions(list.filter((s) => s.id !== id));
   },
 
   // Invoices & POS

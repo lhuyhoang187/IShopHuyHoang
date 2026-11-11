@@ -19,9 +19,24 @@ import {
   Activity,
   Zap,
   Download,
+  Sliders,
+  Trash2,
+  Tag,
+  Check,
+  AlertCircle,
+  PlusCircle,
+  Sparkles,
 } from 'lucide-react';
 import { IShopStore } from '@/lib/store';
-import { RepairTicket, RepairStatus, SparePartItem } from '@/lib/types';
+import {
+  RepairTicket,
+  RepairStatus,
+  SparePartItem,
+  RepairDeviceOption,
+  RepairServiceCatalogItem,
+  RepairSymptomOption,
+  RepairTimeSlotOption,
+} from '@/lib/types';
 import { formatVND } from '@/lib/vietqr';
 import { exportRepairsCsv } from '@/lib/exportUtils';
 
@@ -30,6 +45,42 @@ export default function AdminRepairsPage() {
   const [spareParts, setSpareParts] = useState<SparePartItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+
+  // Config Modal State for Repair Booking Categories
+  const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
+  const [configTab, setConfigTab] = useState<'devices' | 'services' | 'symptoms' | 'timeSlots'>('devices');
+
+  // Categories & options lists
+  const [deviceList, setDeviceList] = useState<RepairDeviceOption[]>([]);
+  const [serviceCatalog, setServiceCatalog] = useState<RepairServiceCatalogItem[]>([]);
+  const [symptomList, setSymptomList] = useState<RepairSymptomOption[]>([]);
+  const [timeSlots, setTimeSlots] = useState<RepairTimeSlotOption[]>([]);
+
+  // Add form states
+  const [newDeviceName, setNewDeviceName] = useState('');
+  const [newDeviceBrand, setNewDeviceBrand] = useState('Apple');
+
+  const [newServiceName, setNewServiceName] = useState('');
+  const [newServicePrice, setNewServicePrice] = useState<number>(650000);
+  const [newServiceWarranty, setNewServiceWarranty] = useState('12 Tháng');
+  const [newServiceCategory, setNewServiceCategory] = useState('battery');
+  const [newServiceMinutes, setNewServiceMinutes] = useState<number>(30);
+  const [newServiceBrand, setNewServiceBrand] = useState('Apple');
+
+  const [newSymptomTitle, setNewSymptomTitle] = useState('');
+  const [newSymptomIcon, setNewSymptomIcon] = useState('📱');
+  const [newSymptomDesc, setNewSymptomDesc] = useState('');
+
+  const [newTimeSlotTime, setNewTimeSlotTime] = useState('09:00');
+  const [newTimeSlotLabel, setNewTimeSlotLabel] = useState('09:00 - Sáng (Mở cửa)');
+  const [newTimeSlotPeriod, setNewTimeSlotPeriod] = useState<'morning' | 'afternoon' | 'evening'>('morning');
+
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(null), 3000);
+  };
 
   // Intake Modal
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -60,6 +111,10 @@ export default function AdminRepairsPage() {
   const loadData = () => {
     setRepairs(IShopStore.getRepairs());
     setSpareParts(IShopStore.getSpareParts());
+    setDeviceList(IShopStore.getRepairDeviceOptions());
+    setServiceCatalog(IShopStore.getRepairServiceCatalog());
+    setSymptomList(IShopStore.getRepairSymptomOptions());
+    setTimeSlots(IShopStore.getRepairTimeSlotOptions());
 
     // Sync live from MySQL Database
     fetch('/api/repairs')
@@ -70,6 +125,31 @@ export default function AdminRepairsPage() {
         }
       })
       .catch((err) => console.warn('Repairs API notice:', err));
+
+    // Sync config from API if available
+    fetch('/api/repairs/config')
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && json.data) {
+          if (Array.isArray(json.data.devices) && json.data.devices.length > 0) {
+            setDeviceList(json.data.devices);
+            IShopStore.setRepairDeviceOptions(json.data.devices);
+          }
+          if (Array.isArray(json.data.services) && json.data.services.length > 0) {
+            setServiceCatalog(json.data.services);
+            IShopStore.setRepairServiceCatalog(json.data.services);
+          }
+          if (Array.isArray(json.data.symptoms) && json.data.symptoms.length > 0) {
+            setSymptomList(json.data.symptoms);
+            IShopStore.setRepairSymptomOptions(json.data.symptoms);
+          }
+          if (Array.isArray(json.data.timeSlots) && json.data.timeSlots.length > 0) {
+            setTimeSlots(json.data.timeSlots);
+            IShopStore.setRepairTimeSlotOptions(json.data.timeSlots);
+          }
+        }
+      })
+      .catch((err) => console.warn('Config fetch notice:', err));
   };
 
   useEffect(() => {
@@ -78,6 +158,158 @@ export default function AdminRepairsPage() {
     window.addEventListener('ishop_data_changed', listener);
     return () => window.removeEventListener('ishop_data_changed', listener);
   }, []);
+
+  // Category Management Handlers
+  const handleAddDevice = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newDeviceName.trim()) return;
+    const newDev: RepairDeviceOption = {
+      id: 'dev-' + Date.now(),
+      name: newDeviceName.trim(),
+      brand: newDeviceBrand,
+      order: deviceList.length + 1,
+      isActive: true,
+    };
+    IShopStore.addRepairDeviceOption(newDev);
+    setDeviceList(IShopStore.getRepairDeviceOptions());
+    setNewDeviceName('');
+    showToast(`Đã thêm dòng máy "${newDev.name}" thành công!`);
+
+    fetch('/api/repairs/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'device', action: 'add', item: newDev }),
+    }).catch(() => {});
+  };
+
+  const handleDeleteDevice = (id: string) => {
+    const item = deviceList.find((d) => d.id === id);
+    if (!item) return;
+    if (!confirm(`Xóa dòng máy "${item.name}" khỏi danh mục đặt lịch?`)) return;
+    IShopStore.deleteRepairDeviceOption(id);
+    setDeviceList(IShopStore.getRepairDeviceOptions());
+    showToast(`Đã xóa dòng máy "${item.name}"!`);
+
+    fetch('/api/repairs/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'device', action: 'delete', id }),
+    }).catch(() => {});
+  };
+
+  const handleAddService = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newServiceName.trim()) return;
+    const newSrv: RepairServiceCatalogItem = {
+      id: 'srv-' + Date.now(),
+      name: newServiceName.trim(),
+      category: newServiceCategory,
+      price: Number(newServicePrice) || 0,
+      warranty: newServiceWarranty || '06 Tháng',
+      estimatedMinutes: Number(newServiceMinutes) || 30,
+      deviceBrand: newServiceBrand,
+      isActive: true,
+    };
+    IShopStore.addRepairServiceCatalog(newSrv);
+    setServiceCatalog(IShopStore.getRepairServiceCatalog());
+    setNewServiceName('');
+    showToast(`Đã thêm dịch vụ "${newSrv.name}" thành công!`);
+
+    fetch('/api/repairs/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'service', action: 'add', item: newSrv }),
+    }).catch(() => {});
+  };
+
+  const handleDeleteService = (id: string) => {
+    const item = serviceCatalog.find((s) => s.id === id);
+    if (!item) return;
+    if (!confirm(`Xóa dịch vụ "${item.name}" khỏi bảng giá đặt hẹn?`)) return;
+    IShopStore.deleteRepairServiceCatalog(id);
+    setServiceCatalog(IShopStore.getRepairServiceCatalog());
+    showToast(`Đã xóa dịch vụ "${item.name}"!`);
+
+    fetch('/api/repairs/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'service', action: 'delete', id }),
+    }).catch(() => {});
+  };
+
+  const handleAddSymptom = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSymptomTitle.trim()) return;
+    const newSym: RepairSymptomOption = {
+      id: 'sym-' + Date.now(),
+      code: 'sym-' + Date.now(),
+      title: newSymptomTitle.trim(),
+      description: newSymptomDesc.trim(),
+      icon: newSymptomIcon || '📱',
+      category: 'general',
+    };
+    IShopStore.addRepairSymptomOption(newSym);
+    setSymptomList(IShopStore.getRepairSymptomOptions());
+    setNewSymptomTitle('');
+    setNewSymptomDesc('');
+    showToast(`Đã thêm triệu chứng lỗi "${newSym.title}"!`);
+
+    fetch('/api/repairs/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'symptom', action: 'add', item: newSym }),
+    }).catch(() => {});
+  };
+
+  const handleDeleteSymptom = (id: string) => {
+    const item = symptomList.find((s) => s.id === id);
+    if (!item) return;
+    if (!confirm(`Xóa triệu chứng "${item.title}"?`)) return;
+    IShopStore.deleteRepairSymptomOption(id);
+    setSymptomList(IShopStore.getRepairSymptomOptions());
+    showToast(`Đã xóa triệu chứng "${item.title}"!`);
+
+    fetch('/api/repairs/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'symptom', action: 'delete', id }),
+    }).catch(() => {});
+  };
+
+  const handleAddTimeSlot = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTimeSlotTime.trim() || !newTimeSlotLabel.trim()) return;
+    const newSlot: RepairTimeSlotOption = {
+      id: 'ts-' + Date.now(),
+      time: newTimeSlotTime.trim(),
+      label: newTimeSlotLabel.trim(),
+      period: newTimeSlotPeriod,
+    };
+    IShopStore.addRepairTimeSlotOption(newSlot);
+    setTimeSlots(IShopStore.getRepairTimeSlotOptions());
+    showToast(`Đã thêm khung giờ "${newSlot.label}"!`);
+
+    fetch('/api/repairs/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'timeSlot', action: 'add', item: newSlot }),
+    }).catch(() => {});
+  };
+
+  const handleDeleteTimeSlot = (id: string) => {
+    const item = timeSlots.find((t) => t.id === id);
+    if (!item) return;
+    if (!confirm(`Xóa khung giờ "${item.label}"?`)) return;
+    IShopStore.deleteRepairTimeSlotOption(id);
+    setTimeSlots(IShopStore.getRepairTimeSlotOptions());
+    showToast(`Đã xóa khung giờ "${item.label}"!`);
+
+    fetch('/api/repairs/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'timeSlot', action: 'delete', id }),
+    }).catch(() => {});
+  };
 
   const handleCreateTicket = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -224,7 +456,15 @@ export default function AdminRepairsPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <button
+            onClick={() => setIsConfigModalOpen(true)}
+            className="px-4 py-2.5 rounded-xl text-xs font-bold bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 flex items-center gap-2 transition-all shadow-sm cursor-pointer"
+            title="Cấu hình danh mục cho khách hàng đặt hẹn online"
+          >
+            <Sliders className="w-4 h-4 text-amber-600" />
+            <span>Cấu Hình Danh Mục Đặt Lịch ({deviceList.length + serviceCatalog.length + symptomList.length})</span>
+          </button>
           <button
             onClick={() => exportRepairsCsv(filteredRepairs)}
             className="px-4 py-2.5 rounded-xl text-xs font-bold bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 flex items-center gap-2 transition-all shadow-sm cursor-pointer"
@@ -242,6 +482,14 @@ export default function AdminRepairsPage() {
           </button>
         </div>
       </div>
+
+      {/* Toast Notification Banner */}
+      {toastMsg && (
+        <div className="p-3.5 rounded-2xl bg-emerald-500 text-white text-xs font-bold shadow-lg flex items-center gap-2.5 animate-in slide-in-from-top duration-200">
+          <CheckCircle2 className="w-4 h-4 shrink-0" />
+          <span>{toastMsg}</span>
+        </div>
+      )}
 
       {/* Filter and Search Bar */}
       <div className="bg-white p-4 rounded-3xl border border-slate-200 flex flex-wrap items-center justify-between gap-4 shadow-sm">
@@ -748,6 +996,520 @@ export default function AdminRepairsPage() {
                 className="px-5 py-3.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors cursor-pointer"
               >
                 Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 4. Category Configuration Modal (Shop Side Management for Online Booking) */}
+      {isConfigModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-7 max-w-4xl w-full shadow-2xl space-y-6 max-h-[92vh] overflow-y-auto text-slate-800">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold">
+                  <Sliders className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                    <span>Cấu Hình Danh Mục Đặt Lịch (Khách Hàng)</span>
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-800">
+                      Live Store
+                    </span>
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    Thêm và điều chỉnh danh mục dòng máy, dịch vụ bảng giá, triệu chứng lỗi và khung giờ hiển thị dạng list cho khách chọn.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsConfigModalOpen(false)}
+                className="p-2 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Navigation Tabs */}
+            <div className="flex items-center gap-2 border-b border-slate-200 pb-3 overflow-x-auto text-xs font-bold">
+              {[
+                { id: 'devices', label: `1. Dòng Máy (${deviceList.length})`, icon: Smartphone },
+                { id: 'services', label: `2. Dịch Vụ & Bảng Giá (${serviceCatalog.length})`, icon: Tag },
+                { id: 'symptoms', label: `3. Triệu Chứng Lỗi (${symptomList.length})`, icon: AlertCircle },
+                { id: 'timeSlots', label: `4. Khung Giờ (${timeSlots.length})`, icon: Clock },
+              ].map((tab) => {
+                const TabIcon = tab.icon;
+                const isActive = configTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setConfigTab(tab.id as any)}
+                    className={`px-4 py-2 rounded-xl flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
+                      isActive
+                        ? 'bg-amber-500 text-slate-950 font-black shadow-sm'
+                        : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                    }`}
+                  >
+                    <TabIcon className="w-4 h-4" />
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* TAB 1: DÒNG MÁY SỬA CHỮA */}
+            {configTab === 'devices' && (
+              <div className="space-y-6">
+                {/* Form Add Device */}
+                <form
+                  onSubmit={handleAddDevice}
+                  className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                      <PlusCircle className="w-4 h-4 text-amber-600" />
+                      <span>Thêm Dòng Máy Mới Vào Danh Mục</span>
+                    </span>
+                    <span className="text-[11px] text-slate-500">Khách sẽ chọn trực tiếp từ danh sách này</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="sm:col-span-2">
+                      <input
+                        type="text"
+                        required
+                        value={newDeviceName}
+                        onChange={(e) => setNewDeviceName(e.target.value)}
+                        placeholder="VD: iPhone 16 Pro Max, Samsung Galaxy S25 Ultra, Xiaomi 15..."
+                        className="w-full p-2.5 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs font-bold focus:outline-none focus:border-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <select
+                        value={newDeviceBrand}
+                        onChange={(e) => setNewDeviceBrand(e.target.value)}
+                        className="w-full p-2.5 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs font-bold focus:outline-none focus:border-amber-500 cursor-pointer"
+                      >
+                        <option value="Apple">Hãng: Apple (iPhone/iPad)</option>
+                        <option value="Samsung">Hãng: Samsung</option>
+                        <option value="Xiaomi">Hãng: Xiaomi</option>
+                        <option value="Khác">Hãng: Khác</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
+                    <button
+                      type="submit"
+                      className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-sm transition-transform hover:scale-105 cursor-pointer"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Lưu Dòng Máy Mới</span>
+                    </button>
+                  </div>
+                </form>
+
+                {/* Device List Table */}
+                <div className="border border-slate-200 rounded-2xl overflow-hidden">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200 text-[11px] uppercase">
+                      <tr>
+                        <th className="p-3">Hãng</th>
+                        <th className="p-3">Tên Dòng Máy</th>
+                        <th className="p-3 text-center">Trạng Thái</th>
+                        <th className="p-3 text-right">Xóa</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {deviceList.map((dev) => (
+                        <tr key={dev.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="p-3">
+                            <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${
+                              dev.brand === 'Apple'
+                                ? 'bg-slate-900 text-white'
+                                : dev.brand === 'Samsung'
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-emerald-600 text-white'
+                            }`}>
+                              {dev.brand}
+                            </span>
+                          </td>
+                          <td className="p-3 font-bold text-slate-900">{dev.name}</td>
+                          <td className="p-3 text-center">
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              Đang hoạt động
+                            </span>
+                          </td>
+                          <td className="p-3 text-right">
+                            <button
+                              onClick={() => handleDeleteDevice(dev.id)}
+                              className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                              title="Xóa dòng máy này"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 2: DỊCH VỤ & BẢNG GIÁ */}
+            {configTab === 'services' && (
+              <div className="space-y-6">
+                {/* Form Add Service */}
+                <form
+                  onSubmit={handleAddService}
+                  className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                      <PlusCircle className="w-4 h-4 text-amber-600" />
+                      <span>Thêm Dịch Vụ Sửa Chữa Mới</span>
+                    </span>
+                    <span className="text-[11px] text-slate-500">Hiển thị trong danh mục lựa chọn và bảng giá niêm yết</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                    <div className="sm:col-span-2">
+                      <label className="text-[11px] font-bold text-slate-700 mb-1 block">Tên dịch vụ *:</label>
+                      <input
+                        type="text"
+                        required
+                        value={newServiceName}
+                        onChange={(e) => setNewServiceName(e.target.value)}
+                        placeholder="VD: Thay Cụm Chân Sạc Type-C Zin, Ép Kính Chân Không..."
+                        className="w-full p-2.5 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs font-bold focus:outline-none focus:border-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700 mb-1 block">Hãng thiết bị:</label>
+                      <select
+                        value={newServiceBrand}
+                        onChange={(e) => setNewServiceBrand(e.target.value)}
+                        className="w-full p-2.5 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs font-bold focus:outline-none focus:border-amber-500 cursor-pointer"
+                      >
+                        <option value="Apple">Apple</option>
+                        <option value="Samsung">Samsung</option>
+                        <option value="Chung">Tất cả các hãng</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700 mb-1 block">Giá dịch vụ (VNĐ):</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="10000"
+                        required
+                        value={newServicePrice}
+                        onChange={(e) => setNewServicePrice(Number(e.target.value))}
+                        className="w-full p-2.5 rounded-xl bg-white border border-slate-300 text-slate-900 font-mono text-xs font-bold focus:outline-none focus:border-amber-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700 mb-1 block">Thời gian bảo hành:</label>
+                      <input
+                        type="text"
+                        value={newServiceWarranty}
+                        onChange={(e) => setNewServiceWarranty(e.target.value)}
+                        placeholder="VD: 12 Tháng, 06 Tháng..."
+                        className="w-full p-2.5 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs font-bold focus:outline-none focus:border-amber-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700 mb-1 block">Thời gian dự kiến (phút):</label>
+                      <input
+                        type="number"
+                        min="5"
+                        step="5"
+                        value={newServiceMinutes}
+                        onChange={(e) => setNewServiceMinutes(Number(e.target.value))}
+                        className="w-full p-2.5 rounded-xl bg-white border border-slate-300 text-slate-900 font-mono text-xs font-bold focus:outline-none focus:border-amber-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end pt-1">
+                    <button
+                      type="submit"
+                      className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-sm transition-transform hover:scale-105 cursor-pointer"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Lưu Dịch Vụ Mới</span>
+                    </button>
+                  </div>
+                </form>
+
+                {/* Service List Table */}
+                <div className="border border-slate-200 rounded-2xl overflow-hidden">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200 text-[11px] uppercase">
+                      <tr>
+                        <th className="p-3">Tên Dịch Vụ</th>
+                        <th className="p-3">Hãng</th>
+                        <th className="p-3 text-right">Giá Niêm Yết</th>
+                        <th className="p-3 text-center">Bảo Hành</th>
+                        <th className="p-3 text-center">Lấy Liền</th>
+                        <th className="p-3 text-right">Xóa</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {serviceCatalog.map((srv) => (
+                        <tr key={srv.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="p-3 font-bold text-slate-900">{srv.name}</td>
+                          <td className="p-3">
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700">
+                              {srv.deviceBrand || 'Chung'}
+                            </span>
+                          </td>
+                          <td className="p-3 text-right font-black font-mono text-amber-700">
+                            {srv.price > 0 ? formatVND(srv.price) : 'Miễn phí'}
+                          </td>
+                          <td className="p-3 text-center">
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                              {srv.warranty}
+                            </span>
+                          </td>
+                          <td className="p-3 text-center font-medium text-slate-600">
+                            {srv.estimatedMinutes || 30} phút
+                          </td>
+                          <td className="p-3 text-right">
+                            <button
+                              onClick={() => handleDeleteService(srv.id)}
+                              className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                              title="Xóa dịch vụ này"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 3: TRIỆU CHỨNG LỖI THƯỜNG GẶP */}
+            {configTab === 'symptoms' && (
+              <div className="space-y-6">
+                {/* Form Add Symptom */}
+                <form
+                  onSubmit={handleAddSymptom}
+                  className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                      <PlusCircle className="w-4 h-4 text-amber-600" />
+                      <span>Thêm Triệu Chứng Lỗi Thường Gặp</span>
+                    </span>
+                    <span className="text-[11px] text-slate-500">Khách có thể click chọn nhanh nhiều lỗi cùng lúc</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700 mb-1 block">Icon đại diện:</label>
+                      <select
+                        value={newSymptomIcon}
+                        onChange={(e) => setNewSymptomIcon(e.target.value)}
+                        className="w-full p-2.5 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs font-bold focus:outline-none focus:border-amber-500 cursor-pointer"
+                      >
+                        <option value="📱">📱 Màn hình / Cảm ứng</option>
+                        <option value="🔋">🔋 Pin / Nguồn</option>
+                        <option value="🔌">🔌 Sạc / Cổng Type-C</option>
+                        <option value="📷">📷 Camera / Ống kính</option>
+                        <option value="🔊">🔊 Loa / Micro</option>
+                        <option value="💧">💧 Vào nước / Ẩm mạch</option>
+                        <option value="📶">📶 Sóng / Wi-Fi / Bluetooth</option>
+                        <option value="💥">💥 Rơi vỡ / Cấn móp viền</option>
+                        <option value="🔧">🔧 Lỗi khác</option>
+                      </select>
+                    </div>
+
+                    <div className="sm:col-span-2">
+                      <label className="text-[11px] font-bold text-slate-700 mb-1 block">Tên triệu chứng *:</label>
+                      <input
+                        type="text"
+                        required
+                        value={newSymptomTitle}
+                        onChange={(e) => setNewSymptomTitle(e.target.value)}
+                        placeholder="VD: Nút nguồn bị kẹt, Face ID không nhận diện..."
+                        className="w-full p-2.5 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs font-bold focus:outline-none focus:border-amber-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700 mb-1 block">Mô tả ngắn:</label>
+                      <input
+                        type="text"
+                        value={newSymptomDesc}
+                        onChange={(e) => setNewSymptomDesc(e.target.value)}
+                        placeholder="VD: Không bấm được, chập chờn"
+                        className="w-full p-2.5 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs focus:outline-none focus:border-amber-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end pt-1">
+                    <button
+                      type="submit"
+                      className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-sm transition-transform hover:scale-105 cursor-pointer"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Lưu Triệu Chứng Mới</span>
+                    </button>
+                  </div>
+                </form>
+
+                {/* Symptom Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {symptomList.map((sym) => (
+                    <div
+                      key={sym.id}
+                      className="p-3 rounded-2xl bg-white border border-slate-200 flex items-start justify-between gap-3 hover:border-amber-300 transition-colors shadow-xs"
+                    >
+                      <div className="flex items-start gap-2.5 min-w-0">
+                        <span className="text-xl shrink-0">{sym.icon || '📱'}</span>
+                        <div className="min-w-0">
+                          <span className="text-xs font-bold text-slate-900 block">{sym.title}</span>
+                          {sym.description && (
+                            <span className="text-[11px] text-slate-500 block truncate mt-0.5">
+                              {sym.description}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteSymptom(sym.id)}
+                        className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer shrink-0"
+                        title="Xóa triệu chứng này"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* TAB 4: KHUNG GIỜ TIẾP NHẬN */}
+            {configTab === 'timeSlots' && (
+              <div className="space-y-6">
+                {/* Form Add Time Slot */}
+                <form
+                  onSubmit={handleAddTimeSlot}
+                  className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                      <PlusCircle className="w-4 h-4 text-amber-600" />
+                      <span>Thêm Khung Giờ Hẹn Khách</span>
+                    </span>
+                    <span className="text-[11px] text-slate-500">Giúp điều phối lượng khách tại bàn iCare</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700 mb-1 block">Giờ (24h) *:</label>
+                      <input
+                        type="text"
+                        required
+                        value={newTimeSlotTime}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setNewTimeSlotTime(v);
+                          setNewTimeSlotLabel(`${v} - ${newTimeSlotPeriod === 'morning' ? 'Sáng' : newTimeSlotPeriod === 'afternoon' ? 'Chiều' : 'Tối'}`);
+                        }}
+                        placeholder="VD: 11:30, 15:45..."
+                        className="w-full p-2.5 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs font-bold font-mono focus:outline-none focus:border-amber-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700 mb-1 block">Buổi:</label>
+                      <select
+                        value={newTimeSlotPeriod}
+                        onChange={(e) => {
+                          const p = e.target.value as any;
+                          setNewTimeSlotPeriod(p);
+                          setNewTimeSlotLabel(`${newTimeSlotTime} - ${p === 'morning' ? 'Sáng' : p === 'afternoon' ? 'Chiều' : 'Tối'}`);
+                        }}
+                        className="w-full p-2.5 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs font-bold focus:outline-none focus:border-amber-500 cursor-pointer"
+                      >
+                        <option value="morning">Buổi Sáng (08:30 - 12:00)</option>
+                        <option value="afternoon">Buổi Chiều (13:30 - 18:00)</option>
+                        <option value="evening">Buổi Tối (18:30 - 21:00)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700 mb-1 block">Nhãn hiển thị *:</label>
+                      <input
+                        type="text"
+                        required
+                        value={newTimeSlotLabel}
+                        onChange={(e) => setNewTimeSlotLabel(e.target.value)}
+                        placeholder="VD: 10:00 - Sáng (Giờ cao điểm)"
+                        className="w-full p-2.5 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs font-bold focus:outline-none focus:border-amber-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end pt-1">
+                    <button
+                      type="submit"
+                      className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-sm transition-transform hover:scale-105 cursor-pointer"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Lưu Khung Giờ Mới</span>
+                    </button>
+                  </div>
+                </form>
+
+                {/* Time Slots List */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                  {timeSlots.map((ts) => (
+                    <div
+                      key={ts.id}
+                      className="p-3 rounded-2xl bg-white border border-slate-200 flex items-center justify-between gap-2 shadow-xs"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-amber-600 shrink-0" />
+                        <div>
+                          <span className="text-xs font-bold text-slate-900 block">{ts.label}</span>
+                          <span className="text-[10px] text-slate-500 font-mono">Giờ chuẩn: {ts.time}</span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteTimeSlot(ts.id)}
+                        className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer shrink-0"
+                        title="Xóa khung giờ này"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Modal Footer */}
+            <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-xs">
+              <span className="text-slate-500 flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-amber-500" />
+                <span>Mọi thay đổi sẽ cập nhật tức thì trên trang đặt lịch của khách hàng tại <strong className="text-slate-700 font-mono">/repair</strong>.</span>
+              </span>
+              <button
+                onClick={() => setIsConfigModalOpen(false)}
+                className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold transition-colors cursor-pointer"
+              >
+                Đóng &amp; Áp Dụng
               </button>
             </div>
           </div>
