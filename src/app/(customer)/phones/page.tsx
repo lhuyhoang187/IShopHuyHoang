@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Smartphone, Scale, ArrowRight, Filter, ShoppingCart, Plus, Minus, Check, Sparkles, AlertCircle } from 'lucide-react';
+import { Smartphone, Scale, ArrowRight, Filter, ShoppingCart, Plus, Minus, Check, Sparkles, AlertCircle, PackageCheck, Boxes } from 'lucide-react';
 import { IShopStore } from '@/lib/store';
 import { PhoneProduct } from '@/lib/types';
 import { formatVND } from '@/lib/vietqr';
@@ -143,12 +143,38 @@ export default function PhonesPage() {
           const lowestCapacity = phone.capacities[0];
           const qty = phoneQuantities[phone.id] || 1;
           const pointsEarned = Math.floor(((lowestCapacity.price || 0) * qty) / 10000);
+          const availableStock = IShopStore.getProductAvailableStock({
+            productId: phone.id,
+            type: 'phone',
+            color: phone.colors[0]?.name,
+            capacity: lowestCapacity.size,
+          });
+          const isOutOfStock = availableStock <= 0;
 
           return (
             <div
               key={phone.id}
               className="glass-card rounded-3xl p-5 border border-amber-200/80 hover:border-amber-400/80 shadow-sm hover:shadow-xl transition-all flex flex-col justify-between group relative overflow-hidden"
             >
+              {/* Badge số lượng hiện đang có ở kho (Góc trên bên trái) */}
+              <div className="absolute top-4 left-4 z-10">
+                {availableStock > 5 ? (
+                  <span className="px-2.5 py-1 rounded-xl text-[10px] font-black bg-emerald-50 text-emerald-800 border border-emerald-300 shadow-sm flex items-center gap-1.5 backdrop-blur-xs">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                    <span>Còn {availableStock} máy sẵn kho</span>
+                  </span>
+                ) : availableStock > 0 ? (
+                  <span className="px-2.5 py-1 rounded-xl text-[10px] font-black bg-amber-50 text-amber-900 border border-amber-300 shadow-sm flex items-center gap-1.5 backdrop-blur-xs">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
+                    <span>Chỉ còn {availableStock} máy</span>
+                  </span>
+                ) : (
+                  <span className="px-2.5 py-1 rounded-xl text-[10px] font-black bg-rose-50 text-rose-700 border border-rose-300 shadow-sm flex items-center gap-1 backdrop-blur-xs">
+                    <span>✕ Tạm hết hàng</span>
+                  </span>
+                )}
+              </div>
+
               {/* Compare button */}
               <button
                 onClick={() => IShopStore.toggleComparison(phone.id)}
@@ -210,6 +236,23 @@ export default function PhonesPage() {
                   <span className="text-[11px] text-slate-500 font-bold">Bản {lowestCapacity.size}</span>
                 </div>
 
+                {/* Thông tin số lượng hiện đang có ở kho */}
+                <div className="flex items-center justify-between bg-slate-50 border border-slate-200 px-2.5 py-1.5 rounded-xl text-[11px]">
+                  <span className="text-slate-600 font-bold flex items-center gap-1.5">
+                    <PackageCheck className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Kho hiện có:</span>
+                  </span>
+                  {availableStock > 0 ? (
+                    <span className={`font-mono font-black ${availableStock <= 3 ? 'text-amber-800' : 'text-emerald-700'}`}>
+                      Còn <strong className="text-xs font-black underline">{availableStock}</strong> máy ({lowestCapacity.size})
+                    </span>
+                  ) : (
+                    <span className="font-bold text-rose-600">
+                      Tạm hết hàng ({lowestCapacity.size})
+                    </span>
+                  )}
+                </div>
+
                 {/* Hiển thị điểm thưởng theo giá và số lượng */}
                 <div className="flex items-center justify-between bg-amber-500/10 border border-amber-500/20 px-2.5 py-1.5 rounded-xl">
                   <span className="text-[11px] font-bold text-amber-700 flex items-center gap-1">
@@ -222,37 +265,33 @@ export default function PhonesPage() {
 
                 {/* Bộ nút dấu cộng (+) và trừ (-) để tiện đặt 1 lần nhiều máy */}
                 <div className="flex items-center justify-between bg-slate-50 p-1.5 rounded-xl border border-slate-200">
-                  <span className="text-[11px] font-bold text-slate-700">Số lượng:</span>
+                  <span className="text-[11px] font-bold text-slate-700">Số lượng mua:</span>
                   <div className="flex items-center gap-1.5 bg-white px-2 py-0.5 rounded-lg border border-slate-300 shadow-sm">
                     <button
                       type="button"
+                      disabled={isOutOfStock || qty <= 1}
                       onClick={() => {
                         setPhoneQuantities((prev) => ({
                           ...prev,
                           [phone.id]: Math.max(1, (prev[phone.id] || 1) - 1),
                         }));
                       }}
-                      className="p-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors"
+                      className="p-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors disabled:opacity-30 cursor-pointer"
                       title="Giảm"
                     >
                       <Minus className="w-3 h-3" />
                     </button>
                     <span className="text-xs font-black text-slate-900 w-5 text-center">
-                      {qty}
+                      {isOutOfStock ? 0 : qty}
                     </span>
                     <button
                       type="button"
+                      disabled={isOutOfStock || qty >= availableStock}
                       onClick={() => {
                         const current = phoneQuantities[phone.id] || 1;
-                        const availableStock = IShopStore.getProductAvailableStock({
-                          productId: phone.id,
-                          type: 'phone',
-                          color: phone.colors[0]?.name,
-                          capacity: phone.capacities[0]?.size,
-                        });
                         if (current >= availableStock) {
                           setToastMessage({
-                            message: `Kho hiện chỉ còn ${availableStock} máy. Không thể chọn thêm!`,
+                            message: `Kho hiện chỉ còn ${availableStock} máy (${lowestCapacity.size}). Không thể chọn thêm!`,
                             type: 'error',
                           });
                           setTimeout(() => setToastMessage(null), 3000);
@@ -263,7 +302,7 @@ export default function PhonesPage() {
                           [phone.id]: current + 1,
                         }));
                       }}
-                      className="p-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors cursor-pointer"
+                      className="p-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors disabled:opacity-30 cursor-pointer"
                       title="Tăng"
                     >
                       <Plus className="w-3 h-3" />
@@ -274,11 +313,16 @@ export default function PhonesPage() {
                 <div className="grid grid-cols-2 gap-2 pt-1">
                   <button
                     type="button"
+                    disabled={isOutOfStock}
                     onClick={() => handleQuickAddToCart(phone)}
-                    className="py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold flex items-center justify-center gap-1 transition-all shadow-sm hover:scale-[1.02] cursor-pointer"
+                    className={`py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1 transition-all shadow-sm ${
+                      isOutOfStock
+                        ? 'bg-slate-200 text-slate-500 cursor-not-allowed'
+                        : 'bg-slate-900 hover:bg-black text-white hover:scale-[1.02] cursor-pointer'
+                    }`}
                   >
-                    <ShoppingCart className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Thêm Giỏ</span>
+                    <ShoppingCart className={`w-3.5 h-3.5 ${isOutOfStock ? 'text-slate-400' : 'text-amber-400'}`} />
+                    <span>{isOutOfStock ? 'Hết Hàng' : 'Thêm Giỏ'}</span>
                   </button>
 
                   <Link

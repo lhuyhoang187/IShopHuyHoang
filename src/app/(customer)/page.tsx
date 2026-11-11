@@ -38,6 +38,7 @@ import {
   Mic,
   AlertCircle,
   AlertTriangle,
+  PackageCheck,
 } from 'lucide-react';
 import { IShopStore } from '@/lib/store';
 import { PhoneProduct, AccessoryProduct } from '@/lib/types';
@@ -948,6 +949,14 @@ export default function CustomerHomePage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-7">
           {filteredPhones.map((phone, idx) => {
             const isComparing = compareIds.includes(phone.id);
+            const lowestCapacity = phone.capacities[0];
+            const availableStock = IShopStore.getProductAvailableStock({
+              productId: phone.id,
+              type: 'phone',
+              color: phone.colors[0]?.name,
+              capacity: lowestCapacity?.size,
+            });
+            const isOutOfStock = availableStock <= 0;
             // So le: chẵn từ TRÁI sang, lẻ từ PHẢI sang
             const flyClass = idx % 2 === 0 ? 'reveal-fly-left' : 'reveal-fly-right';
 
@@ -967,13 +976,32 @@ export default function CustomerHomePage() {
                     <div className="absolute top-3 left-3 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 shadow-sm">
                       Mới 100% Nguyên Seal
                     </div>
+
+                    {/* Stock badge top-right */}
+                    <div className="absolute top-3 right-3">
+                      {availableStock > 5 ? (
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-800 border border-emerald-300 shadow-sm flex items-center gap-1.5 backdrop-blur-xs">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                          Còn {availableStock} máy
+                        </span>
+                      ) : availableStock > 0 ? (
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-amber-50 text-amber-900 border border-amber-300 shadow-sm flex items-center gap-1.5 backdrop-blur-xs">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
+                          Chỉ còn {availableStock} máy
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-rose-50 text-rose-700 border border-rose-300 shadow-sm backdrop-blur-xs">
+                          ✕ Tạm hết hàng
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   <div className="flex items-center justify-between text-sm mb-1.5">
                     <span className="text-slate-500 font-bold">{phone.brand}</span>
-                    <span className="font-mono text-emerald-700 font-bold flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
-                      Sẵn hàng tại quầy
+                    <span className={`font-mono font-bold flex items-center gap-1.5 ${availableStock > 0 ? (availableStock <= 3 ? 'text-amber-800' : 'text-emerald-700') : 'text-rose-600'}`}>
+                      <span className={`w-2 h-2 rounded-full ${availableStock > 0 ? (availableStock <= 3 ? 'bg-amber-500 animate-ping' : 'bg-emerald-600 animate-pulse') : 'bg-rose-500'}`} />
+                      {availableStock > 0 ? `Kho sẵn: ${availableStock} máy` : 'Tạm hết hàng'}
                     </span>
                   </div>
 
@@ -1004,8 +1032,25 @@ export default function CustomerHomePage() {
                     </span>
                   </div>
 
+                  {/* Thông tin số lượng hiện đang có ở kho */}
+                  <div className="mt-3 flex items-center justify-between bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl text-xs">
+                    <span className="text-slate-600 font-bold flex items-center gap-1.5">
+                      <PackageCheck className="w-3.5 h-3.5 text-blue-600" />
+                      <span>Tồn kho hiện có:</span>
+                    </span>
+                    {availableStock > 0 ? (
+                      <span className={`font-mono font-black ${availableStock <= 3 ? 'text-amber-800' : 'text-emerald-700'}`}>
+                        Còn <span className="underline">{availableStock}</span> máy ({lowestCapacity?.size})
+                      </span>
+                    ) : (
+                      <span className="font-bold text-rose-600">
+                        Tạm hết hàng ({lowestCapacity?.size})
+                      </span>
+                    )}
+                  </div>
+
                   {/* Hiển thị điểm thưởng theo giá sản phẩm */}
-                  <div className="mt-3 flex items-center justify-between bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-xl">
+                  <div className="mt-2 flex items-center justify-between bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-xl">
                     <div className="flex items-center gap-1.5 text-xs font-bold text-amber-700">
                       <Sparkles className="w-3.5 h-3.5 text-amber-600" />
                       <span>Tích lũy điểm:</span>
@@ -1023,33 +1068,29 @@ export default function CustomerHomePage() {
                     <div className="flex items-center gap-2 bg-white px-2 py-1 rounded-lg border border-slate-300 shadow-sm">
                       <button
                         type="button"
+                        disabled={isOutOfStock || (phoneQuantities[phone.id] || 1) <= 1}
                         onClick={() => {
                           setPhoneQuantities((prev) => ({
                             ...prev,
                             [phone.id]: Math.max(1, (prev[phone.id] || 1) - 1),
                           }));
                         }}
-                        className="p-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors cursor-pointer"
+                        className="p-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors disabled:opacity-30 cursor-pointer"
                         title="Giảm số lượng"
                       >
                         <Minus className="w-3.5 h-3.5" />
                       </button>
                       <span className="text-xs font-black text-slate-900 w-6 text-center">
-                        {phoneQuantities[phone.id] || 1}
+                        {isOutOfStock ? 0 : (phoneQuantities[phone.id] || 1)}
                       </span>
                       <button
                         type="button"
+                        disabled={isOutOfStock || (phoneQuantities[phone.id] || 1) >= availableStock}
                         onClick={() => {
                           const current = phoneQuantities[phone.id] || 1;
-                          const availableStock = IShopStore.getProductAvailableStock({
-                            productId: phone.id,
-                            type: 'phone',
-                            color: phone.colors[0]?.name,
-                            capacity: phone.capacities[0]?.size,
-                          });
                           if (current >= availableStock) {
                             setToastMessage({
-                              message: `Kho hiện chỉ còn ${availableStock} máy. Không thể chọn thêm!`,
+                              message: `Kho hiện chỉ còn ${availableStock} máy (${lowestCapacity?.size}). Không thể chọn thêm!`,
                               type: 'error',
                             });
                             setTimeout(() => setToastMessage(null), 3000);
@@ -1060,7 +1101,7 @@ export default function CustomerHomePage() {
                             [phone.id]: current + 1,
                           }));
                         }}
-                        className="p-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors cursor-pointer"
+                        className="p-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors disabled:opacity-30 cursor-pointer"
                         title="Tăng số lượng"
                       >
                         <Plus className="w-3.5 h-3.5" />
