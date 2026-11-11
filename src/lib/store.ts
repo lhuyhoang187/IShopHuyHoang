@@ -207,16 +207,19 @@ export const initialRepairDeviceOptions: RepairDeviceOption[] = [
 ];
 
 export const initialRepairServiceCatalog: RepairServiceCatalogItem[] = [
-  { id: 'rs-1', name: 'Thay Màn Hình Zin OLED 120Hz ProMotion', category: 'screen', deviceBrand: 'Apple', price: 5200000, warranty: '06 Tháng', estimatedMinutes: 35, description: 'Màn zin bóc máy hiển thị TrueTone mượt mà', isActive: true },
-  { id: 'rs-2', name: 'Ép Kính Cảm Ứng Chân Không (Giữ màn zin)', category: 'glass', deviceBrand: 'Apple', price: 750000, warranty: '12 Tháng keo bọt', estimatedMinutes: 45, description: 'Công nghệ ép kính buồng chân không vô trùng', isActive: true },
-  { id: 'rs-3', name: 'Thay Pin Pisen Chính Hãng (Hiển thị 100% dung lượng)', category: 'battery', deviceBrand: 'Apple', price: 650000, warranty: '12 Tháng', estimatedMinutes: 20, description: 'Pin chuẩn Pisen chống cháy nổ, hiển thị dung lượng chuẩn', isActive: true },
-  { id: 'rs-4', name: 'Thay Pin Pisen Dung Lượng Cao Siêu Bền', category: 'battery', deviceBrand: 'Apple', price: 850000, warranty: '12 Tháng', estimatedMinutes: 20, description: 'Tăng 25% thời lượng onscreen cho máy', isActive: true },
-  { id: 'rs-5', name: 'Thay Màn Hình Dynamic AMOLED 2X Zin Samsung', category: 'screen', deviceBrand: 'Samsung', price: 5900000, warranty: '06 Tháng', estimatedMinutes: 40, description: 'Màn zin hãng Samsung nét căng 120Hz', isActive: true },
-  { id: 'rs-6', name: 'Sửa Face ID / Cảm Biến Tiệm Cận Chuyên Sâu', category: 'other', deviceBrand: 'Apple', price: 650000, warranty: '06 Tháng', estimatedMinutes: 60, description: 'Cứu Face ID báo di chuyển máy lên xuống', isActive: true },
-  { id: 'rs-7', name: 'Thay Cụm Chân Sạc Type-C & Mic Đàm Thoại', category: 'charge_port', deviceBrand: 'Apple', price: 650000, warranty: '06 Tháng', estimatedMinutes: 30, description: 'Khắc phục sạc chập chờn, mic gọi không nghe', isActive: true },
-  { id: 'rs-8', name: 'Thay Kính Lưng Sau Bằng Tia Laser Tự Động', category: 'glass', deviceBrand: 'Apple', price: 550000, warranty: '12 Tháng', estimatedMinutes: 40, description: 'Bắn tia laser bóc lưng không cần tháo máy', isActive: true },
-  { id: 'rs-9', name: 'Thay Cụm Camera Sau Zin Chính Hãng', category: 'camera', deviceBrand: 'Apple', price: 1850000, warranty: '06 Tháng', estimatedMinutes: 35, description: 'Camera chụp nét chuẩn 48MP không rung giật', isActive: true },
-  { id: 'rs-10', name: 'Kiểm Tra Toàn Diện & Báo Giá Miễn Phí Tại Chỗ', category: 'other', deviceBrand: 'All', price: 0, warranty: 'Miễn phí 100%', estimatedMinutes: 15, description: 'Kỹ thuật viên đo đạc vi mạch và báo giá trước khi sửa', isActive: true },
+  { id: 'rs-1', name: 'Thay Màn Hình OLED Zin Bóc Máy 120Hz ProMotion', category: 'screen', deviceBrand: 'Apple', deviceModels: 'iPhone 13 / 14 Pro Max', price: 5200000, warranty: '06 Tháng', estimatedMinutes: 35, description: 'Màn zin bóc máy hiển thị TrueTone mượt mà', isActive: true },
+  { id: 'rs-2', name: 'Ép Kính Cảm Ứng Chân Không (Giữ màn zin hiển thị)', category: 'glass', deviceBrand: 'Apple', deviceModels: 'iPhone 12 / 13 / 14 Pro Max', price: 750000, warranty: '12 Tháng keo bọt', estimatedMinutes: 45, description: 'Công nghệ ép kính buồng chân không vô trùng', isActive: true },
+  { id: 'rs-3', name: 'Thay Pin Pisen Dung Lượng Cao Siêu Bền', category: 'battery', deviceBrand: 'Apple', deviceModels: 'iPhone 14 / 15 Series', price: 850000, warranty: '12 Tháng', estimatedMinutes: 20, description: 'Tăng 25% thời lượng onscreen cho máy', isActive: true },
+  { id: 'rs-4', name: 'Thay Pin Pisen Chính Hãng (Hiển thị 100% dung lượng)', category: 'battery', deviceBrand: 'Apple', deviceModels: 'iPhone 11 / 12 / 13 Series', price: 650000, warranty: '12 Tháng', estimatedMinutes: 20, description: 'Pin chuẩn Pisen chống cháy nổ, hiển thị dung lượng chuẩn', isActive: true },
+  { id: 'rs-5', name: 'Thay Cụm Chân Sạc Type-C & Mic Thoại', category: 'charge_port', deviceBrand: 'Apple', deviceModels: 'iPhone 15 / 16 Series', price: 650000, warranty: '06 Tháng', estimatedMinutes: 30, description: 'Khắc phục sạc chập chờn, mic gọi không nghe', isActive: true },
+  { id: 'rs-6', name: 'Thay Màn Hình Zin Bóc Máy iPhone 15 Pro Max', category: 'screen', deviceBrand: 'Apple', deviceModels: 'iPhone 15 Pro Max', price: 6500000, warranty: '06 Tháng', estimatedMinutes: 30, description: 'Màn hình zin Apple tháo máy hỗ trợ 120Hz', isActive: true },
+  { id: 'rs-7', name: 'Thay Kính Lưng Sau Bằng Tia Laser Tự Động', category: 'glass', deviceBrand: 'Apple', deviceModels: 'iPhone 13 / 14 / 15 Series', price: 550000, warranty: '12 Tháng', estimatedMinutes: 40, description: 'Bắn tia laser bóc lưng không cần tháo máy', isActive: true },
+  { id: 'rs-8', name: 'Sửa Face ID / Cảm Biến Tiệm Cận Chuyên Sâu', category: 'other', deviceBrand: 'Apple', deviceModels: 'iPhone X đến 15 Pro Max', price: 650000, warranty: '06 Tháng', estimatedMinutes: 60, description: 'Cứu Face ID báo di chuyển máy lên xuống', isActive: true },
+  { id: 'rs-9', name: 'Thay Màn Hình Dynamic AMOLED 2X Zin', category: 'screen', deviceBrand: 'Samsung', deviceModels: 'Samsung Galaxy S24 Ultra', price: 5900000, warranty: '06 Tháng', estimatedMinutes: 40, description: 'Màn zin hãng Samsung nét căng 120Hz', isActive: true },
+  { id: 'rs-10', name: 'Thay Pin Chính Hãng Samsung 5.000mAh', category: 'battery', deviceBrand: 'Samsung', deviceModels: 'Galaxy S23 / S24 Ultra', price: 750000, warranty: '12 Tháng', estimatedMinutes: 25, description: 'Pin chuẩn nhà máy Samsung dung lượng chuẩn', isActive: true },
+  { id: 'rs-11', name: 'Ép Kính Màn Hình Cong Phẳng Chân Không', category: 'glass', deviceBrand: 'Samsung', deviceModels: 'Galaxy Note 20 / S22 / S23 Ultra', price: 850000, warranty: '12 Tháng', estimatedMinutes: 50, description: 'Ép kính cong chuẩn không bọt khí', isActive: true },
+  { id: 'rs-12', name: 'Thay Cụm Chân Sạc Nhanh 45W & Cáp Bo Phụ', category: 'charge_port', deviceBrand: 'Samsung', deviceModels: 'Galaxy S24 Ultra', price: 550000, warranty: '06 Tháng', estimatedMinutes: 30, description: 'Cụm sạc nhanh 45W chuẩn Super Fast Charge', isActive: true },
+  { id: 'rs-13', name: 'Kiểm Tra Toàn Diện & Báo Giá Miễn Phí Tại Chỗ', category: 'other', deviceBrand: 'Chung', deviceModels: 'Tất cả các dòng máy', price: 0, warranty: 'Miễn phí 100%', estimatedMinutes: 15, description: 'Kỹ thuật viên đo đạc vi mạch và báo giá trước khi sửa', isActive: true },
 ];
 
 export const initialRepairSymptoms: RepairSymptomOption[] = [
@@ -1119,6 +1122,11 @@ export const IShopStore = {
   deleteRepairServiceCatalog(id: string): void {
     const list = this.getRepairServiceCatalog();
     this.setRepairServiceCatalog(list.filter((s) => s.id !== id));
+  },
+  updateRepairServiceCatalog(id: string, data: Partial<RepairServiceCatalogItem>): void {
+    const list = this.getRepairServiceCatalog();
+    const updated = list.map((s) => (s.id === id ? { ...s, ...data } : s));
+    this.setRepairServiceCatalog(updated);
   },
 
   getRepairSymptomOptions(): RepairSymptomOption[] {

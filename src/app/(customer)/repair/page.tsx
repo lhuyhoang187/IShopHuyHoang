@@ -260,47 +260,60 @@ export default function RepairPriceListPage() {
   };
 
   const defaultIphonePrices = [
-    { service: 'Thay Pin Pisen Chính Hãng (Hiển thị 100% dung lượng)', models: 'iPhone 11 / 12 / 13 Series', price: 650000, warranty: '12 Tháng' },
-    { service: 'Thay Pin Pisen Dung Lượng Cao Siêu Bền', models: 'iPhone 14 / 15 Series', price: 850000, warranty: '12 Tháng' },
-    { service: 'Ép Kính Cảm Ứng Chân Không (Giữ màn zin hiển thị)', models: 'iPhone 12 / 13 / 14 Pro Max', price: 750000, warranty: '12 Tháng keo bọt' },
-    { service: 'Thay Màn Hình OLED Zin Bóc Máy 120Hz ProMotion', models: 'iPhone 13 / 14 Pro Max', price: 5200000, warranty: '06 Tháng' },
-    { service: 'Thay Màn Hình Zin Bóc Máy iPhone 15 Pro Max', models: 'iPhone 15 Pro Max', price: 6500000, warranty: '06 Tháng' },
-    { service: 'Thay Cụm Chân Sạc Type-C & Mic Thoại', models: 'iPhone 15 / 16 Series', price: 650000, warranty: '06 Tháng' },
+    { service: 'Thay Pin Pisen Chính Hãng (Hiển thị 100% dung lượng)', models: 'iPhone 11 / 12 / 13 Series', price: 650000, warranty: '12 Tháng', estimatedMinutes: 20 },
+    { service: 'Thay Pin Pisen Dung Lượng Cao Siêu Bền', models: 'iPhone 14 / 15 Series', price: 850000, warranty: '12 Tháng', estimatedMinutes: 20 },
+    { service: 'Ép Kính Cảm Ứng Chân Không (Giữ màn zin hiển thị)', models: 'iPhone 12 / 13 / 14 Pro Max', price: 750000, warranty: '12 Tháng keo bọt', estimatedMinutes: 45 },
+    { service: 'Thay Màn Hình OLED Zin Bóc Máy 120Hz ProMotion', models: 'iPhone 13 / 14 Pro Max', price: 5200000, warranty: '06 Tháng', estimatedMinutes: 35 },
+    { service: 'Thay Màn Hình Zin Bóc Máy iPhone 15 Pro Max', models: 'iPhone 15 Pro Max', price: 6500000, warranty: '06 Tháng', estimatedMinutes: 30 },
+    { service: 'Thay Cụm Chân Sạc Type-C & Mic Thoại', models: 'iPhone 15 / 16 Series', price: 650000, warranty: '06 Tháng', estimatedMinutes: 30 },
+    { service: 'Thay Kính Lưng Sau Bằng Tia Laser Tự Động', models: 'iPhone 13 / 14 / 15 Series', price: 550000, warranty: '12 Tháng', estimatedMinutes: 40 },
+    { service: 'Sửa Face ID / Cảm Biến Tiệm Cận Chuyên Sâu', models: 'iPhone X đến 15 Pro Max', price: 650000, warranty: '06 Tháng', estimatedMinutes: 60 },
   ];
 
   const defaultSamsungPrices = [
-    { service: 'Thay Màn Hình Dynamic AMOLED 2X Zin', models: 'Samsung Galaxy S24 Ultra', price: 5900000, warranty: '06 Tháng' },
-    { service: 'Thay Pin Chính Hãng Samsung 5.000mAh', models: 'Galaxy S23 / S24 Ultra', price: 750000, warranty: '12 Tháng' },
-    { service: 'Ép Kính Màn Hình Cong Phẳng Chân Không', models: 'Galaxy Note 20 / S22 / S23 Ultra', price: 850000, warranty: '12 Tháng' },
-    { service: 'Thay Cụm Chân Sạc Nhanh 45W & Cáp Bo Phụ', models: 'Galaxy S24 Ultra', price: 550000, warranty: '06 Tháng' },
+    { service: 'Thay Màn Hình Dynamic AMOLED 2X Zin', models: 'Samsung Galaxy S24 Ultra', price: 5900000, warranty: '06 Tháng', estimatedMinutes: 40 },
+    { service: 'Thay Pin Chính Hãng Samsung 5.000mAh', models: 'Galaxy S23 / S24 Ultra', price: 750000, warranty: '12 Tháng', estimatedMinutes: 25 },
+    { service: 'Ép Kính Màn Hình Cong Phẳng Chân Không', models: 'Galaxy Note 20 / S22 / S23 Ultra', price: 850000, warranty: '12 Tháng', estimatedMinutes: 50 },
+    { service: 'Thay Cụm Chân Sạc Nhanh 45W & Cáp Bo Phụ', models: 'Galaxy S24 Ultra', price: 550000, warranty: '06 Tháng', estimatedMinutes: 30 },
   ];
 
-  const [iphonePrices, setIphonePrices] = useState(defaultIphonePrices);
-  const [samsungPrices, setSamsungPrices] = useState(defaultSamsungPrices);
+  // Dynamic live prices computed directly from shop-managed service catalog
+  const displayPrices = useMemo(() => {
+    const brandFilter = activeTab === 'iphone' ? 'Apple' : 'Samsung';
+    const matched = serviceCatalog.filter(
+      (s) => s.deviceBrand === brandFilter || s.deviceBrand === 'Chung' || !s.deviceBrand
+    );
+    if (matched.length > 0) {
+      return matched.map((s) => ({
+        service: s.name,
+        models: s.deviceModels || (activeTab === 'iphone' ? 'iPhone Series' : 'Galaxy Series'),
+        price: s.price,
+        warranty: s.warranty,
+        estimatedMinutes: s.estimatedMinutes || 30,
+      }));
+    }
+    return activeTab === 'iphone' ? defaultIphonePrices : defaultSamsungPrices;
+  }, [serviceCatalog, activeTab]);
 
   useEffect(() => {
     fetch('/api/repairs/services')
       .then((res) => res.json())
       .then((json) => {
         if (json.success && Array.isArray(json.data) && json.data.length > 0) {
-          const ipList = json.data
-            .filter((s: any) => s.deviceBrand === 'Apple')
-            .map((s: any) => ({
-              service: s.name,
-              models: s.deviceModels,
-              price: s.price,
-              warranty: s.warrantyPeriod,
-            }));
-          const ssList = json.data
-            .filter((s: any) => s.deviceBrand === 'Samsung')
-            .map((s: any) => ({
-              service: s.name,
-              models: s.deviceModels,
-              price: s.price,
-              warranty: s.warrantyPeriod,
-            }));
-          if (ipList.length > 0) setIphonePrices(ipList);
-          if (ssList.length > 0) setSamsungPrices(ssList);
+          // If custom services from API exist, update catalog in store
+          json.data.forEach((s: any) => {
+            IShopStore.addRepairServiceCatalog({
+              id: s.id || 'srv-' + Date.now(),
+              name: s.name,
+              category: s.category || 'other',
+              deviceBrand: s.deviceBrand || 'Apple',
+              deviceModels: s.deviceModels || 'Tất cả dòng máy',
+              price: Number(s.price) || 0,
+              warranty: s.warrantyPeriod || '06 Tháng',
+              estimatedMinutes: Number(s.estimatedMinutes) || 30,
+            });
+          });
+          setServiceCatalog(IShopStore.getRepairServiceCatalog());
         }
       })
       .catch((e) => console.warn('Could not fetch repair services from API:', e));
@@ -457,24 +470,31 @@ export default function RepairPriceListPage() {
                 <tr>
                   <th className="p-4">Dịch Vụ Sửa Chữa</th>
                   <th className="p-4">Dòng Máy Áp Dụng</th>
-                  <th className="p-4">Bảo Hành</th>
+                  <th className="p-4 text-center">Thời Gian Dự Kiến</th>
+                  <th className="p-4 text-center">Bảo Hành</th>
                   <th className="p-4 text-right">Chi Phí Trọn Gói</th>
                   <th className="p-4 text-center">Thao Tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {(activeTab === 'iphone' ? iphonePrices : samsungPrices).map((item, idx) => (
+                {displayPrices.map((item, idx) => (
                   <tr key={idx} className="hover:bg-slate-50 transition-colors">
                     <td className="p-4 font-bold text-slate-900">
                       {item.service}
                     </td>
                     <td className="p-4 text-slate-600 font-medium">{item.models}</td>
-                    <td className="p-4">
-                      <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <td className="p-4 text-center whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                        <Clock className="w-3.5 h-3.5 text-amber-600" />
+                        <span>{item.estimatedMinutes ? `${item.estimatedMinutes} phút` : '30 phút'} lấy ngay</span>
+                      </span>
+                    </td>
+                    <td className="p-4 text-center whitespace-nowrap">
+                      <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 inline-block">
                         {item.warranty}
                       </span>
                     </td>
-                    <td className="p-4 text-right font-black text-amber-700 text-sm sm:text-base">
+                    <td className="p-4 text-right font-black text-amber-700 text-sm sm:text-base whitespace-nowrap">
                       {formatVND(item.price)}
                     </td>
                     <td className="p-4 text-center">
@@ -495,7 +515,7 @@ export default function RepairPriceListPage() {
                           const el = document.getElementById('booking-form');
                           el?.scrollIntoView({ behavior: 'smooth' });
                         }}
-                        className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-blue-600 text-slate-700 hover:text-white border border-slate-200 text-xs font-semibold transition-colors cursor-pointer"
+                        className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-blue-600 text-slate-700 hover:text-white border border-slate-200 text-xs font-semibold transition-colors cursor-pointer shadow-sm"
                       >
                         Đặt hẹn
                       </button>

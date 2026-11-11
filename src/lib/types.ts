@@ -446,6 +446,7 @@ export interface RepairServiceCatalogItem {
   name: string;
   category: string;
   deviceBrand?: string;
+  deviceModels?: string; // e.g. "iPhone 13 / 14 Pro Max", "Galaxy S24 Ultra"
   price: number;
   warranty: string;
   estimatedMinutes?: number;

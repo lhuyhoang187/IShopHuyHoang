@@ -64,36 +64,44 @@ export async function POST(request: NextRequest) {
     const { action, type, item, items } = body;
 
     // Save service to database if action is related to repair service
-    if (type === 'service' && item) {
-      try {
-        await prisma.repairService.upsert({
-          where: { id: item.id },
-          update: {
-            name: item.name,
-            category: item.category || 'other',
-            deviceBrand: item.deviceBrand || 'Apple',
-            deviceModels: item.deviceModels || 'Tất cả dòng máy',
-            price: Number(item.price) || 0,
-            warrantyPeriod: item.warranty || '12 Tháng',
-            estimatedMinutes: Number(item.estimatedMinutes) || 30,
-            description: item.description || null,
-            isActive: item.isActive ?? true,
-          },
-          create: {
-            id: item.id,
-            name: item.name,
-            category: item.category || 'other',
-            deviceBrand: item.deviceBrand || 'Apple',
-            deviceModels: item.deviceModels || 'Tất cả dòng máy',
-            price: Number(item.price) || 0,
-            warrantyPeriod: item.warranty || '12 Tháng',
-            estimatedMinutes: Number(item.estimatedMinutes) || 30,
-            description: item.description || null,
-            isActive: item.isActive ?? true,
-          },
-        });
-      } catch (dbErr) {
-        console.warn('DB upsert notice for repair service:', dbErr);
+    if (type === 'service') {
+      if ((action === 'add' || action === 'update') && item) {
+        try {
+          await prisma.repairService.upsert({
+            where: { id: item.id },
+            update: {
+              name: item.name,
+              category: item.category || 'other',
+              deviceBrand: item.deviceBrand || 'Apple',
+              deviceModels: item.deviceModels || 'Tất cả dòng máy',
+              price: Number(item.price) || 0,
+              warrantyPeriod: item.warranty || '12 Tháng',
+              estimatedMinutes: Number(item.estimatedMinutes) || 30,
+              description: item.description || null,
+              isActive: item.isActive ?? true,
+            },
+            create: {
+              id: item.id,
+              name: item.name,
+              category: item.category || 'other',
+              deviceBrand: item.deviceBrand || 'Apple',
+              deviceModels: item.deviceModels || 'Tất cả dòng máy',
+              price: Number(item.price) || 0,
+              warrantyPeriod: item.warranty || '12 Tháng',
+              estimatedMinutes: Number(item.estimatedMinutes) || 30,
+              description: item.description || null,
+              isActive: item.isActive ?? true,
+            },
+          });
+        } catch (dbErr) {
+          console.warn('DB upsert notice for repair service:', dbErr);
+        }
+      } else if (action === 'delete' && body.id) {
+        try {
+          await prisma.repairService.delete({ where: { id: body.id } });
+        } catch (dbErr) {
+          console.warn('DB delete notice for repair service:', dbErr);
+        }
       }
     }
 
