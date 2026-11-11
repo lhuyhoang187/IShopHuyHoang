@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Wrench,
   Plus,
@@ -28,6 +28,18 @@ import {
   Sparkles,
   Pencil,
   RotateCcw,
+  LayoutGrid,
+  List,
+  Copy,
+  Phone,
+  Calendar,
+  KeyRound,
+  FileText,
+  History,
+  Eye,
+  ArrowRight,
+  ArrowUpRight,
+  RefreshCw,
 } from 'lucide-react';
 import { IShopStore } from '@/lib/store';
 import {
@@ -47,6 +59,7 @@ export default function AdminRepairsPage() {
   const [spareParts, setSpareParts] = useState<SparePartItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban');
 
   // Config Modal State for Repair Booking Categories
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
@@ -86,7 +99,14 @@ export default function AdminRepairsPage() {
     setTimeout(() => setToastMsg(null), 3000);
   };
 
-  // Intake Modal
+  // Helper dynamic initial delivery date (now + 2 hours)
+  const getInitialDeliveryDate = () => {
+    const d = new Date(Date.now() + 2 * 3600000);
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
+  };
+
+  // Intake Modal State
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [intakeForm, setIntakeForm] = useState({
     customerName: '',
@@ -95,19 +115,24 @@ export default function AdminRepairsPage() {
     deviceModel: 'iPhone 15 Pro Max',
     imeiOrSerial: '',
     unlockPasscode: '',
-    appearanceCondition: 'Màn hình nứt kính, viền xước nhẹ',
-    accessoriesIncluded: 'Không phụ kiện kèm theo, đã tháo SIM',
-    issueDescription: 'Rơi va đập, màn hình sọc xanh loạn cảm ứng',
-    laborFee: 200000,
-    estimatedDeliveryDate: '2026-08-28 16:00:00',
+    appearanceCondition: 'Màn hình trầy nhẹ, thân máy nguyên bản',
+    accessoriesIncluded: 'Không kèm phụ kiện, đã tháo SIM',
+    issueDescription: 'Màn hình nứt vỡ kính, cần kiểm tra ép kính hoặc thay màn',
+    laborFee: 150000,
+    estimatedDeliveryDate: getInitialDeliveryDate(),
     technicianName: 'Trần Trọng Nghĩa',
     warrantyPeriod: 'Bảo hành 06 tháng',
   });
 
-  // Action / Detail Modal
+  // Action / Workbench Modal
   const [selectedTicket, setSelectedTicket] = useState<RepairTicket | null>(null);
   const [selectedPartId, setSelectedPartId] = useState<string>('');
+  const [selectedPartQty, setSelectedPartQty] = useState<number>(1);
+  const [partSearchQuery, setPartSearchQuery] = useState('');
   const [stepNote, setStepNote] = useState('');
+  const [copiedPass, setCopiedPass] = useState(false);
+  const [isEditingLaborFee, setIsEditingLaborFee] = useState(false);
+  const [tempLaborFee, setTempLaborFee] = useState<number>(0);
 
   // Print Receipt Modal
   const [printTicket, setPrintTicket] = useState<RepairTicket | null>(null);
@@ -413,48 +438,106 @@ export default function AdminRepairsPage() {
     setIsCreateModalOpen(false);
     setPrintTicket(created);
     loadData();
+    showToast(`Đã tiếp nhận máy ${created.ticketCode} thành công!`);
   };
 
-  const handleUpdateStep = (newStatus: RepairStatus) => {
+  const handleOpenTicket = (ticket: RepairTicket) => {
+    setSelectedTicket(ticket);
+    setTempLaborFee(ticket.laborFee || 0);
+    setIsEditingLaborFee(false);
+    setSelectedPartId('');
+    setSelectedPartQty(1);
+    setStepNote('');
+  };
+
+  const handleUpdateStep = async (newStatus: RepairStatus) => {
     if (!selectedTicket) return;
     const actor = 'KTV ' + (selectedTicket.technicianName || 'Nghĩa');
-    IShopStore.updateRepairStatus(
-      selectedTicket.id,
-      newStatus,
-      stepNote,
-      actor
-    );
-
-    // Sync to MySQL Database via PUT /api/repairs
-    fetch('/api/repairs', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        id: selectedTicket.id,
-        ticketCode: selectedTicket.ticketCode,
-        status: newStatus,
-        note: stepNote,
-        actor,
-      }),
-    }).catch((err) => console.warn('Failed to sync repair status to MySQL:', err));
-
-    setStepNote('');
-    // Refresh active ticket view
+    
+    // 1. Optimistic update local store
+    IShopStore.updateRepairStatus(selectedTicket.id, newStatus, stepNote, actor);
+    
+    // 2. Optimistic update local state immediately
     const updated = IShopStore.getRepairByCode(selectedTicket.ticketCode);
-    if (updated) setSelectedTicket(updated);
+    if (updated) {
+      setSelectedTicket(updated);
+      setRepairs((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+    }
+    setStepNote('');
+    showToast(`Đã chuyển sang bước "${statusBadge[newStatus]?.label || newStatus}"`);
+
+    // 3. Sync to API
+    try {
+      await fetch('/api/repairs', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: selectedTicket.id,
+          ticketCode: selectedTicket.ticketCode,
+          status: newStatus,
+          note: stepNote,
+          actor,
+        }),
+      });
+    } catch (err) {
+      console.warn('Failed to sync repair status to MySQL:', err);
+    }
   };
 
-  const handleUseSparePart = () => {
+  const handleQuickAdvanceStep = async (ticket: RepairTicket) => {
+    const steps: RepairStatus[] = [
+      'received',
+      'inspecting',
+      'repairing',
+      'qc_checking',
+      'ready_for_pickup',
+      'delivered',
+    ];
+    const currentIndex = steps.indexOf(ticket.status);
+    if (currentIndex >= 0 && currentIndex < steps.length - 1) {
+      const nextStatus = steps[currentIndex + 1];
+      const actor = 'KTV ' + (ticket.technicianName || 'Nghĩa');
+      IShopStore.updateRepairStatus(ticket.id, nextStatus, 'Chuyển nhanh bước từ Bàn Sửa Chữa', actor);
+      const updated = IShopStore.getRepairByCode(ticket.ticketCode);
+      if (updated) {
+        setRepairs((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+      }
+      showToast(`Phiếu ${ticket.ticketCode} đã chuyển sang "${statusBadge[nextStatus]?.label || nextStatus}"`);
+
+      try {
+        await fetch('/api/repairs', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: ticket.id,
+            ticketCode: ticket.ticketCode,
+            status: nextStatus,
+            note: 'Chuyển nhanh bước từ Bàn Sửa Chữa',
+            actor,
+          }),
+        });
+      } catch (err) {
+        console.warn('API sync err:', err);
+      }
+    }
+  };
+
+  const handleUseSparePart = async () => {
     if (!selectedTicket || !selectedPartId) return;
     try {
-      IShopStore.consumeSparePart(selectedTicket.id, selectedPartId, 1);
+      const qty = Number(selectedPartQty) || 1;
+      IShopStore.consumeSparePart(selectedTicket.id, selectedPartId, qty);
       setSelectedPartId('');
+      setSelectedPartQty(1);
       const updated = IShopStore.getRepairByCode(selectedTicket.ticketCode);
       if (updated) {
         setSelectedTicket(updated);
+        setRepairs((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+        setSpareParts(IShopStore.getSpareParts());
+        showToast('Đã xuất linh kiện vào phiếu sửa chữa!');
 
         // Sync to MySQL Database with partsUsed
-        fetch('/api/repairs', {
+        await fetch('/api/repairs', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -463,37 +546,186 @@ export default function AdminRepairsPage() {
             partsUsed: updated.partsUsed,
             laborFee: updated.laborFee,
           }),
-        }).catch((err) => console.warn('Failed to sync partsUsed to MySQL:', err));
+        });
       }
     } catch (err: any) {
       alert(err.message || 'Lỗi khi xuất linh kiện');
     }
   };
 
-  const filteredRepairs = repairs
-    .filter((r) => (filterStatus === 'all' ? true : r.status === filterStatus))
-    .filter(
-      (r) =>
-        r.ticketCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        r.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        r.customerPhone.includes(searchQuery.trim()) ||
-        r.deviceModel.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+  const handleRemoveSparePart = async (partId: string) => {
+    if (!selectedTicket) return;
+    if (!confirm('Bạn có chắc muốn hủy xuất linh kiện này và hoàn lại vào kho?')) return;
+    try {
+      IShopStore.removeSparePart(selectedTicket.id, partId);
+      const updated = IShopStore.getRepairByCode(selectedTicket.ticketCode);
+      if (updated) {
+        setSelectedTicket(updated);
+        setRepairs((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+        setSpareParts(IShopStore.getSpareParts());
+        showToast('Đã hoàn linh kiện về kho thành công!');
 
-  const statusBadge: Record<RepairStatus, { label: string; color: string }> = {
-    received: { label: '1. Tiếp nhận', color: 'bg-sky-50 text-sky-700 border border-sky-200' },
-    inspecting: { label: '2. Kiểm tra/Báo giá', color: 'bg-purple-50 text-purple-700 border border-purple-200' },
-    repairing: { label: '3. Đang sửa', color: 'bg-amber-50 text-amber-800 border border-amber-300' },
-    qc_checking: { label: '4. Kiểm tra QC', color: 'bg-cyan-50 text-cyan-700 border border-cyan-200' },
-    ready_for_pickup: { label: '5. Sẵn sàng giao', color: 'bg-emerald-50 text-emerald-800 border border-emerald-300' },
-    delivered: { label: '6. Đã bàn giao', color: 'bg-slate-100 text-slate-700 border border-slate-200' },
-    cancelled: { label: 'Hủy sửa', color: 'bg-rose-50 text-rose-700 border border-rose-200' },
+        await fetch('/api/repairs', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: updated.id,
+            ticketCode: updated.ticketCode,
+            partsUsed: updated.partsUsed,
+            laborFee: updated.laborFee,
+          }),
+        });
+      }
+    } catch (err: any) {
+      alert(err.message || 'Lỗi khi hoàn linh kiện');
+    }
   };
+
+  const handleSaveLaborFee = async () => {
+    if (!selectedTicket) return;
+    try {
+      IShopStore.updateRepairLaborFee(selectedTicket.id, tempLaborFee);
+      const updated = IShopStore.getRepairByCode(selectedTicket.ticketCode);
+      if (updated) {
+        setSelectedTicket(updated);
+        setRepairs((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+        setIsEditingLaborFee(false);
+        showToast('Đã cập nhật tiền công sửa chữa!');
+
+        await fetch('/api/repairs', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: updated.id,
+            ticketCode: updated.ticketCode,
+            partsUsed: updated.partsUsed,
+            laborFee: tempLaborFee,
+          }),
+        });
+      }
+    } catch (err: any) {
+      alert(err.message || 'Lỗi cập nhật tiền công');
+    }
+  };
+
+  const handleCopyPasscode = (pass: string) => {
+    if (!pass) return;
+    navigator.clipboard.writeText(pass);
+    setCopiedPass(true);
+    showToast(`Đã sao chép mật khẩu máy: ${pass}`);
+    setTimeout(() => setCopiedPass(false), 2000);
+  };
+
+  // KPI Statistics
+  const stats = useMemo(() => {
+    const received = repairs.filter((r) => r.status === 'received').length;
+    const inspecting = repairs.filter((r) => r.status === 'inspecting').length;
+    const repairing = repairs.filter((r) => r.status === 'repairing').length;
+    const qcOrReady = repairs.filter(
+      (r) => r.status === 'qc_checking' || r.status === 'ready_for_pickup'
+    ).length;
+    const delivered = repairs.filter((r) => r.status === 'delivered').length;
+    const totalDeliveredRevenue = repairs
+      .filter((r) => r.status === 'delivered')
+      .reduce((sum, r) => sum + (r.totalAmount || 0), 0);
+    return { received, inspecting, repairing, qcOrReady, delivered, totalDeliveredRevenue };
+  }, [repairs]);
+
+  // Filtered repairs
+  const filteredRepairs = useMemo(() => {
+    return repairs
+      .filter((r) => (filterStatus === 'all' ? true : r.status === filterStatus))
+      .filter((r) => {
+        if (!searchQuery.trim()) return true;
+        const q = searchQuery.toLowerCase().trim();
+        return (
+          (r.ticketCode && r.ticketCode.toLowerCase().includes(q)) ||
+          (r.customerName && r.customerName.toLowerCase().includes(q)) ||
+          (r.customerPhone && r.customerPhone.includes(q)) ||
+          (r.deviceModel && r.deviceModel.toLowerCase().includes(q)) ||
+          (r.unlockPasscode && r.unlockPasscode.toLowerCase().includes(q)) ||
+          (r.issueDescription && r.issueDescription.toLowerCase().includes(q))
+        );
+      });
+  }, [repairs, filterStatus, searchQuery]);
+
+  // Spare parts filtered by search
+  const filteredSpareParts = useMemo(() => {
+    if (!partSearchQuery.trim()) return spareParts;
+    const q = partSearchQuery.toLowerCase().trim();
+    return spareParts.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        p.categoryName?.toLowerCase().includes(q) ||
+        p.barcode?.toLowerCase().includes(q)
+    );
+  }, [spareParts, partSearchQuery]);
+
+  const statusBadge: Record<RepairStatus, { label: string; color: string; dot: string }> = {
+    received: { label: '1. Tiếp nhận', color: 'bg-sky-50 text-sky-700 border-sky-200', dot: 'bg-sky-500' },
+    inspecting: { label: '2. Báo giá & Chờ duyệt', color: 'bg-purple-50 text-purple-700 border-purple-200', dot: 'bg-purple-500' },
+    repairing: { label: '3. Đang sửa trên bàn', color: 'bg-amber-50 text-amber-800 border-amber-300', dot: 'bg-amber-500' },
+    qc_checking: { label: '4. Kiểm tra QC', color: 'bg-cyan-50 text-cyan-700 border-cyan-200', dot: 'bg-cyan-500' },
+    ready_for_pickup: { label: '5. Sẵn sàng giao', color: 'bg-emerald-50 text-emerald-800 border-emerald-300', dot: 'bg-emerald-500' },
+    delivered: { label: '6. Đã bàn giao', color: 'bg-slate-100 text-slate-700 border-slate-200', dot: 'bg-slate-400' },
+    cancelled: { label: 'Hủy sửa', color: 'bg-rose-50 text-rose-700 border-rose-200', dot: 'bg-rose-500' },
+  };
+
+  const kanbanColumns: {
+    status: RepairStatus;
+    title: string;
+    icon: any;
+    badgeStyle: string;
+    borderTop: string;
+  }[] = [
+    {
+      status: 'received',
+      title: '1. Tiếp Nhận',
+      icon: Clock,
+      badgeStyle: 'bg-sky-100 text-sky-800',
+      borderTop: 'border-t-sky-500',
+    },
+    {
+      status: 'inspecting',
+      title: '2. Báo Giá / Chờ Duyệt',
+      icon: Activity,
+      badgeStyle: 'bg-purple-100 text-purple-800',
+      borderTop: 'border-t-purple-500',
+    },
+    {
+      status: 'repairing',
+      title: '3. Đang Sửa Trên Bàn',
+      icon: Wrench,
+      badgeStyle: 'bg-amber-100 text-amber-900',
+      borderTop: 'border-t-amber-500',
+    },
+    {
+      status: 'qc_checking',
+      title: '4. Kiểm Tra QC',
+      icon: ShieldCheck,
+      badgeStyle: 'bg-cyan-100 text-cyan-800',
+      borderTop: 'border-t-cyan-500',
+    },
+    {
+      status: 'ready_for_pickup',
+      title: '5. Sẵn Sàng Giao',
+      icon: CheckCircle2,
+      badgeStyle: 'bg-emerald-100 text-emerald-800',
+      borderTop: 'border-t-emerald-500',
+    },
+    {
+      status: 'delivered',
+      title: '6. Đã Bàn Giao',
+      icon: DollarSign,
+      badgeStyle: 'bg-slate-200 text-slate-800',
+      borderTop: 'border-t-slate-400',
+    },
+  ];
 
   return (
     <div className="space-y-6 text-slate-800">
       {/* Header Toolbar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-200">
         <div>
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold text-amber-700 uppercase tracking-wider">Phân Hệ Kỹ Thuật</span>
@@ -502,47 +734,138 @@ export default function AdminRepairsPage() {
           </div>
           <h1 className="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2.5 mt-1">
             <Wrench className="w-6 h-6 text-amber-600" />
-            <span>Phân Hệ Kỹ Thuật &amp; Sửa Chữa (iCare Desk)</span>
+            <span>Bàn Sửa Chữa &amp; Tiếp Nhận Kỹ Thuật (iCare Desk)</span>
           </h1>
           <p className="text-xs text-slate-600 mt-1">
-            Tiếp nhận trong 30s, in phiếu K80 có Mã QR, xuất kho linh kiện và quản lý 6 bước kỹ thuật.
+            Tiếp nhận máy 30s, bàn làm việc kỹ thuật Kanban 6 bước, quản lý mật khẩu máy, xuất kho linh kiện và in phiếu K80 QR.
           </p>
         </div>
 
         <div className="flex items-center gap-2.5 flex-wrap">
+          {/* View Mode Toggle */}
+          <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-2xs">
+            <button
+              onClick={() => setViewMode('kanban')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                viewMode === 'kanban'
+                  ? 'bg-amber-500 text-slate-950 font-black shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+              <span>Bàn Kỹ Thuật</span>
+            </button>
+            <button
+              onClick={() => setViewMode('table')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                viewMode === 'table'
+                  ? 'bg-amber-500 text-slate-950 font-black shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <List className="w-3.5 h-3.5" />
+              <span>Danh Sách</span>
+            </button>
+          </div>
+
           <button
             onClick={() => setIsConfigModalOpen(true)}
-            className="px-4 py-2.5 rounded-xl text-xs font-bold bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 flex items-center gap-2 transition-all shadow-sm cursor-pointer"
+            className="px-3.5 py-2 rounded-xl text-xs font-bold bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
             title="Cấu hình danh mục cho khách hàng đặt hẹn online"
           >
             <Sliders className="w-4 h-4 text-amber-600" />
-            <span>Cấu Hình Danh Mục Đặt Lịch ({deviceList.length + serviceCatalog.length + symptomList.length})</span>
+            <span>Cấu Hình Danh Mục ({deviceList.length + serviceCatalog.length})</span>
           </button>
           <button
             onClick={() => exportRepairsCsv(filteredRepairs)}
-            className="px-4 py-2.5 rounded-xl text-xs font-bold bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 flex items-center gap-2 transition-all shadow-sm cursor-pointer"
+            className="px-3.5 py-2 rounded-xl text-xs font-bold bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
             title="Xuất danh sách phiếu sửa chữa ra file Excel CSV"
           >
             <Download className="w-4 h-4 text-emerald-600" />
             <span>Xuất Excel</span>
           </button>
           <button
-            onClick={() => setIsCreateModalOpen(true)}
-            className="px-4 py-2.5 rounded-xl text-xs font-black bg-amber-500 hover:bg-amber-600 text-slate-950 flex items-center gap-2 transition-transform hover:scale-105 shadow-md shadow-amber-500/20 cursor-pointer"
+            onClick={() => {
+              setIntakeForm((prev) => ({
+                ...prev,
+                customerName: '',
+                customerPhone: '',
+                unlockPasscode: '',
+                imeiOrSerial: '',
+                estimatedDeliveryDate: getInitialDeliveryDate(),
+              }));
+              setIsCreateModalOpen(true);
+            }}
+            className="px-4 py-2 rounded-xl text-xs font-black bg-amber-500 hover:bg-amber-600 text-slate-950 flex items-center gap-1.5 transition-transform hover:scale-105 shadow-md shadow-amber-500/20 cursor-pointer"
           >
             <Plus className="w-4 h-4 text-slate-950" />
-            <span>Lập Biên Nhận Máy Mới (30 Giây)</span>
+            <span>Tiếp Nhận Máy Mới (30s)</span>
           </button>
         </div>
       </div>
 
       {/* Toast Notification Banner */}
       {toastMsg && (
-        <div className="p-3.5 rounded-2xl bg-emerald-500 text-white text-xs font-bold shadow-lg flex items-center gap-2.5 animate-in slide-in-from-top duration-200">
-          <CheckCircle2 className="w-4 h-4 shrink-0" />
+        <div className="fixed top-20 right-6 z-50 p-3.5 rounded-2xl bg-slate-900 text-white text-xs font-bold shadow-2xl border border-amber-500/50 flex items-center gap-2.5 animate-in slide-in-from-top duration-200">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
           <span>{toastMsg}</span>
         </div>
       )}
+
+      {/* KPI Overview Summary Cards (5 Thẻ Thống Kê Nhanh Của Bàn Sửa Chữa) */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 border border-sky-200 flex items-center justify-center shrink-0">
+            <Clock className="w-5 h-5" />
+          </div>
+          <div>
+            <span className="text-[11px] font-semibold text-slate-500 block">Tiếp Nhận Mới</span>
+            <span className="text-lg font-black text-slate-900">{stats.received} máy</span>
+          </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 border border-purple-200 flex items-center justify-center shrink-0">
+            <Activity className="w-5 h-5" />
+          </div>
+          <div>
+            <span className="text-[11px] font-semibold text-slate-500 block">Báo Giá / Chờ Duyệt</span>
+            <span className="text-lg font-black text-slate-900">{stats.inspecting} máy</span>
+          </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-2xl border border-amber-200 bg-amber-50/40 shadow-xs flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 border border-amber-300 flex items-center justify-center shrink-0">
+            <Wrench className="w-5 h-5" />
+          </div>
+          <div>
+            <span className="text-[11px] font-semibold text-amber-800 block">Đang Sửa Trên Bàn</span>
+            <span className="text-lg font-black text-amber-900">{stats.repairing} máy</span>
+          </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center shrink-0">
+            <CheckCircle2 className="w-5 h-5" />
+          </div>
+          <div>
+            <span className="text-[11px] font-semibold text-slate-500 block">QC &amp; Sẵn Sàng Giao</span>
+            <span className="text-lg font-black text-slate-900">{stats.qcOrReady} máy</span>
+          </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3 col-span-2 sm:col-span-1">
+          <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-800 border border-slate-300 flex items-center justify-center shrink-0">
+            <DollarSign className="w-5 h-5" />
+          </div>
+          <div className="truncate">
+            <span className="text-[11px] font-semibold text-slate-500 block">Đã Giao ({stats.delivered} máy)</span>
+            <span className="text-sm font-black text-amber-700 font-mono">
+              {formatVND(stats.totalDeliveredRevenue)}
+            </span>
+          </div>
+        </div>
+      </div>
 
       {/* Filter and Search Bar */}
       <div className="bg-white p-4 rounded-3xl border border-slate-200 flex flex-wrap items-center justify-between gap-4 shadow-sm">
@@ -552,7 +875,7 @@ export default function AdminRepairsPage() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Tìm theo mã phiếu (SC-xxxx), tên khách, SĐT, dòng máy..."
+            placeholder="Tìm theo mã phiếu (SC-xxxx), tên khách, SĐT, dòng máy, mật khẩu mở máy..."
             className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-amber-500 focus:bg-white font-mono transition-all"
           />
         </div>
@@ -564,6 +887,7 @@ export default function AdminRepairsPage() {
             { key: 'received', label: 'Tiếp nhận' },
             { key: 'inspecting', label: 'Báo giá' },
             { key: 'repairing', label: 'Đang sửa' },
+            { key: 'qc_checking', label: 'QC' },
             { key: 'ready_for_pickup', label: 'Sẵn sàng' },
             { key: 'delivered', label: 'Đã giao' },
           ].map((item) => (
@@ -582,95 +906,238 @@ export default function AdminRepairsPage() {
         </div>
       </div>
 
-      {/* Repairs Table */}
-      <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs sm:text-sm">
-            <thead className="bg-slate-50 text-slate-600 uppercase text-[11px] border-b border-slate-200 font-bold">
-              <tr>
-                <th className="p-4 sm:p-5">Mã Phiếu &amp; Ngày</th>
-                <th className="p-4 sm:p-5">Khách Hàng</th>
-                <th className="p-4 sm:p-5">Thiết Bị &amp; Mật Khẩu</th>
-                <th className="p-4 sm:p-5">Tình Trạng Lỗi</th>
-                <th className="p-4 sm:p-5">Trạng Thái Kỹ Thuật</th>
-                <th className="p-4 sm:p-5 text-right">Chi Phí</th>
-                <th className="p-4 sm:p-5 text-center">Thao Tác</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filteredRepairs.map((ticket) => (
-                <tr key={ticket.id} className="hover:bg-slate-50/70 transition-colors">
-                  <td className="p-4 sm:p-5 font-mono">
-                    <span className="font-bold text-amber-700 block text-sm">{ticket.ticketCode}</span>
-                    <span className="text-[11px] text-slate-500 font-medium">{ticket.receivedAt.split(' ')[0]}</span>
-                  </td>
+      {/* VIEW MODE 1: BÀN KỸ THUẬT (KANBAN BOARD 6 BƯỚC) */}
+      {viewMode === 'kanban' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 items-start">
+          {kanbanColumns.map((col) => {
+            const ColumnIcon = col.icon;
+            const columnTickets = filteredRepairs.filter((r) => r.status === col.status);
 
-                  <td className="p-4 sm:p-5">
-                    <span className="font-bold text-slate-900 block text-sm">{ticket.customerName}</span>
-                    <span className="text-xs text-blue-600 font-mono font-bold">{ticket.customerPhone}</span>
-                  </td>
+            return (
+              <div
+                key={col.status}
+                className={`bg-slate-50/70 border border-slate-200 rounded-2xl p-3 space-y-3 border-t-4 ${col.borderTop} min-h-[450px] shadow-2xs`}
+              >
+                {/* Column Header */}
+                <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                  <div className="flex items-center gap-1.5">
+                    <ColumnIcon className="w-4 h-4 text-slate-600" />
+                    <h3 className="text-xs font-bold text-slate-900 tracking-tight">{col.title}</h3>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${col.badgeStyle}`}>
+                    {columnTickets.length}
+                  </span>
+                </div>
 
-                  <td className="p-4 sm:p-5">
-                    <span className="font-bold text-slate-900 block">{ticket.deviceModel}</span>
-                    <span className="text-[11px] text-slate-500 font-mono">
-                      Pass: <strong className="text-slate-800">{ticket.unlockPasscode}</strong>
-                    </span>
-                  </td>
-
-                  <td className="p-4 sm:p-5 max-w-[200px]">
-                    <p className="text-xs text-slate-800 truncate font-semibold" title={ticket.issueDescription}>
-                      {ticket.issueDescription}
-                    </p>
-                    <span className="text-[11px] text-slate-500 truncate block">
-                      {ticket.appearanceCondition}
-                    </span>
-                  </td>
-
-                  <td className="p-4 sm:p-5">
-                    <span
-                      className={`px-3 py-1 rounded-full text-[11px] font-bold ${
-                        statusBadge[ticket.status].color
-                      }`}
+                {/* Tickets in column */}
+                <div className="space-y-2.5">
+                  {columnTickets.map((ticket) => (
+                    <div
+                      key={ticket.id}
+                      className="bg-white rounded-xl p-3 border border-slate-200 hover:border-amber-400 hover:shadow-md transition-all space-y-2.5 group"
                     >
-                      {statusBadge[ticket.status].label}
-                    </span>
-                  </td>
+                      {/* Top: Ticket Code & Received Time */}
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                          {ticket.ticketCode}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-mono">
+                          {ticket.receivedAt?.split(' ')[0] || ''}
+                        </span>
+                      </div>
 
-                  <td className="p-4 sm:p-5 text-right font-black text-slate-900 font-mono text-sm">
-                    {formatVND(ticket.totalAmount)}
-                  </td>
+                      {/* Device & Passcode */}
+                      <div>
+                        <div className="font-black text-xs text-slate-900 flex items-center justify-between">
+                          <span className="truncate" title={ticket.deviceModel}>
+                            {ticket.deviceModel}
+                          </span>
+                        </div>
+                        {ticket.unlockPasscode && (
+                          <div className="mt-1">
+                            <button
+                              type="button"
+                              onClick={() => handleCopyPasscode(ticket.unlockPasscode)}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 font-mono text-[10px] font-bold border border-amber-300 hover:bg-amber-200 transition-colors"
+                              title="Bấm để copy mật khẩu máy"
+                            >
+                              <KeyRound className="w-3 h-3 text-amber-700" />
+                              <span>Pass: {ticket.unlockPasscode}</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
 
-                  <td className="p-4 sm:p-5 text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      <button
-                        onClick={() => setSelectedTicket(ticket)}
-                        className="px-3.5 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white border border-blue-200 text-xs font-bold transition-all cursor-pointer shadow-2xs"
+                      {/* Customer info */}
+                      <div className="text-[11px] text-slate-600">
+                        <p className="font-semibold text-slate-800 truncate">{ticket.customerName}</p>
+                        <p className="font-mono text-[10px] text-blue-600 font-bold">{ticket.customerPhone}</p>
+                      </div>
+
+                      {/* Issue summary */}
+                      <p
+                        className="text-[11px] text-slate-500 line-clamp-2 bg-slate-50 p-1.5 rounded-lg border border-slate-100"
+                        title={ticket.issueDescription}
                       >
-                        Xử lý
-                      </button>
-                      <button
-                        onClick={() => setPrintTicket(ticket)}
-                        className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition-colors cursor-pointer"
-                        title="In phiếu biên nhận K80 có QR"
-                      >
-                        <Printer className="w-4 h-4" />
-                      </button>
+                        {ticket.issueDescription}
+                      </p>
+
+                      {/* Parts and Cost */}
+                      <div className="pt-1 border-t border-slate-100 flex items-center justify-between text-xs">
+                        <span className="text-[10px] text-slate-400">
+                          {ticket.partsUsed?.length > 0 ? `${ticket.partsUsed.length} LK` : 'Chưa xuất LK'}
+                        </span>
+                        <span className="font-black font-mono text-amber-700 text-xs">
+                          {formatVND(ticket.totalAmount)}
+                        </span>
+                      </div>
+
+                      {/* Action buttons */}
+                      <div className="flex items-center gap-1.5 pt-1">
+                        <button
+                          onClick={() => handleOpenTicket(ticket)}
+                          className="flex-1 py-1.5 px-2 rounded-lg bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white border border-blue-200 text-[11px] font-bold transition-all text-center cursor-pointer shadow-2xs"
+                        >
+                          Xử lý
+                        </button>
+                        {col.status !== 'delivered' && (
+                          <button
+                            onClick={() => handleQuickAdvanceStep(ticket)}
+                            className="p-1.5 rounded-lg bg-amber-50 hover:bg-amber-500 text-amber-800 hover:text-slate-950 border border-amber-200 transition-colors cursor-pointer"
+                            title="Chuyển nhanh sang bước kỹ thuật kế tiếp"
+                          >
+                            <ArrowRight className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => setPrintTicket(ticket)}
+                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 transition-colors cursor-pointer"
+                          title="In phiếu K80"
+                        >
+                          <Printer className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
-                  </td>
-                </tr>
-              ))}
+                  ))}
 
-              {filteredRepairs.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="p-12 text-center text-slate-500 text-xs font-mono">
-                    Không tìm thấy phiếu sửa chữa nào khớp với tìm kiếm.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                  {columnTickets.length === 0 && (
+                    <div className="p-6 text-center text-slate-400 text-xs font-mono border-2 border-dashed border-slate-200 rounded-xl">
+                      Trống
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
-      </div>
+      )}
+
+      {/* VIEW MODE 2: DANH SÁCH BẢNG (TABLE VIEW) */}
+      {viewMode === 'table' && (
+        <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs sm:text-sm">
+              <thead className="bg-slate-50 text-slate-600 uppercase text-[11px] border-b border-slate-200 font-bold">
+                <tr>
+                  <th className="p-4 sm:p-5">Mã Phiếu &amp; Ngày</th>
+                  <th className="p-4 sm:p-5">Khách Hàng</th>
+                  <th className="p-4 sm:p-5">Thiết Bị &amp; Mật Khẩu</th>
+                  <th className="p-4 sm:p-5">Tình Trạng Lỗi</th>
+                  <th className="p-4 sm:p-5">Trạng Thái Kỹ Thuật</th>
+                  <th className="p-4 sm:p-5 text-right">Chi Phí</th>
+                  <th className="p-4 sm:p-5 text-center">Thao Tác</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredRepairs.map((ticket) => (
+                  <tr key={ticket.id} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="p-4 sm:p-5 font-mono">
+                      <span className="font-bold text-amber-700 block text-sm">{ticket.ticketCode}</span>
+                      <span className="text-[11px] text-slate-500 font-medium">
+                        {ticket.receivedAt?.split(' ')[0] || ''}
+                      </span>
+                    </td>
+
+                    <td className="p-4 sm:p-5">
+                      <span className="font-bold text-slate-900 block text-sm">{ticket.customerName}</span>
+                      <span className="text-xs text-blue-600 font-mono font-bold">{ticket.customerPhone}</span>
+                    </td>
+
+                    <td className="p-4 sm:p-5">
+                      <span className="font-bold text-slate-900 block">{ticket.deviceModel}</span>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className="text-[11px] text-slate-500 font-mono">
+                          Pass: <strong className="text-slate-800">{ticket.unlockPasscode || 'Không có'}</strong>
+                        </span>
+                        {ticket.unlockPasscode && (
+                          <button
+                            type="button"
+                            onClick={() => handleCopyPasscode(ticket.unlockPasscode)}
+                            className="p-0.5 text-amber-600 hover:text-amber-800 transition-colors"
+                            title="Sao chép pass"
+                          >
+                            <Copy className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+
+                    <td className="p-4 sm:p-5 max-w-[200px]">
+                      <p className="text-xs text-slate-800 truncate font-semibold" title={ticket.issueDescription}>
+                        {ticket.issueDescription}
+                      </p>
+                      <span className="text-[11px] text-slate-500 truncate block">
+                        {ticket.appearanceCondition}
+                      </span>
+                    </td>
+
+                    <td className="p-4 sm:p-5">
+                      <span
+                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold border ${
+                          statusBadge[ticket.status]?.color || 'bg-slate-100 text-slate-700 border-slate-200'
+                        }`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full ${statusBadge[ticket.status]?.dot || 'bg-slate-400'}`} />
+                        <span>{statusBadge[ticket.status]?.label || ticket.status}</span>
+                      </span>
+                    </td>
+
+                    <td className="p-4 sm:p-5 text-right font-black text-slate-900 font-mono text-sm">
+                      {formatVND(ticket.totalAmount)}
+                    </td>
+
+                    <td className="p-4 sm:p-5 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => handleOpenTicket(ticket)}
+                          className="px-3.5 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white border border-blue-200 text-xs font-bold transition-all cursor-pointer shadow-2xs"
+                        >
+                          Xử lý
+                        </button>
+                        <button
+                          onClick={() => setPrintTicket(ticket)}
+                          className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition-colors cursor-pointer"
+                          title="In phiếu biên nhận K80 có QR"
+                        >
+                          <Printer className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+
+                {filteredRepairs.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="p-12 text-center text-slate-500 text-xs font-mono">
+                      Không tìm thấy phiếu sửa chữa nào khớp với tìm kiếm.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* 1. Modal Lập Biên Nhận 30 Giây (Intake Form) */}
       {isCreateModalOpen && (
@@ -721,11 +1188,17 @@ export default function AdminRepairsPage() {
                   <input
                     type="text"
                     required
+                    list="device-model-suggestions"
                     value={intakeForm.deviceModel}
                     onChange={(e) => setIntakeForm({ ...intakeForm, deviceModel: e.target.value })}
                     placeholder="VD: iPhone 15 Pro Max"
                     className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-medium focus:bg-white focus:border-amber-500"
                   />
+                  <datalist id="device-model-suggestions">
+                    {deviceList.map((d) => (
+                      <option key={d.id} value={d.name} />
+                    ))}
+                  </datalist>
                 </div>
                 <div>
                   <label className="text-slate-700 font-bold mb-1.5 block">Số IMEI/Serial:</label>
@@ -744,13 +1217,39 @@ export default function AdminRepairsPage() {
                     value={intakeForm.unlockPasscode}
                     onChange={(e) => setIntakeForm({ ...intakeForm, unlockPasscode: e.target.value })}
                     placeholder="VD: 123456 (hoặc vẽ L)"
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-medium focus:bg-white focus:border-amber-500"
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-medium focus:bg-white focus:border-amber-500 font-mono"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-slate-700 font-bold mb-1.5 block">Tình trạng lỗi cần xử lý *:</label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-slate-700 font-bold block">Tình trạng lỗi cần xử lý *:</label>
+                  <span className="text-[11px] text-slate-500">Gợi ý lỗi nhanh:</span>
+                </div>
+                {/* Quick Symptom Chips */}
+                {symptomList.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {symptomList.slice(0, 6).map((sym) => (
+                      <button
+                        key={sym.id}
+                        type="button"
+                        onClick={() => {
+                          const current = intakeForm.issueDescription.trim();
+                          const addition = sym.title;
+                          if (!current) {
+                            setIntakeForm({ ...intakeForm, issueDescription: addition });
+                          } else if (!current.includes(addition)) {
+                            setIntakeForm({ ...intakeForm, issueDescription: `${current}, ${addition}` });
+                          }
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-amber-100 hover:text-amber-900 text-slate-600 border border-slate-200 text-[10px] font-semibold transition-colors cursor-pointer"
+                      >
+                        {sym.icon || '📱'} {sym.title}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <textarea
                   rows={2}
                   required
@@ -825,32 +1324,134 @@ export default function AdminRepairsPage() {
         </div>
       )}
 
-      {/* 2. Modal Xử Lý Kỹ Thuật: Chuyển bước & Xuất linh kiện */}
+      {/* 2. Modal Bàn Sửa Chữa (Workbench Detail Modal) */}
       {selectedTicket && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 max-w-2xl w-full shadow-2xl max-h-[90vh] overflow-y-auto space-y-6 text-slate-800">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div>
-                <span className="font-mono text-xs font-bold text-amber-800 bg-amber-50 px-2.5 py-1 rounded-xl border border-amber-200">
-                  {selectedTicket.ticketCode}
-                </span>
-                <h3 className="font-black text-slate-900 text-base mt-2">
-                  {selectedTicket.deviceModel} - {selectedTicket.customerName}
-                </h3>
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 max-w-3xl w-full shadow-2xl max-h-[92vh] overflow-y-auto space-y-6 text-slate-800">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-800 border border-amber-300 flex items-center justify-center font-bold">
+                  <Wrench className="w-6 h-6 text-amber-600" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs font-bold text-amber-800 bg-amber-50 px-2.5 py-0.5 rounded-lg border border-amber-200">
+                      {selectedTicket.ticketCode}
+                    </span>
+                    <span
+                      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
+                        statusBadge[selectedTicket.status]?.color || 'bg-slate-100 text-slate-700'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full ${statusBadge[selectedTicket.status]?.dot || 'bg-slate-400'}`} />
+                      <span>{statusBadge[selectedTicket.status]?.label || selectedTicket.status}</span>
+                    </span>
+                  </div>
+                  <h3 className="font-black text-slate-900 text-lg mt-1">
+                    {selectedTicket.deviceModel} • {selectedTicket.customerName}
+                  </h3>
+                </div>
               </div>
               <button
                 onClick={() => setSelectedTicket(null)}
-                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+                className="p-2 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Change Status Step */}
+            {/* Device Info & Passcode Quick Card */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {/* Passcode Box */}
+              <div className="bg-amber-50/70 border border-amber-200 rounded-2xl p-3.5 space-y-1">
+                <span className="text-[10px] font-bold uppercase text-amber-800 flex items-center gap-1">
+                  <KeyRound className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Mật Khẩu Máy:</span>
+                </span>
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-sm font-black text-slate-900">
+                    {selectedTicket.unlockPasscode || 'Không có'}
+                  </span>
+                  {selectedTicket.unlockPasscode && (
+                    <button
+                      type="button"
+                      onClick={() => handleCopyPasscode(selectedTicket.unlockPasscode)}
+                      className="px-2 py-1 rounded-lg bg-amber-200 hover:bg-amber-300 text-amber-900 text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                      title="Sao chép mật khẩu"
+                    >
+                      <Copy className="w-3 h-3" />
+                      <span>{copiedPass ? 'Đã chép' : 'Chép'}</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Customer Box */}
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-1">
+                <span className="text-[10px] font-bold uppercase text-slate-500 flex items-center gap-1">
+                  <User className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Khách Hàng:</span>
+                </span>
+                <p className="font-bold text-xs text-slate-900 truncate">{selectedTicket.customerName}</p>
+                <a
+                  href={`tel:${selectedTicket.customerPhone}`}
+                  className="font-mono text-[11px] font-bold text-blue-600 hover:underline flex items-center gap-1"
+                >
+                  <Phone className="w-3 h-3" />
+                  <span>{selectedTicket.customerPhone}</span>
+                </a>
+              </div>
+
+              {/* Hardware Box */}
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-1">
+                <span className="text-[10px] font-bold uppercase text-slate-500 flex items-center gap-1">
+                  <Smartphone className="w-3.5 h-3.5 text-slate-400" />
+                  <span>IMEI / Ngoại Quan:</span>
+                </span>
+                <p className="font-mono text-[11px] text-slate-800 truncate" title={selectedTicket.imeiOrSerial}>
+                  IMEI: {selectedTicket.imeiOrSerial || 'Chưa rõ'}
+                </p>
+                <p className="text-[10px] text-slate-500 truncate" title={selectedTicket.appearanceCondition}>
+                  {selectedTicket.appearanceCondition || 'Bình thường'}
+                </p>
+              </div>
+
+              {/* Technician & Appointment */}
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-1">
+                <span className="text-[10px] font-bold uppercase text-slate-500 flex items-center gap-1">
+                  <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                  <span>KTV &amp; Hẹn Giao:</span>
+                </span>
+                <p className="font-bold text-xs text-slate-800 truncate">
+                  KTV: {selectedTicket.technicianName || 'Nghĩa'}
+                </p>
+                <p className="font-mono text-[10px] text-emerald-700 truncate" title={selectedTicket.estimatedDeliveryDate}>
+                  Hẹn: {selectedTicket.estimatedDeliveryDate || 'Trong ngày'}
+                </p>
+              </div>
+            </div>
+
+            {/* Issue Description Banner */}
+            <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-1">
+              <span className="text-[10px] font-bold uppercase text-slate-500 flex items-center gap-1.5">
+                <AlertCircle className="w-3.5 h-3.5 text-amber-500" />
+                <span>Mô Tả Lỗi Ban Đầu Tiếp Nhận:</span>
+              </span>
+              <p className="text-xs font-semibold text-slate-900">
+                {selectedTicket.issueDescription || 'Không có mô tả chi tiết'}
+              </p>
+            </div>
+
+            {/* 6-Step Technical Pipeline */}
             <div className="space-y-3">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-600 block">
-                Chuyển Bước Kỹ Thuật:
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                  <Activity className="w-4 h-4 text-amber-600" />
+                  <span>Tiến Trình 6 Bước Kỹ Thuật (Bấm để chuyển bước):</span>
+                </label>
+                <span className="text-[11px] text-slate-500">Tự động đồng bộ QR khách xem live</span>
+              </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs">
                 {(
@@ -866,26 +1467,61 @@ export default function AdminRepairsPage() {
                   <button
                     key={st}
                     onClick={() => handleUpdateStep(st)}
-                    className={`p-2.5 rounded-xl border text-center font-bold transition-all cursor-pointer ${
+                    className={`p-3 rounded-2xl border text-center font-bold transition-all cursor-pointer flex flex-col items-center gap-1 ${
                       selectedTicket.status === st
-                        ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-sm font-black'
+                        ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md font-black scale-102 ring-2 ring-amber-400/30'
                         : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
                     }`}
                   >
-                    {statusBadge[st].label}
+                    <span>{statusBadge[st].label}</span>
+                    {selectedTicket.status === st && (
+                      <span className="text-[10px] uppercase tracking-wider text-slate-950/80 font-mono font-bold flex items-center gap-1">
+                        <Check className="w-3 h-3" /> Đang ở bước này
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>
 
-              <div className="pt-1">
+              {/* Step Note input */}
+              <div className="flex items-center gap-2 pt-1">
                 <input
                   type="text"
                   value={stepNote}
                   onChange={(e) => setStepNote(e.target.value)}
-                  placeholder="Ghi chú bước kỹ thuật (VD: Đã test áp suất đạt, thay pin xong...)"
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-amber-500 font-medium"
+                  placeholder="Ghi chú bước kỹ thuật (VD: Đã test áp suất đạt, thay pin Pisen xong, sạc nhanh ổn định...)"
+                  className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-amber-500 font-medium"
                 />
+                <button
+                  type="button"
+                  onClick={() => handleUpdateStep(selectedTicket.status)}
+                  className="px-4 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shrink-0"
+                >
+                  Lưu Ghi Chú
+                </button>
               </div>
+
+              {/* Status History Timeline */}
+              {selectedTicket.statusHistory && selectedTicket.statusHistory.length > 0 && (
+                <div className="p-3 bg-slate-50/60 rounded-2xl border border-slate-200 space-y-1.5 text-xs max-h-36 overflow-y-auto">
+                  <span className="text-[11px] font-bold text-slate-500 flex items-center gap-1">
+                    <History className="w-3.5 h-3.5" />
+                    <span>Lịch sử các bước kỹ thuật:</span>
+                  </span>
+                  <div className="space-y-1">
+                    {selectedTicket.statusHistory.map((h, i) => (
+                      <div key={i} className="flex items-start gap-2 text-[11px] text-slate-700">
+                        <span className="font-mono text-[10px] text-slate-400 shrink-0 mt-0.5">
+                          {h.time.split(' ')[1] || h.time}
+                        </span>
+                        <span className="font-bold text-slate-900 shrink-0">{h.label}:</span>
+                        <span className="text-slate-600 truncate">{h.note}</span>
+                        <span className="text-[10px] text-slate-400 italic ml-auto shrink-0">({h.actor})</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Spare Parts Deduct From Inventory */}
@@ -893,8 +1529,9 @@ export default function AdminRepairsPage() {
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-blue-700 uppercase flex items-center gap-1.5">
                   <Cpu className="w-4 h-4 text-blue-600" />
-                  <span>Xuất Kho Linh Kiện Vào Phiếu:</span>
+                  <span>Xuất Kho Linh Kiện Sửa Chữa Vào Phiếu:</span>
                 </span>
+                <span className="text-[11px] text-slate-500">Tồn kho tự trừ và tính vào tổng chi phí</span>
               </div>
 
               <div className="flex items-center gap-2">
@@ -904,30 +1541,61 @@ export default function AdminRepairsPage() {
                   className="flex-1 p-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 font-medium focus:outline-none focus:border-blue-500"
                 >
                   <option value="">-- Chọn linh kiện từ kho ({spareParts.length} mục) --</option>
-                  {spareParts.map((p) => (
+                  {filteredSpareParts.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.name} (Tồn: {p.stock} {p.unit} - Giá {formatVND(p.retailRepairPrice)})
                     </option>
                   ))}
                 </select>
 
+                <div className="w-20">
+                  <input
+                    type="number"
+                    min="1"
+                    value={selectedPartQty}
+                    onChange={(e) => setSelectedPartQty(Math.max(1, Number(e.target.value) || 1))}
+                    className="w-full p-3 bg-white border border-slate-200 rounded-xl text-xs text-center font-bold font-mono focus:outline-none focus:border-blue-500"
+                    placeholder="SL"
+                  />
+                </div>
+
                 <button
                   onClick={handleUseSparePart}
                   disabled={!selectedPartId}
-                  className="px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold shrink-0 transition-colors cursor-pointer"
+                  className="px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold shrink-0 transition-colors cursor-pointer shadow-sm"
                 >
-                  Xuất kho (-1)
+                  Xuất kho (-{selectedPartQty})
                 </button>
               </div>
 
               {/* List of parts already used */}
-              {selectedTicket.partsUsed.length > 0 && (
+              {selectedTicket.partsUsed && selectedTicket.partsUsed.length > 0 && (
                 <div className="space-y-1.5 pt-2 border-t border-slate-200 text-xs">
-                  <span className="text-slate-500 block text-[11px] font-semibold">Linh kiện đã dùng:</span>
+                  <span className="text-slate-500 block text-[11px] font-semibold">Linh kiện đã dùng trong phiếu này:</span>
                   {selectedTicket.partsUsed.map((p, i) => (
-                    <div key={i} className="flex justify-between items-center bg-white p-2.5 rounded-xl border border-slate-200">
-                      <span className="text-slate-800 font-medium">{p.partName}</span>
-                      <span className="text-amber-700 font-black font-mono">{formatVND(p.unitPrice)}</span>
+                    <div
+                      key={i}
+                      className="flex justify-between items-center bg-white p-2.5 rounded-xl border border-slate-200 hover:border-slate-300 transition-colors"
+                    >
+                      <div>
+                        <span className="text-slate-900 font-bold block">{p.partName}</span>
+                        <span className="text-[11px] text-slate-500 font-mono">
+                          Số lượng: {p.quantity || 1} • Đơn giá: {formatVND(p.unitPrice)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-amber-700 font-black font-mono">
+                          {formatVND((p.quantity || 1) * p.unitPrice)}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveSparePart(p.partId)}
+                          className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                          title="Hủy xuất và hoàn trả linh kiện về kho"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -935,27 +1603,87 @@ export default function AdminRepairsPage() {
             </div>
 
             {/* Total summary & Action */}
-            <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
-              <div>
-                <span className="text-slate-500 block">Tổng chi phí sửa chữa:</span>
-                <span className="text-2xl font-black text-slate-900 font-mono">
-                  {formatVND(selectedTicket.totalAmount)}
-                </span>
+            <div className="p-4 rounded-2xl bg-amber-50/50 border border-amber-200/80 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                {/* Labor Fee */}
+                <div>
+                  <span className="text-xs text-slate-600 block">Tiền công thợ sửa chữa:</span>
+                  {isEditingLaborFee ? (
+                    <div className="flex items-center gap-2 mt-1">
+                      <input
+                        type="number"
+                        min="0"
+                        step="10000"
+                        value={tempLaborFee}
+                        onChange={(e) => setTempLaborFee(Number(e.target.value) || 0)}
+                        className="w-36 p-1.5 bg-white border border-amber-400 rounded-lg font-mono text-xs font-bold"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleSaveLaborFee}
+                        className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold"
+                      >
+                        Lưu
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingLaborFee(false)}
+                        className="px-2.5 py-1.5 bg-slate-200 text-slate-700 rounded-lg text-xs font-bold"
+                      >
+                        Hủy
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold font-mono text-slate-800">
+                        {formatVND(selectedTicket.laborFee)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTempLaborFee(selectedTicket.laborFee || 0);
+                          setIsEditingLaborFee(true);
+                        }}
+                        className="text-[11px] text-blue-600 hover:underline flex items-center gap-0.5"
+                      >
+                        <Pencil className="w-3 h-3" />
+                        <span>Sửa</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Total Cost */}
+                <div className="text-right">
+                  <span className="text-xs text-slate-600 block">Tổng chi phí thanh toán:</span>
+                  <span className="text-2xl font-black text-slate-900 font-mono">
+                    {formatVND(selectedTicket.totalAmount)}
+                  </span>
+                </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-amber-200/60">
                 <button
                   onClick={() => setPrintTicket(selectedTicket)}
-                  className="px-4 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold flex items-center gap-1.5 text-xs transition-colors cursor-pointer"
+                  className="px-4 py-2.5 rounded-xl bg-white hover:bg-slate-100 text-slate-800 font-bold flex items-center gap-1.5 text-xs transition-colors cursor-pointer border border-slate-300 shadow-2xs"
                 >
-                  <Printer className="w-4 h-4" />
+                  <Printer className="w-4 h-4 text-slate-700" />
                   <span>In Phiếu K80 (QR)</span>
                 </button>
+                {selectedTicket.status !== 'delivered' && (
+                  <button
+                    onClick={() => handleUpdateStep('delivered')}
+                    className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Bàn Giao Máy Cho Khách</span>
+                  </button>
+                )}
                 <button
                   onClick={() => setSelectedTicket(null)}
-                  className="px-5 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs shadow-md transition-transform hover:scale-105 cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs shadow-md transition-transform hover:scale-105 cursor-pointer"
                 >
-                  Hoàn Tất
+                  Đóng Bàn Sửa Chữa
                 </button>
               </div>
             </div>
@@ -996,7 +1724,7 @@ export default function AdminRepairsPage() {
                 <p>SĐT: <strong>{printTicket.customerPhone}</strong></p>
                 <p>Model: <strong>{printTicket.deviceModel}</strong></p>
                 <p>IMEI: {printTicket.imeiOrSerial}</p>
-                <p>Mật khẩu máy: <strong>{printTicket.unlockPasscode}</strong></p>
+                <p>Mật khẩu máy: <strong>{printTicket.unlockPasscode || 'Không có'}</strong></p>
                 <p>Ngoại quan: {printTicket.appearanceCondition}</p>
                 <p>Lỗi ghi nhận: <strong>{printTicket.issueDescription}</strong></p>
                 <p>KTV phụ trách: {printTicket.technicianName}</p>
@@ -1008,10 +1736,10 @@ export default function AdminRepairsPage() {
                   <span>Tiền công:</span>
                   <span>{formatVND(printTicket.laborFee)}</span>
                 </div>
-                {printTicket.partsUsed.map((p, idx) => (
+                {printTicket.partsUsed?.map((p, idx) => (
                   <div key={idx} className="flex justify-between">
                     <span>+ {p.partName}:</span>
-                    <span>{formatVND(p.unitPrice)}</span>
+                    <span>{formatVND(p.unitPrice * (p.quantity || 1))}</span>
                   </div>
                 ))}
                 <div className="flex justify-between font-bold text-xs pt-1 border-t border-black border-dashed">

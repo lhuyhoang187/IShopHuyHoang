@@ -317,7 +317,10 @@ export async function PUT(request: NextRequest) {
     if (partsUsed && Array.isArray(partsUsed)) {
       updateData.partsUsed = JSON.stringify(partsUsed);
       const partsTotal = partsUsed.reduce(
-        (sum: number, p: any) => sum + (Number(p.price || p.retailRepairPrice || 0) * Number(p.quantity || 1)),
+        (sum: number, p: any) =>
+          sum +
+          (Number(p.unitPrice || p.price || p.retailRepairPrice || 0) *
+            Number(p.quantity || 1)),
         0
       );
       const currentLabor = updateData.laborFee !== undefined ? updateData.laborFee : ticket.laborFee;

@@ -1081,6 +1081,53 @@ export const IShopStore = {
     return this.consumeSparePart(ticketId, partId, quantity);
   },
 
+  removeSparePart(ticketId: string, partId: string) {
+    const repairs = this.getRepairs();
+    const ticket = repairs.find((t) => t.id === ticketId);
+    if (!ticket) return;
+
+    const used = ticket.partsUsed.find((p) => p.partId === partId);
+    if (!used) return;
+
+    // Hoàn lại số lượng tồn kho vào kho linh kiện
+    const parts = this.getSpareParts();
+    const updatedParts = parts.map((p) =>
+      p.id === partId ? { ...p, stock: p.stock + (used.quantity || 1) } : p
+    );
+    setStorage('spare_parts', updatedParts);
+
+    // Xóa linh kiện khỏi phiếu sửa chữa
+    const newPartsUsed = ticket.partsUsed.filter((p) => p.partId !== partId);
+    const newTotal = newPartsUsed.reduce(
+      (sum, item) => sum + item.quantity * item.unitPrice,
+      ticket.laborFee || 0
+    );
+
+    const updatedRepairs = repairs.map((t) =>
+      t.id === ticketId ? { ...t, partsUsed: newPartsUsed, totalAmount: newTotal } : t
+    );
+    setStorage('repairs', updatedRepairs);
+  },
+
+  updateRepairLaborFee(ticketId: string, laborFee: number) {
+    const repairs = this.getRepairs();
+    const updatedRepairs = repairs.map((t) => {
+      if (t.id === ticketId) {
+        const partsTotal = t.partsUsed.reduce(
+          (sum, item) => sum + item.quantity * item.unitPrice,
+          0
+        );
+        return {
+          ...t,
+          laborFee,
+          totalAmount: partsTotal + laborFee,
+        };
+      }
+      return t;
+    });
+    setStorage('repairs', updatedRepairs);
+  },
+
   // ==============================================================
   // REPAIR BOOKING LISTS & CATALOG MANAGEMENT (Dành cho Khách & Shop)
   // ==============================================================
