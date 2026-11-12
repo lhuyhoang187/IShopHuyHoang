@@ -203,11 +203,23 @@ export interface RepairTicket {
   laborFee: number;
   totalAmount: number;
   estimatedDeliveryDate: string;
+  deadlineTime?: string; // Hạn chót kỹ thuật phải sửa xong (YYYY-MM-DD HH:mm:ss)
+  deadlineMinutes?: number; // Thời gian quy định thực hiện (ví dụ: 30 phút, 45 phút, 60 phút...)
+  assignedBy?: string; // Chủ shop hoặc Thu ngân/NV bán hàng chỉ định
   receivedAt: string;
   deliveredAt?: string;
   technicianId?: string;
   technicianName?: string;
   warrantyPeriod: string;
+}
+
+export interface TechnicianOption {
+  id: string;
+  name: string;
+  username?: string;
+  phone?: string;
+  avatar?: string;
+  activeTicketsCount?: number;
 }
 
 export interface InvoiceItem {

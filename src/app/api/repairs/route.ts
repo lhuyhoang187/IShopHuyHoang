@@ -161,10 +161,38 @@ export async function POST(request: NextRequest) {
     });
 
     // 2. Resolve a valid technician from User table to strictly preserve Foreign Key integrity
-    const technician = await prisma.user.findFirst({
-      where: { role: 'technician', isActive: true },
-      select: { id: true, name: true },
-    });
+    let technicianId = body.technicianId ? sanitizeString(body.technicianId, 50) : null;
+    let technicianName = body.technicianName ? sanitizeString(body.technicianName, 100) : null;
+
+    if (technicianId) {
+      const foundTech = await prisma.user.findFirst({
+        where: { id: technicianId, role: 'technician' },
+        select: { id: true, name: true },
+      });
+      if (foundTech) {
+        technicianId = foundTech.id;
+        technicianName = technicianName || foundTech.name;
+      }
+    }
+
+    if (!technicianId) {
+      const fallbackTech = await prisma.user.findFirst({
+        where: { role: 'technician', isActive: true },
+        select: { id: true, name: true },
+      });
+      technicianId = fallbackTech?.id || null;
+      technicianName = technicianName || fallbackTech?.name || 'Trần Trọng Nghĩa (KTV Trưởng)';
+    }
+
+    // 2.1 Calculate SLA Deadline
+    const deadlineMinutes = body.deadlineMinutes ? Number(body.deadlineMinutes) : 60;
+    let deadlineTime = body.deadlineTime ? sanitizeString(body.deadlineTime, 50) : null;
+    if (!deadlineTime && deadlineMinutes > 0) {
+      const d = new Date(Date.now() + deadlineMinutes * 60 * 1000);
+      const pad = (n: number) => n.toString().padStart(2, '0');
+      deadlineTime = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
+    }
+    const assignedBy = body.assignedBy ? sanitizeString(body.assignedBy, 100) : 'Chủ shop / Thu ngân';
 
     // 3. Create RepairTicket in MySQL
     const newTicket = await prisma.repairTicket.create({
@@ -186,12 +214,15 @@ export async function POST(request: NextRequest) {
         partsUsed: JSON.stringify([]),
         laborFee,
         totalAmount: laborFee,
-        estimatedDeliveryDate: body.estimatedDeliveryDate
+        estimatedDeliveryDate: deadlineTime || (body.estimatedDeliveryDate
           ? sanitizeString(body.estimatedDeliveryDate, 50)
-          : `${now.split(' ')[0]} 18:00:00`,
+          : `${now.split(' ')[0]} 18:00:00`),
+        deadlineTime,
+        deadlineMinutes,
+        assignedBy,
         receivedAt: now,
-        technicianId: technician?.id || null,
-        technicianName: technician?.name || 'Trần Trọng Nghĩa (KTV Trưởng)',
+        technicianId,
+        technicianName,
         warrantyPeriod: sanitizeString(body.warrantyPeriod || 'Bảo hành 12 tháng linh kiện', 100),
       },
     });
@@ -233,7 +264,21 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, ticketCode, status, note, actor, partsUsed, laborFee, technicianNotes } = body;
+    const {
+      id,
+      ticketCode,
+      status,
+      note,
+      actor,
+      partsUsed,
+      laborFee,
+      technicianNotes,
+      technicianId,
+      technicianName,
+      deadlineTime,
+      deadlineMinutes,
+      assignedBy,
+    } = body;
 
     const identifier = id || ticketCode;
     if (!identifier) {
@@ -354,6 +399,63 @@ export async function PUT(request: NextRequest) {
         0
       );
       updateData.totalAmount = updateData.laborFee + partsTotal;
+    }
+
+    // Technician & SLA Deadline Assignment Updates (Chỉ định KTV & Thời hạn sửa chữa)
+    let hasAssignmentChange = false;
+    let assignmentNote = '';
+
+    if (technicianId !== undefined || technicianName !== undefined) {
+      let resolvedTechId = technicianId;
+      let resolvedTechName = technicianName;
+      if (technicianId) {
+        const found = await prisma.user.findFirst({
+          where: { id: technicianId, role: 'technician' },
+          select: { id: true, name: true },
+        });
+        if (found) {
+          resolvedTechId = found.id;
+          resolvedTechName = technicianName || found.name;
+        }
+      }
+      if (resolvedTechId !== undefined) updateData.technicianId = resolvedTechId;
+      if (resolvedTechName !== undefined) updateData.technicianName = sanitizeString(resolvedTechName, 100);
+
+      if (resolvedTechName && resolvedTechName !== ticket.technicianName) {
+        hasAssignmentChange = true;
+        assignmentNote += `Đổi KTV: ${resolvedTechName}. `;
+      }
+    }
+
+    if (deadlineTime !== undefined) {
+      updateData.deadlineTime = sanitizeString(deadlineTime, 50);
+      updateData.estimatedDeliveryDate = sanitizeString(deadlineTime, 50);
+      if (deadlineTime !== ticket.deadlineTime) {
+        hasAssignmentChange = true;
+        assignmentNote += `Hạn chót KTV sửa xong: ${deadlineTime}. `;
+      }
+    }
+
+    if (deadlineMinutes !== undefined) {
+      updateData.deadlineMinutes = Number(deadlineMinutes);
+    }
+
+    if (assignedBy !== undefined) {
+      updateData.assignedBy = sanitizeString(assignedBy, 100);
+    }
+
+    // Append to status history if assignment changed and not already updated via status
+    if (hasAssignmentChange && !status) {
+      const currentHistory = ticket.statusHistory ? JSON.parse(ticket.statusHistory) : [];
+      const assigner = assignedBy ? sanitizeString(assignedBy, 100) : (actor ? sanitizeString(actor, 100) : 'Chủ shop / Thu ngân');
+      const assignmentHistoryItem = {
+        step: ticket.status,
+        label: 'Chỉ định KTV & Thời hạn SLA',
+        time: now,
+        note: assignmentNote.trim() || 'Cập nhật phân công kỹ thuật viên và thời hạn sửa',
+        actor: assigner,
+      };
+      updateData.statusHistory = JSON.stringify([...currentHistory, assignmentHistoryItem]);
     }
 
     const updated = await prisma.repairTicket.update({

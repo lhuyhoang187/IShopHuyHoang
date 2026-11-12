@@ -40,6 +40,9 @@ import {
   ArrowRight,
   ArrowUpRight,
   RefreshCw,
+  UserCheck,
+  Timer,
+  AlarmClock,
 } from 'lucide-react';
 import { IShopStore } from '@/lib/store';
 import {
@@ -50,6 +53,7 @@ import {
   RepairServiceCatalogItem,
   RepairSymptomOption,
   RepairTimeSlotOption,
+  TechnicianOption,
 } from '@/lib/types';
 import { formatVND } from '@/lib/vietqr';
 import { exportRepairsCsv } from '@/lib/exportUtils';
@@ -99,14 +103,23 @@ export default function AdminRepairsPage() {
     setTimeout(() => setToastMsg(null), 3000);
   };
 
-  // Helper dynamic initial delivery date (now + 2 hours)
-  const getInitialDeliveryDate = () => {
-    const d = new Date(Date.now() + 2 * 3600000);
+  // Technician & Real-time SLA Deadline States
+  const [technicians, setTechnicians] = useState<TechnicianOption[]>([]);
+  const [currentTime, setCurrentTime] = useState<number>(Date.now());
+
+  // Helper calculate deadline datetime string
+  const calculateDeadline = (minutes: number) => {
+    const d = new Date(Date.now() + minutes * 60 * 1000);
     const pad = (n: number) => n.toString().padStart(2, '0');
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
   };
 
-  // Intake Modal State
+  // Helper dynamic initial delivery date (now + 2 hours)
+  const getInitialDeliveryDate = () => {
+    return calculateDeadline(120);
+  };
+
+  // Intake Modal State (Tiếp nhận máy mới kèm Chỉ định KTV & Hạn chót SLA)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [intakeForm, setIntakeForm] = useState({
     customerName: '',
@@ -119,8 +132,12 @@ export default function AdminRepairsPage() {
     accessoriesIncluded: 'Không kèm phụ kiện, đã tháo SIM',
     issueDescription: 'Màn hình nứt vỡ kính, cần kiểm tra ép kính hoặc thay màn',
     laborFee: 150000,
-    estimatedDeliveryDate: getInitialDeliveryDate(),
-    technicianName: 'Trần Trọng Nghĩa',
+    deadlineMinutes: 45,
+    deadlineTime: calculateDeadline(45),
+    estimatedDeliveryDate: calculateDeadline(45),
+    technicianId: '',
+    technicianName: 'Trần Trọng Nghĩa (KTV Trưởng)',
+    assignedBy: 'Lê Huy Hoàng (Chủ Shop)',
     warrantyPeriod: 'Bảo hành 06 tháng',
   });
 
@@ -133,6 +150,13 @@ export default function AdminRepairsPage() {
   const [copiedPass, setCopiedPass] = useState(false);
   const [isEditingLaborFee, setIsEditingLaborFee] = useState(false);
   const [tempLaborFee, setTempLaborFee] = useState<number>(0);
+
+  // Workbench Re-assignment state (Chủ shop / Thu ngân điều chuyển KTV & Gia hạn sửa chữa)
+  const [isEditingAssignment, setIsEditingAssignment] = useState(false);
+  const [reassignTechId, setReassignTechId] = useState('');
+  const [reassignTechName, setReassignTechName] = useState('');
+  const [reassignDeadlineTime, setReassignDeadlineTime] = useState('');
+  const [reassignDeadlineMinutes, setReassignDeadlineMinutes] = useState(60);
 
   // Print Receipt Modal
   const [printTicket, setPrintTicket] = useState<RepairTicket | null>(null);
@@ -160,6 +184,23 @@ export default function AdminRepairsPage() {
       })
       .catch((err) => console.warn('Repairs API notice:', err));
 
+    fetch('/api/admin/staff')
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && Array.isArray(json.data)) {
+          const techs = json.data.filter((u: any) => u.role === 'technician' && u.isActive !== false);
+          setTechnicians(techs);
+          if (techs.length > 0) {
+            setIntakeForm((prev) => ({
+              ...prev,
+              technicianId: prev.technicianId || techs[0].id,
+              technicianName: prev.technicianName || techs[0].name,
+            }));
+          }
+        }
+      })
+      .catch((err) => console.warn('Staff fetch notice:', err));
+
     fetch('/api/repairs/config')
       .then((res) => res.json())
       .then((json) => {
@@ -185,7 +226,16 @@ export default function AdminRepairsPage() {
       refreshLocalState();
     };
     window.addEventListener('ishop_data_changed', listener);
-    return () => window.removeEventListener('ishop_data_changed', listener);
+
+    // 4. Real-time SLA Countdown timer (cập nhật đồng hồ mỗi 15s)
+    const interval = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 15000);
+
+    return () => {
+      window.removeEventListener('ishop_data_changed', listener);
+      clearInterval(interval);
+    };
   }, []);
 
   // Category Management Handlers
@@ -393,7 +443,7 @@ export default function AdminRepairsPage() {
     e.preventDefault();
     const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
 
-    // 1. Post to live MySQL Database
+    // 1. Post to live MySQL Database with Technician Assignment & SLA Deadline
     try {
       await fetch('/api/repairs', {
         method: 'POST',
@@ -409,7 +459,12 @@ export default function AdminRepairsPage() {
           accessoriesIncluded: intakeForm.accessoriesIncluded,
           issueDescription: intakeForm.issueDescription,
           laborFee: Number(intakeForm.laborFee) || 0,
-          estimatedDeliveryDate: intakeForm.estimatedDeliveryDate,
+          estimatedDeliveryDate: intakeForm.deadlineTime || intakeForm.estimatedDeliveryDate,
+          deadlineTime: intakeForm.deadlineTime,
+          deadlineMinutes: Number(intakeForm.deadlineMinutes) || 60,
+          assignedBy: intakeForm.assignedBy,
+          technicianId: intakeForm.technicianId,
+          technicianName: intakeForm.technicianName,
         }),
       });
     } catch (err) {
@@ -429,8 +484,12 @@ export default function AdminRepairsPage() {
       issueDescription: intakeForm.issueDescription,
       status: 'received',
       laborFee: Number(intakeForm.laborFee) || 0,
-      estimatedDeliveryDate: intakeForm.estimatedDeliveryDate,
+      estimatedDeliveryDate: intakeForm.deadlineTime || intakeForm.estimatedDeliveryDate,
+      deadlineTime: intakeForm.deadlineTime,
+      deadlineMinutes: Number(intakeForm.deadlineMinutes) || 60,
+      assignedBy: intakeForm.assignedBy,
       receivedAt: now,
+      technicianId: intakeForm.technicianId,
       technicianName: intakeForm.technicianName,
       warrantyPeriod: intakeForm.warrantyPeriod,
     });
@@ -438,7 +497,7 @@ export default function AdminRepairsPage() {
     setIsCreateModalOpen(false);
     setPrintTicket(created);
     refreshLocalState();
-    showToast(`Đã tiếp nhận máy ${created.ticketCode} thành công!`);
+    showToast(`Đã tiếp nhận máy ${created.ticketCode} - KTV: ${created.technicianName} - Hạn: ${created.deadlineTime?.split(' ')[1] || '60p'}!`);
   };
 
   const handleOpenTicket = (ticket: RepairTicket) => {
@@ -448,6 +507,56 @@ export default function AdminRepairsPage() {
     setSelectedPartId('');
     setSelectedPartQty(1);
     setStepNote('');
+
+    // Pre-fill re-assignment state
+    setReassignTechId(ticket.technicianId || '');
+    setReassignTechName(ticket.technicianName || 'Trần Trọng Nghĩa (KTV Trưởng)');
+    setReassignDeadlineTime(ticket.deadlineTime || ticket.estimatedDeliveryDate || calculateDeadline(60));
+    setReassignDeadlineMinutes(ticket.deadlineMinutes || 60);
+    setIsEditingAssignment(false);
+  };
+
+  const handleSaveAssignment = async () => {
+    if (!selectedTicket) return;
+    const staff = IShopStore.getStaffUser();
+    const assigner = staff?.name
+      ? `${staff.name} (${staff.role === 'admin' ? 'Chủ Shop' : 'Bán Hàng'})`
+      : 'Lê Huy Hoàng (Chủ Shop)';
+
+    IShopStore.updateRepairAssignment(
+      selectedTicket.id,
+      reassignTechId,
+      reassignTechName,
+      reassignDeadlineTime,
+      reassignDeadlineMinutes,
+      assigner
+    );
+
+    const updated = IShopStore.getRepairByCode(selectedTicket.ticketCode);
+    if (updated) {
+      setSelectedTicket(updated);
+      setRepairs((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+    }
+    setIsEditingAssignment(false);
+    showToast(`Đã chỉ định KTV ${reassignTechName} - Hạn chót: ${reassignDeadlineTime}`);
+
+    try {
+      await fetch('/api/repairs', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: selectedTicket.id,
+          ticketCode: selectedTicket.ticketCode,
+          technicianId: reassignTechId,
+          technicianName: reassignTechName,
+          deadlineTime: reassignDeadlineTime,
+          deadlineMinutes: reassignDeadlineMinutes,
+          assignedBy: assigner,
+        }),
+      });
+    } catch (err) {
+      console.warn('API update assignment error:', err);
+    }
   };
 
   const handleUpdateStep = async (newStatus: RepairStatus) => {
@@ -616,6 +725,135 @@ export default function AdminRepairsPage() {
     setTimeout(() => setCopiedPass(false), 2000);
   };
 
+  // SLA Deadline Calculation Helper (Tính toán thời hạn và trạng thái thời gian thực)
+  const getSlaInfo = (ticket: RepairTicket) => {
+    const targetDateStr = ticket.deadlineTime || ticket.estimatedDeliveryDate;
+    const isFinished = ticket.status === 'delivered';
+    const isReady = ticket.status === 'ready_for_pickup';
+
+    if (!targetDateStr) {
+      return {
+        remainingMinutes: 9999,
+        isOverdue: false,
+        isUrgent: false,
+        isFinished,
+        label: isFinished ? '✓ Đã bàn giao' : 'Không có hạn',
+        badgeClass: 'bg-slate-100 text-slate-600 border-slate-200',
+        textClass: 'text-slate-600',
+      };
+    }
+
+    const targetTime = new Date(targetDateStr.replace(' ', 'T')).getTime();
+    if (isNaN(targetTime)) {
+      return {
+        remainingMinutes: 9999,
+        isOverdue: false,
+        isUrgent: false,
+        isFinished,
+        label: targetDateStr,
+        badgeClass: 'bg-slate-100 text-slate-600 border-slate-200',
+        textClass: 'text-slate-600',
+      };
+    }
+
+    const diffMs = targetTime - currentTime;
+    const remainingMinutes = Math.round(diffMs / 60000);
+
+    if (isFinished) {
+      if (remainingMinutes >= 0) {
+        return {
+          remainingMinutes,
+          isOverdue: false,
+          isUrgent: false,
+          isFinished: true,
+          label: '✓ Xong đúng hạn',
+          badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-300 font-bold',
+          textClass: 'text-emerald-700',
+        };
+      } else {
+        return {
+          remainingMinutes,
+          isOverdue: true,
+          isUrgent: false,
+          isFinished: true,
+          label: `Trễ ${Math.abs(remainingMinutes)}p`,
+          badgeClass: 'bg-slate-100 text-slate-600 border-slate-300 font-medium',
+          textClass: 'text-slate-600',
+        };
+      }
+    }
+
+    // Active tickets (Chưa giao)
+    if (remainingMinutes < 0) {
+      const overdueMins = Math.abs(remainingMinutes);
+      const overdueStr = overdueMins >= 60
+        ? `${Math.floor(overdueMins / 60)}h${overdueMins % 60}p`
+        : `${overdueMins}p`;
+      return {
+        remainingMinutes,
+        isOverdue: true,
+        isUrgent: false,
+        isFinished: false,
+        label: `⚠️ QUÁ HẠN ${overdueStr}!`,
+        badgeClass: 'bg-rose-50 text-rose-700 border-rose-300 animate-pulse font-black ring-1 ring-rose-400',
+        textClass: 'text-rose-600 font-bold',
+      };
+    }
+
+    if (remainingMinutes <= 20) {
+      return {
+        remainingMinutes,
+        isOverdue: false,
+        isUrgent: true,
+        isFinished: false,
+        label: `⏰ GẤP: Còn ${remainingMinutes}p`,
+        badgeClass: 'bg-amber-100 text-amber-900 border-amber-300 font-bold shadow-xs',
+        textClass: 'text-amber-800 font-bold',
+      };
+    }
+
+    const timeStr = remainingMinutes >= 60
+      ? `${Math.floor(remainingMinutes / 60)}h${remainingMinutes % 60}p`
+      : `${remainingMinutes}p`;
+
+    return {
+      remainingMinutes,
+      isOverdue: false,
+      isUrgent: false,
+      isFinished: false,
+      label: `⏱️ Còn ${timeStr}`,
+      badgeClass: 'bg-sky-50 text-sky-700 border-sky-200 font-semibold',
+      textClass: 'text-sky-700',
+    };
+  };
+
+  // Technician Active Workload
+  const techActiveWorkload = useMemo(() => {
+    const counts: Record<string, number> = {};
+    repairs.forEach((r) => {
+      if (r.status !== 'delivered' && r.status !== 'cancelled') {
+        if (r.technicianId) counts[r.technicianId] = (counts[r.technicianId] || 0) + 1;
+        if (r.technicianName) counts[r.technicianName] = (counts[r.technicianName] || 0) + 1;
+      }
+    });
+    return counts;
+  }, [repairs]);
+
+  // Overdue and Urgent Ticket Counters
+  const overdueCount = useMemo(() => {
+    return repairs.filter((r) => {
+      if (r.status === 'delivered' || r.status === 'cancelled') return false;
+      return getSlaInfo(r).isOverdue;
+    }).length;
+  }, [repairs, currentTime]);
+
+  const urgentCount = useMemo(() => {
+    return repairs.filter((r) => {
+      if (r.status === 'delivered' || r.status === 'cancelled') return false;
+      return getSlaInfo(r).isUrgent;
+    }).length;
+  }, [repairs, currentTime]);
+
   // KPI Statistics
   const stats = useMemo(() => {
     const received = repairs.filter((r) => r.status === 'received').length;
@@ -631,10 +869,19 @@ export default function AdminRepairsPage() {
     return { received, inspecting, repairing, qcOrReady, delivered, totalDeliveredRevenue };
   }, [repairs]);
 
-  // Filtered repairs
+  // Filtered repairs (with SLA filters)
   const filteredRepairs = useMemo(() => {
     return repairs
-      .filter((r) => (filterStatus === 'all' ? true : r.status === filterStatus))
+      .filter((r) => {
+        if (filterStatus === 'all') return true;
+        if (filterStatus === 'overdue') {
+          return r.status !== 'delivered' && r.status !== 'cancelled' && getSlaInfo(r).isOverdue;
+        }
+        if (filterStatus === 'urgent') {
+          return r.status !== 'delivered' && r.status !== 'cancelled' && getSlaInfo(r).isUrgent;
+        }
+        return r.status === filterStatus;
+      })
       .filter((r) => {
         if (!searchQuery.trim()) return true;
         const q = searchQuery.toLowerCase().trim();
@@ -643,11 +890,13 @@ export default function AdminRepairsPage() {
           (r.customerName && r.customerName.toLowerCase().includes(q)) ||
           (r.customerPhone && r.customerPhone.includes(q)) ||
           (r.deviceModel && r.deviceModel.toLowerCase().includes(q)) ||
+          (r.technicianName && r.technicianName.toLowerCase().includes(q)) ||
+          (r.assignedBy && r.assignedBy.toLowerCase().includes(q)) ||
           (r.unlockPasscode && r.unlockPasscode.toLowerCase().includes(q)) ||
           (r.issueDescription && r.issueDescription.toLowerCase().includes(q))
         );
       });
-  }, [repairs, filterStatus, searchQuery]);
+  }, [repairs, filterStatus, searchQuery, currentTime]);
 
   // Spare parts filtered by search
   const filteredSpareParts = useMemo(() => {
@@ -812,55 +1061,122 @@ export default function AdminRepairsPage() {
         </div>
       )}
 
-      {/* KPI Overview Summary Cards (5 Thẻ Thống Kê Nhanh Của Bàn Sửa Chữa) */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 border border-sky-200 flex items-center justify-center shrink-0">
-            <Clock className="w-5 h-5" />
+      {/* Overdue Urgent Alert Banner for Technicians & Shop Owner */}
+      {overdueCount > 0 && (
+        <div className="p-4 rounded-2xl bg-rose-50 border-2 border-rose-300 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-rose-900 animate-in fade-in">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-rose-500 text-white flex items-center justify-center shrink-0 shadow-sm animate-pulse">
+              <AlarmClock className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="text-xs sm:text-sm font-black uppercase tracking-tight flex items-center gap-2">
+                <span>CẢNH BÁO TIẾN ĐỘ: CÓ {overdueCount} MÁY ĐÃ QUÁ HẠN SỬA CHỮA!</span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-rose-600 text-white">
+                  Ưu tiên xử lý gấp
+                </span>
+              </h4>
+              <p className="text-xs text-rose-700 mt-0.5">
+                Kỹ thuật viên phụ trách cần hoàn thành ngay để đảm bảo đúng cam kết thời gian cho khách hàng và shop.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setFilterStatus(filterStatus === 'overdue' ? 'all' : 'overdue')}
+            className={`px-4 py-2 rounded-xl text-xs font-black transition-colors cursor-pointer shrink-0 shadow-sm ${
+              filterStatus === 'overdue'
+                ? 'bg-rose-900 text-white'
+                : 'bg-rose-600 hover:bg-rose-700 text-white'
+            }`}
+          >
+            {filterStatus === 'overdue' ? 'Xem Tất Cả Máy' : `Lọc ${overdueCount} Máy Quá Hạn`}
+          </button>
+        </div>
+      )}
+
+      {/* KPI Overview Summary Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
+        <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl bg-sky-50 text-sky-600 border border-sky-200 flex items-center justify-center shrink-0">
+            <Clock className="w-4 h-4" />
           </div>
           <div>
-            <span className="text-[11px] font-semibold text-slate-500 block">Tiếp Nhận Mới</span>
-            <span className="text-lg font-black text-slate-900">{stats.received} máy</span>
+            <span className="text-[10px] font-semibold text-slate-500 block">Tiếp Nhận</span>
+            <span className="text-base font-black text-slate-900">{stats.received} máy</span>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 border border-purple-200 flex items-center justify-center shrink-0">
-            <Activity className="w-5 h-5" />
+        <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 border border-purple-200 flex items-center justify-center shrink-0">
+            <Activity className="w-4 h-4" />
           </div>
           <div>
-            <span className="text-[11px] font-semibold text-slate-500 block">Báo Giá / Chờ Duyệt</span>
-            <span className="text-lg font-black text-slate-900">{stats.inspecting} máy</span>
+            <span className="text-[10px] font-semibold text-slate-500 block">Báo Giá</span>
+            <span className="text-base font-black text-slate-900">{stats.inspecting} máy</span>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-2xl border border-amber-200 bg-amber-50/40 shadow-xs flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 border border-amber-300 flex items-center justify-center shrink-0">
-            <Wrench className="w-5 h-5" />
+        <div className="bg-white p-3.5 rounded-2xl border border-amber-200 bg-amber-50/40 shadow-xs flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 border border-amber-300 flex items-center justify-center shrink-0">
+            <Wrench className="w-4 h-4" />
           </div>
           <div>
-            <span className="text-[11px] font-semibold text-amber-800 block">Đang Sửa Trên Bàn</span>
-            <span className="text-lg font-black text-amber-900">{stats.repairing} máy</span>
+            <span className="text-[10px] font-semibold text-amber-800 block">Đang Sửa</span>
+            <span className="text-base font-black text-amber-900">{stats.repairing} máy</span>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center shrink-0">
-            <CheckCircle2 className="w-5 h-5" />
+        <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center shrink-0">
+            <CheckCircle2 className="w-4 h-4" />
           </div>
           <div>
-            <span className="text-[11px] font-semibold text-slate-500 block">QC &amp; Sẵn Sàng Giao</span>
-            <span className="text-lg font-black text-slate-900">{stats.qcOrReady} máy</span>
+            <span className="text-[10px] font-semibold text-slate-500 block">QC &amp; Sẵn Sàng</span>
+            <span className="text-base font-black text-slate-900">{stats.qcOrReady} máy</span>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3 col-span-2 sm:col-span-1">
-          <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-800 border border-slate-300 flex items-center justify-center shrink-0">
-            <DollarSign className="w-5 h-5" />
+        {/* SLA Status Card (Quá Hạn & Gấp) */}
+        <div
+          onClick={() => setFilterStatus(overdueCount > 0 ? 'overdue' : 'urgent')}
+          className={`p-3.5 rounded-2xl border shadow-xs flex items-center gap-2.5 cursor-pointer transition-colors ${
+            overdueCount > 0
+              ? 'bg-rose-50 border-rose-300 hover:bg-rose-100/70 text-rose-900'
+              : urgentCount > 0
+              ? 'bg-amber-50 border-amber-300 hover:bg-amber-100/70 text-amber-900'
+              : 'bg-white border-slate-200 text-slate-800'
+          }`}
+          title="Bấm để lọc các máy quá hạn hoặc gấp"
+        >
+          <div
+            className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
+              overdueCount > 0
+                ? 'bg-rose-500 text-white border-rose-600'
+                : urgentCount > 0
+                ? 'bg-amber-500 text-slate-950 border-amber-600'
+                : 'bg-slate-100 text-slate-600 border-slate-200'
+            }`}
+          >
+            <Timer className="w-4 h-4" />
           </div>
           <div className="truncate">
-            <span className="text-[11px] font-semibold text-slate-500 block">Đã Giao ({stats.delivered} máy)</span>
-            <span className="text-sm font-black text-amber-700 font-mono">
+            <span className="text-[10px] font-semibold block opacity-80">Tiến Độ SLA</span>
+            <div className="flex items-center gap-1.5 text-xs font-black">
+              <span className={overdueCount > 0 ? 'text-rose-700 font-extrabold' : ''}>
+                {overdueCount} Quá Hạn
+              </span>
+              <span className="opacity-40">•</span>
+              <span className={urgentCount > 0 ? 'text-amber-800' : ''}>{urgentCount} Gấp</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-800 border border-slate-300 flex items-center justify-center shrink-0">
+            <DollarSign className="w-4 h-4" />
+          </div>
+          <div className="truncate">
+            <span className="text-[10px] font-semibold text-slate-500 block">Đã Giao ({stats.delivered})</span>
+            <span className="text-xs font-black text-amber-700 font-mono">
               {formatVND(stats.totalDeliveredRevenue)}
             </span>
           </div>
@@ -875,34 +1191,47 @@ export default function AdminRepairsPage() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Tìm theo mã phiếu (SC-xxxx), tên khách, SĐT, dòng máy, mật khẩu mở máy..."
+            placeholder="Tìm theo mã phiếu (SC-xxxx), tên khách, SĐT, KTV phụ trách, hạn chót, lỗi..."
             className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-amber-500 focus:bg-white font-mono transition-all"
           />
         </div>
 
-        {/* Status Filters */}
-        <div className="flex items-center gap-1.5 overflow-x-auto text-xs">
+        {/* Status & SLA Filters */}
+        <div className="flex items-center gap-1.5 overflow-x-auto text-xs pb-1 sm:pb-0">
           {[
             { key: 'all', label: 'Tất cả' },
+            {
+              key: 'overdue',
+              label: `⚠️ Quá hạn (${overdueCount})`,
+              special: overdueCount > 0 ? 'bg-rose-100 text-rose-800 border-rose-300 hover:bg-rose-200' : '',
+            },
+            {
+              key: 'urgent',
+              label: `⏰ Gấp <20p (${urgentCount})`,
+              special: urgentCount > 0 ? 'bg-amber-100 text-amber-900 border-amber-300 hover:bg-amber-200' : '',
+            },
             { key: 'received', label: 'Tiếp nhận' },
             { key: 'inspecting', label: 'Báo giá' },
             { key: 'repairing', label: 'Đang sửa' },
             { key: 'qc_checking', label: 'QC' },
             { key: 'ready_for_pickup', label: 'Sẵn sàng' },
             { key: 'delivered', label: 'Đã giao' },
-          ].map((item) => (
-            <button
-              key={item.key}
-              onClick={() => setFilterStatus(item.key)}
-              className={`px-3.5 py-1.5 rounded-xl font-bold transition-all shrink-0 cursor-pointer ${
-                filterStatus === item.key
-                  ? 'bg-amber-500 text-slate-950 font-black shadow-sm'
-                  : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
+          ].map((item) => {
+            const isSelected = filterStatus === item.key;
+            return (
+              <button
+                key={item.key}
+                onClick={() => setFilterStatus(item.key)}
+                className={`px-3 py-1.5 rounded-xl font-bold transition-all shrink-0 cursor-pointer border ${
+                  isSelected
+                    ? 'bg-amber-500 text-slate-950 font-black shadow-sm border-amber-500'
+                    : item.special || 'bg-slate-100 hover:bg-slate-200 text-slate-600 border-transparent'
+                }`}
+              >
+                {item.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -936,14 +1265,22 @@ export default function AdminRepairsPage() {
                       key={ticket.id}
                       className="bg-white rounded-xl p-3.5 border border-slate-200 hover:border-amber-400 hover:shadow-md transition-[border-color,box-shadow] duration-150 space-y-2.5"
                     >
-                      {/* Top: Ticket Code & Received Time */}
-                      <div className="flex items-center justify-between">
+                      {/* Top: Ticket Code & Real-time SLA Badge */}
+                      <div className="flex items-center justify-between gap-1">
                         <span className="font-mono text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
                           {ticket.ticketCode}
                         </span>
-                        <span className="text-[10px] text-slate-400 font-mono">
-                          {ticket.receivedAt?.split(' ')[0] || ''}
-                        </span>
+                        {(() => {
+                          const sla = getSlaInfo(ticket);
+                          return (
+                            <span
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] border shadow-xs shrink-0 ${sla.badgeClass}`}
+                              title={`Hạn chót: ${ticket.deadlineTime || ticket.estimatedDeliveryDate}${ticket.assignedBy ? ` (Giao bởi: ${ticket.assignedBy})` : ''}`}
+                            >
+                              {sla.label}
+                            </span>
+                          );
+                        })()}
                       </div>
 
                       {/* Device & Passcode */}
@@ -964,6 +1301,26 @@ export default function AdminRepairsPage() {
                               <KeyRound className="w-3 h-3 text-amber-700" />
                               <span>Pass: {ticket.unlockPasscode}</span>
                             </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Technician Assignment & SLA Bar */}
+                      <div className="bg-slate-50 p-1.5 rounded-lg border border-slate-200 text-[11px] space-y-0.5">
+                        <div className="flex items-center justify-between gap-1">
+                          <div className="flex items-center gap-1 text-slate-800 font-bold truncate min-w-0">
+                            <UserCheck className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                            <span className="truncate">KTV: {ticket.technicianName || 'Chưa gán'}</span>
+                          </div>
+                          {ticket.deadlineTime && (
+                            <span className="font-mono text-[10px] text-slate-500 shrink-0">
+                              {ticket.deadlineTime.includes(' ') ? ticket.deadlineTime.split(' ')[1].substring(0, 5) : ticket.deadlineTime}
+                            </span>
+                          )}
+                        </div>
+                        {ticket.assignedBy && (
+                          <div className="text-[9px] text-slate-400 truncate">
+                            Giao bởi: {ticket.assignedBy}
                           </div>
                         )}
                       </div>
@@ -1042,6 +1399,7 @@ export default function AdminRepairsPage() {
                   <th className="p-4 sm:p-5">Mã Phiếu &amp; Ngày</th>
                   <th className="p-4 sm:p-5">Khách Hàng</th>
                   <th className="p-4 sm:p-5">Thiết Bị &amp; Mật Khẩu</th>
+                  <th className="p-4 sm:p-5">KTV Phụ Trách &amp; SLA</th>
                   <th className="p-4 sm:p-5">Tình Trạng Lỗi</th>
                   <th className="p-4 sm:p-5">Trạng Thái Kỹ Thuật</th>
                   <th className="p-4 sm:p-5 text-right">Chi Phí</th>
@@ -1082,7 +1440,35 @@ export default function AdminRepairsPage() {
                       </div>
                     </td>
 
-                    <td className="p-4 sm:p-5 max-w-[200px]">
+                    {/* KTV Phụ Trách & SLA Countdown */}
+                    <td className="p-4 sm:p-5">
+                      <div className="flex items-center gap-1.5 font-bold text-slate-900 text-xs">
+                        <UserCheck className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                        <span className="truncate">{ticket.technicianName || 'Chưa phân công'}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                        {(() => {
+                          const sla = getSlaInfo(ticket);
+                          return (
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] border shadow-xs ${sla.badgeClass}`}>
+                              {sla.label}
+                            </span>
+                          );
+                        })()}
+                        {ticket.deadlineTime && (
+                          <span className="text-[10px] text-slate-500 font-mono">
+                            Hạn: {ticket.deadlineTime.split(' ')[1]?.substring(0, 5) || ticket.deadlineTime}
+                          </span>
+                        )}
+                      </div>
+                      {ticket.assignedBy && (
+                        <span className="text-[10px] text-slate-400 block mt-0.5 truncate">
+                          Giao bởi: {ticket.assignedBy}
+                        </span>
+                      )}
+                    </td>
+
+                    <td className="p-4 sm:p-5 max-w-[180px]">
                       <p className="text-xs text-slate-800 truncate font-semibold" title={ticket.issueDescription}>
                         {ticket.issueDescription}
                       </p>
@@ -1128,7 +1514,7 @@ export default function AdminRepairsPage() {
 
                 {filteredRepairs.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="p-12 text-center text-slate-500 text-xs font-mono">
+                    <td colSpan={8} className="p-12 text-center text-slate-500 text-xs font-mono">
                       Không tìm thấy phiếu sửa chữa nào khớp với tìm kiếm.
                     </td>
                   </tr>
@@ -1282,24 +1668,159 @@ export default function AdminRepairsPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-slate-700 font-bold mb-1.5 block">Kỹ thuật viên phụ trách:</label>
-                  <input
-                    type="text"
-                    value={intakeForm.technicianName}
-                    onChange={(e) => setIntakeForm({ ...intakeForm, technicianName: e.target.value })}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-medium focus:bg-white"
-                  />
+              {/* Technician Assignment & SLA Deadline Section (Nghiệp vụ Phân công KTV & Đặt Hạn chót sửa chữa) */}
+              <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200/90 space-y-3.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-amber-950 uppercase tracking-wider flex items-center gap-1.5">
+                    <UserCheck className="w-4 h-4 text-amber-600" />
+                    <span>Phân Công Kỹ Thuật Viên &amp; Hạn Chót Sửa Xong (SLA)</span>
+                  </span>
+                  <span className="text-[11px] font-semibold text-amber-800">
+                    Chủ shop &amp; NV bán hàng chỉ định
+                  </span>
                 </div>
-                <div>
-                  <label className="text-slate-700 font-bold mb-1.5 block">Dự kiến giao máy:</label>
-                  <input
-                    type="text"
-                    value={intakeForm.estimatedDeliveryDate}
-                    onChange={(e) => setIntakeForm({ ...intakeForm, estimatedDeliveryDate: e.target.value })}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-medium focus:bg-white"
-                  />
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  {/* Technician Select */}
+                  <div>
+                    <label className="text-slate-700 font-bold mb-1.5 block">
+                      Chọn Kỹ thuật viên phụ trách *:
+                    </label>
+                    <select
+                      required
+                      value={intakeForm.technicianId}
+                      onChange={(e) => {
+                        const techId = e.target.value;
+                        const tech = technicians.find((t) => t.id === techId);
+                        setIntakeForm({
+                          ...intakeForm,
+                          technicianId: techId,
+                          technicianName: tech ? tech.name : intakeForm.technicianName,
+                        });
+                      }}
+                      className="w-full p-2.5 bg-white border border-slate-300 rounded-xl text-slate-900 font-bold text-xs focus:bg-white focus:border-amber-500 cursor-pointer shadow-xs"
+                    >
+                      {technicians.map((t) => {
+                        const load = techActiveWorkload[t.id] || techActiveWorkload[t.name] || 0;
+                        return (
+                          <option key={t.id} value={t.id}>
+                            {t.name} • (Đang nhận {load} máy)
+                          </option>
+                        );
+                      })}
+                      {technicians.length === 0 && (
+                        <option value="">Trần Trọng Nghĩa (KTV Trưởng)</option>
+                      )}
+                    </select>
+                  </div>
+
+                  {/* Assigner */}
+                  <div>
+                    <label className="text-slate-700 font-bold mb-1.5 block">
+                      Người giao việc / chỉ định:
+                    </label>
+                    <input
+                      type="text"
+                      value={intakeForm.assignedBy}
+                      onChange={(e) => setIntakeForm({ ...intakeForm, assignedBy: e.target.value })}
+                      placeholder="Lê Huy Hoàng (Chủ Shop)"
+                      className="w-full p-2.5 bg-white border border-slate-300 rounded-xl text-slate-900 font-medium text-xs focus:bg-white"
+                    />
+                  </div>
+                </div>
+
+                {/* SLA Deadline Presets & DateTime */}
+                <div className="space-y-2 pt-1 border-t border-amber-200/60">
+                  <div className="flex items-center justify-between">
+                    <label className="text-slate-800 font-bold text-xs flex items-center gap-1.5">
+                      <Timer className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Thời hạn KTV phải sửa xong máy (Chọn nhanh hoặc nhập giờ):</span>
+                    </label>
+                    <span className="text-[11px] font-mono font-bold text-amber-800">
+                      Quy định: {intakeForm.deadlineMinutes || 45} phút
+                    </span>
+                  </div>
+
+                  {/* Preset Pills */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { mins: 30, label: '⚡ 30 phút (Thay pin/sạc)' },
+                      { mins: 45, label: '⚡ 45 phút (Màn hình/kính)' },
+                      { mins: 60, label: '⏱️ 1 giờ (Bảo dưỡng)' },
+                      { mins: 120, label: '⏱️ 2 giờ (Main/IC)' },
+                      {
+                        mins: (() => {
+                          const now = new Date();
+                          const target = new Date();
+                          target.setHours(18, 0, 0, 0);
+                          if (target.getTime() <= now.getTime()) target.setDate(target.getDate() + 1);
+                          return Math.max(30, Math.round((target.getTime() - now.getTime()) / 60000));
+                        })(),
+                        label: '📅 Cuối ca 18:00',
+                      },
+                      {
+                        mins: (() => {
+                          const now = new Date();
+                          const target = new Date();
+                          target.setDate(target.getDate() + 1);
+                          target.setHours(11, 30, 0, 0);
+                          return Math.max(60, Math.round((target.getTime() - now.getTime()) / 60000));
+                        })(),
+                        label: '📅 Trưa mai 11:30',
+                      },
+                    ].map((preset, idx) => {
+                      const isSelected = intakeForm.deadlineMinutes === preset.mins;
+                      return (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => {
+                            const newDeadline = calculateDeadline(preset.mins);
+                            setIntakeForm({
+                              ...intakeForm,
+                              deadlineMinutes: preset.mins,
+                              deadlineTime: newDeadline,
+                              estimatedDeliveryDate: newDeadline,
+                            });
+                          }}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer border ${
+                            isSelected
+                              ? 'bg-amber-500 text-slate-950 border-amber-600 shadow-xs'
+                              : 'bg-white hover:bg-amber-100/60 text-slate-700 border-slate-300'
+                          }`}
+                        >
+                          {preset.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Custom DateTime Input */}
+                  <div className="flex items-center gap-2 pt-1">
+                    <input
+                      type="text"
+                      required
+                      value={intakeForm.deadlineTime}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const d = new Date(val.replace(' ', 'T')).getTime();
+                        const diffMins = !isNaN(d) ? Math.max(5, Math.round((d - Date.now()) / 60000)) : 60;
+                        setIntakeForm({
+                          ...intakeForm,
+                          deadlineTime: val,
+                          deadlineMinutes: diffMins,
+                          estimatedDeliveryDate: val,
+                        });
+                      }}
+                      placeholder="YYYY-MM-DD HH:mm:ss"
+                      className="w-full p-2.5 bg-white border border-slate-300 rounded-xl font-mono text-xs font-bold text-slate-900 focus:bg-white focus:border-amber-500"
+                    />
+                  </div>
+
+                  <p className="text-[11px] text-amber-900 font-medium">
+                    ⚠️ <strong>Kỷ luật SLA:</strong> Kỹ thuật viên có nghĩa vụ hoàn thành máy trước{' '}
+                    <strong className="font-mono text-amber-950 font-bold">{intakeForm.deadlineTime}</strong>. Bàn làm việc sẽ đếm ngược thời gian thực và cảnh báo đỏ nếu trễ hẹn.
+                  </p>
                 </div>
               </div>
 
@@ -1417,19 +1938,219 @@ export default function AdminRepairsPage() {
                 </p>
               </div>
 
-              {/* Technician & Appointment */}
+              {/* Technician & Appointment SLA Box */}
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-1">
                 <span className="text-[10px] font-bold uppercase text-slate-500 flex items-center gap-1">
-                  <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                  <span>KTV &amp; Hẹn Giao:</span>
+                  <UserCheck className="w-3.5 h-3.5 text-amber-600" />
+                  <span>KTV &amp; Tiến Độ SLA:</span>
                 </span>
-                <p className="font-bold text-xs text-slate-800 truncate">
-                  KTV: {selectedTicket.technicianName || 'Nghĩa'}
+                <p className="font-bold text-xs text-slate-900 truncate flex items-center gap-1">
+                  <span>{selectedTicket.technicianName || 'Chưa phân công'}</span>
                 </p>
-                <p className="font-mono text-[10px] text-emerald-700 truncate" title={selectedTicket.estimatedDeliveryDate}>
-                  Hẹn: {selectedTicket.estimatedDeliveryDate || 'Trong ngày'}
-                </p>
+                <div className="pt-0.5">
+                  {(() => {
+                    const sla = getSlaInfo(selectedTicket);
+                    return (
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] border shadow-xs ${sla.badgeClass}`}>
+                        {sla.label}
+                      </span>
+                    );
+                  })()}
+                </div>
               </div>
+            </div>
+
+            {/* SLA Alert & Real-time Countdown Banner */}
+            {(() => {
+              const sla = getSlaInfo(selectedTicket);
+              if (selectedTicket.status === 'delivered') return null;
+
+              if (sla.isOverdue) {
+                return (
+                  <div className="p-3.5 rounded-2xl bg-rose-50 border-2 border-rose-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-rose-900 animate-in fade-in">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-rose-600 text-white flex items-center justify-center shrink-0 animate-pulse">
+                        <AlarmClock className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-black uppercase tracking-tight">
+                          ⚠️ MÁY ĐÃ QUÁ HẠN SỬA CHỮA: {sla.label}
+                        </h4>
+                        <p className="text-[11px] text-rose-700 mt-0.5">
+                          Hạn chót quy định: <strong className="font-mono">{selectedTicket.deadlineTime || selectedTicket.estimatedDeliveryDate}</strong>. KTV <strong className="text-rose-950">{selectedTicket.technicianName}</strong> cần hoàn thiện gấp để bàn giao cho khách!
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+
+              if (sla.isUrgent) {
+                return (
+                  <div className="p-3.5 rounded-2xl bg-amber-50 border-2 border-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-amber-950 animate-in fade-in">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center shrink-0">
+                        <Timer className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-black uppercase tracking-tight">
+                          ⏰ SẮP ĐẾN HẠN CHÓT HOÀN THÀNH: {sla.label}
+                        </h4>
+                        <p className="text-[11px] text-amber-800 mt-0.5">
+                          Hạn chót: <strong className="font-mono">{selectedTicket.deadlineTime || selectedTicket.estimatedDeliveryDate}</strong>.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="p-3 rounded-2xl bg-sky-50/70 border border-sky-200 flex items-center justify-between text-xs text-sky-900">
+                  <div className="flex items-center gap-2">
+                    <Timer className="w-4 h-4 text-sky-600" />
+                    <span>
+                      Tiến độ SLA: <strong className="font-mono">{sla.label}</strong> (Hạn chót:{' '}
+                      <strong className="font-mono">{selectedTicket.deadlineTime || selectedTicket.estimatedDeliveryDate}</strong>)
+                    </span>
+                  </div>
+                  {selectedTicket.assignedBy && (
+                    <span className="text-[10px] text-sky-700">Giao bởi: {selectedTicket.assignedBy}</span>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* Shop Owner & Cashier Assignment Control Panel */}
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <UserCheck className="w-4 h-4 text-amber-600" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                    Chỉ Định Kỹ Thuật Viên &amp; Thời Hạn Sửa Chữa (SLA):
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsEditingAssignment(!isEditingAssignment)}
+                  className="px-3 py-1.5 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer border border-amber-300 active:scale-95"
+                >
+                  <Pencil className="w-3.5 h-3.5 text-amber-700" />
+                  <span>{isEditingAssignment ? 'Đóng Chỉnh Sửa' : 'Đổi KTV / Gia Hạn Thời Gian'}</span>
+                </button>
+              </div>
+
+              {!isEditingAssignment ? (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs bg-white p-3 rounded-xl border border-slate-200">
+                  <div>
+                    <span className="text-slate-400 block text-[10px] uppercase font-bold">KTV Phụ Trách:</span>
+                    <span className="font-bold text-slate-900 text-sm">{selectedTicket.technicianName || 'Chưa gán'}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px] uppercase font-bold">Hạn Chót Bàn Giao:</span>
+                    <span className="font-mono font-bold text-amber-700">
+                      {selectedTicket.deadlineTime || selectedTicket.estimatedDeliveryDate || 'Chưa đặt hạn'}
+                    </span>
+                    <span className="text-[10px] text-slate-500 block">
+                      (Cam kết: {selectedTicket.deadlineMinutes || 60} phút)
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px] uppercase font-bold">Người Chỉ Định:</span>
+                    <span className="font-medium text-slate-800">{selectedTicket.assignedBy || 'Chủ shop / Tiếp nhận'}</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3.5 bg-white rounded-xl border border-amber-300 space-y-3 animate-in fade-in">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <div>
+                      <label className="text-slate-700 font-bold mb-1 block">Chọn Kỹ thuật viên mới:</label>
+                      <select
+                        value={reassignTechId}
+                        onChange={(e) => {
+                          const id = e.target.value;
+                          const found = technicians.find((t) => t.id === id);
+                          setReassignTechId(id);
+                          if (found) setReassignTechName(found.name);
+                        }}
+                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-bold text-xs focus:bg-white"
+                      >
+                        {technicians.map((t) => {
+                          const load = techActiveWorkload[t.id] || techActiveWorkload[t.name] || 0;
+                          return (
+                            <option key={t.id} value={t.id}>
+                              {t.name} (Đang làm {load} máy)
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-slate-700 font-bold mb-1 block">Hạn chót hoàn thành mới:</label>
+                      <input
+                        type="text"
+                        value={reassignDeadlineTime}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setReassignDeadlineTime(val);
+                          const d = new Date(val.replace(' ', 'T')).getTime();
+                          if (!isNaN(d)) {
+                            setReassignDeadlineMinutes(Math.max(5, Math.round((d - Date.now()) / 60000)));
+                          }
+                        }}
+                        placeholder="YYYY-MM-DD HH:mm:ss"
+                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-xs font-bold text-slate-900 focus:bg-white"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Quick Preset Buttons for Extension */}
+                  <div className="space-y-1">
+                    <span className="text-[11px] text-slate-500 font-bold block">Gia hạn nhanh:</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        { label: '+15 phút', add: 15 },
+                        { label: '+30 phút', add: 30 },
+                        { label: '+45 phút', add: 45 },
+                        { label: '+1 giờ', add: 60 },
+                        { label: '+2 giờ', add: 120 },
+                      ].map((item, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => {
+                            const newDl = calculateDeadline(item.add);
+                            setReassignDeadlineTime(newDl);
+                            setReassignDeadlineMinutes(item.add);
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-amber-100 hover:text-amber-900 text-slate-700 text-[10px] font-bold transition-colors cursor-pointer border border-slate-200"
+                        >
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingAssignment(false)}
+                      className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors cursor-pointer"
+                    >
+                      Hủy
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSaveAssignment}
+                      className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black shadow-sm transition-colors cursor-pointer active:scale-95 flex items-center gap-1.5"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Lưu Phân Công &amp; Cập Nhật SLA</span>
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Issue Description Banner */}
@@ -1727,8 +2448,11 @@ export default function AdminRepairsPage() {
                 <p>Mật khẩu máy: <strong>{printTicket.unlockPasscode || 'Không có'}</strong></p>
                 <p>Ngoại quan: {printTicket.appearanceCondition}</p>
                 <p>Lỗi ghi nhận: <strong>{printTicket.issueDescription}</strong></p>
-                <p>KTV phụ trách: {printTicket.technicianName}</p>
-                <p>Hẹn trả máy: <strong>{printTicket.estimatedDeliveryDate}</strong></p>
+                <p>KTV phụ trách: <strong>{printTicket.technicianName}</strong></p>
+                <p>Hạn chót sửa xong: <strong>{printTicket.deadlineTime || printTicket.estimatedDeliveryDate}</strong> ({printTicket.deadlineMinutes || 60} phút)</p>
+                {printTicket.assignedBy && (
+                  <p>Người giao việc: <strong>{printTicket.assignedBy}</strong></p>
+                )}
               </div>
 
               <div className="py-2 border-b border-black border-dashed space-y-1 text-[10px]">

@@ -1027,6 +1027,41 @@ export const IShopStore = {
     }
   },
 
+  updateRepairAssignment(
+    ticketId: string,
+    technicianId: string,
+    technicianName: string,
+    deadlineTime: string,
+    deadlineMinutes: number = 60,
+    assignedBy: string = 'Quản lý'
+  ): void {
+    const repairs = this.getRepairs();
+    const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    const updated = repairs.map((t) => {
+      if (t.id === ticketId) {
+        const historyItem = {
+          step: t.status,
+          label: 'Chỉ định KTV & Hạn chót',
+          time: now,
+          note: `Chỉ định KTV: ${technicianName} | Hạn chót: ${deadlineTime} (${deadlineMinutes}p) | Người giao: ${assignedBy}`,
+          actor: assignedBy,
+        };
+        return {
+          ...t,
+          technicianId,
+          technicianName,
+          deadlineTime,
+          deadlineMinutes,
+          assignedBy,
+          estimatedDeliveryDate: deadlineTime,
+          statusHistory: [...t.statusHistory, historyItem],
+        };
+      }
+      return t;
+    });
+    setStorage('repairs', updated);
+  },
+
   consumeSparePart(ticketId: string, partId: string, quantity: number = 1) {
     const parts = this.getSpareParts();
     const targetPart = parts.find((p) => p.id === partId);
