@@ -43,26 +43,38 @@ export async function POST(request: NextRequest) {
       50
     );
 
-    const brand = await prisma.phoneBrand.upsert({
-      where: { slug: cleanSlug },
-      update: {
-        name: cleanName,
-        country: country ? sanitizeString(country, 50) : null,
-        description: description || null,
-        logoUrl: logoUrl || null,
-        displayOrder: Number(displayOrder) || 0,
-        isActive: true,
-      },
-      create: {
-        name: cleanName,
-        slug: cleanSlug,
-        country: country ? sanitizeString(country, 50) : null,
-        description: description || null,
-        logoUrl: logoUrl || null,
-        displayOrder: Number(displayOrder) || 0,
-        isActive: true,
+    const existing = await prisma.phoneBrand.findFirst({
+      where: {
+        OR: [{ name: cleanName }, { slug: cleanSlug }],
       },
     });
+
+    let brand;
+    if (existing) {
+      brand = await prisma.phoneBrand.update({
+        where: { id: existing.id },
+        data: {
+          name: cleanName,
+          country: country ? sanitizeString(country, 50) : existing.country,
+          description: description || existing.description,
+          logoUrl: logoUrl || existing.logoUrl,
+          displayOrder: displayOrder !== undefined ? Number(displayOrder) : existing.displayOrder,
+          isActive: true,
+        },
+      });
+    } else {
+      brand = await prisma.phoneBrand.create({
+        data: {
+          name: cleanName,
+          slug: cleanSlug,
+          country: country ? sanitizeString(country, 50) : null,
+          description: description || null,
+          logoUrl: logoUrl || null,
+          displayOrder: Number(displayOrder) || 0,
+          isActive: true,
+        },
+      });
+    }
 
     return NextResponse.json({
       success: true,

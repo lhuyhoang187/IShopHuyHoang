@@ -74,7 +74,7 @@ export interface PhoneProduct {
   id: string;
   name: string;
   slug: string;
-  brand: 'Apple' | 'Samsung' | 'Xiaomi' | 'OPPO';
+  brand: 'Apple' | 'Samsung' | 'Xiaomi' | 'OPPO' | string;
   description: string;
   rating: number;
   reviewCount: number;

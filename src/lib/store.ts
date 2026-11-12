@@ -489,6 +489,12 @@ export const IShopStore = {
   getPhoneBySlug(slug: string): PhoneProduct | undefined {
     return this.getPhones().find((p) => p.slug === slug);
   },
+  addPhone(phone: PhoneProduct): void {
+    const phones = this.getPhones();
+    const exists = phones.some((p) => p.id === phone.id);
+    const updated = exists ? phones.map((p) => (p.id === phone.id ? { ...p, ...phone } : p)) : [phone, ...phones];
+    setStorage('phones', updated);
+  },
   updatePhone(phoneId: string, data: Partial<PhoneProduct>): void {
     const phones = this.getPhones();
     const updated = phones.map((p) => (p.id === phoneId ? { ...p, ...data } : p));

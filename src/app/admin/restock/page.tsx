@@ -27,12 +27,14 @@ import { IShopStore } from '@/lib/store';
 import { Supplier, PhoneProduct, PhoneColor, PhoneCapacity } from '@/lib/types';
 import { formatVND } from '@/lib/vietqr';
 
-const ALL_STANDARD_CAPACITIES = ['64GB', '128GB', '256GB', '512GB', '1TB', '2TB'];
+const ALL_STANDARD_CAPACITIES = ['128GB', '256GB', '512GB', '1TB', '2TB'];
 
 export default function AdminRestockPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [phones, setPhones] = useState<PhoneProduct[]>([]);
+  const [dbBrands, setDbBrands] = useState<{ id: string; name: string }[]>([]);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isSubmittingBrand, setIsSubmittingBrand] = useState(false);
 
   // Form State
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>('sup-1');
@@ -73,10 +75,20 @@ export default function AdminRestockPage() {
   );
   const [paidAmount, setPaidAmount] = useState<number>(50000000);
 
-  const loadData = () => {
+  const loadData = async () => {
     setSuppliers(IShopStore.getSuppliers());
     const phoneList = IShopStore.getPhones();
     setPhones(phoneList);
+
+    try {
+      const res = await fetch('/api/brands');
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        setDbBrands(json.data.map((b: any) => ({ id: b.id, name: b.name })));
+      }
+    } catch (e) {
+      console.warn('Error loading brands from database:', e);
+    }
   };
 
   useEffect(() => {
@@ -86,14 +98,18 @@ export default function AdminRestockPage() {
     return () => window.removeEventListener('ishop_data_changed', listener);
   }, []);
 
-  // Distinct Brands available
+  // Distinct Brands available (merged from standards, DB brands, and phone products)
   const brandList = useMemo(() => {
     const set = new Set<string>();
+    ['Apple', 'Samsung', 'Xiaomi', 'OPPO'].forEach((b) => set.add(b));
+    dbBrands.forEach((b) => {
+      if (b.name) set.add(b.name);
+    });
     phones.forEach((p) => {
       if (p.brand) set.add(p.brand);
     });
     return Array.from(set);
-  }, [phones]);
+  }, [phones, dbBrands]);
 
   // Phones filtered strictly by selected brand
   const filteredPhonesByBrand = useMemo(() => {
@@ -102,12 +118,12 @@ export default function AdminRestockPage() {
   }, [phones, selectedBrand]);
 
   const currentPhone = useMemo(() => {
-    const matched = phones.find((p) => p.id === selectedPhoneId);
-    if (matched && (selectedBrand === 'all' || matched.brand === selectedBrand)) {
-      return matched;
+    if (filteredPhonesByBrand.length > 0) {
+      const matched = filteredPhonesByBrand.find((p) => p.id === selectedPhoneId);
+      return matched || filteredPhonesByBrand[0];
     }
-    return filteredPhonesByBrand[0] || phones[0];
-  }, [phones, selectedPhoneId, selectedBrand, filteredPhonesByBrand]);
+    return phones.find((p) => p.id === selectedPhoneId) || phones[0];
+  }, [phones, selectedPhoneId, filteredPhonesByBrand]);
 
   // Handle Brand selection
   const handleBrandChange = (brand: string) => {
@@ -149,7 +165,7 @@ export default function AdminRestockPage() {
     }
   }, [selectedPhoneId, currentPhone, availableColors]);
 
-  // Handle capacity selection (Diverse full list: 64GB -> 2TB)
+  // Handle capacity selection (Standard list: 128GB -> 2TB, NO 64GB)
   const handleSelectCapacity = (capSize: string) => {
     setCapacity(capSize);
     if (currentPhone) {
@@ -161,8 +177,7 @@ export default function AdminRestockPage() {
         // Estimate reasonable price if phone doesn't have this capacity yet
         const basePrice = currentPhone.capacities?.[0]?.price || 30000000;
         let mult = 1;
-        if (capSize === '64GB') mult = 0.8;
-        else if (capSize === '128GB') mult = 0.9;
+        if (capSize === '128GB') mult = 0.9;
         else if (capSize === '256GB') mult = 1.0;
         else if (capSize === '512GB') mult = 1.18;
         else if (capSize === '1TB') mult = 1.35;
@@ -175,8 +190,8 @@ export default function AdminRestockPage() {
     }
   };
 
-  // Add new Brand
-  const handleSaveNewBrand = (e: React.FormEvent) => {
+  // Add new Brand & Model to database and catalog
+  const handleSaveNewBrand = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmedBrand = newBrandName.trim();
     const trimmedModel = newBrandModelName.trim() || `${trimmedBrand} Mới`;
@@ -185,20 +200,28 @@ export default function AdminRestockPage() {
       return;
     }
 
+    setIsSubmittingBrand(true);
     const newId = `p-${Date.now()}`;
+    const cleanColor = newBrandColorName.trim() || 'Đen Titan';
     const newPhoneItem: PhoneProduct = {
       id: newId,
       name: trimmedModel,
-      slug: trimmedModel.toLowerCase().replace(/\s+/g, '-'),
-      brand: trimmedBrand as any,
+      slug: `${trimmedBrand}-${trimmedModel}`
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)+/g, ''),
+      brand: trimmedBrand,
       description: `Sản phẩm chính hãng thương hiệu ${trimmedBrand}.`,
       rating: 5.0,
       reviewCount: 1,
+      isNew: true,
       warrantyInfo: 'Bảo hành 12 tháng chính hãng.',
       colors: [
         {
           id: `c-${Date.now()}`,
-          name: newBrandColorName.trim() || 'Đen',
+          name: cleanColor,
           hex: newBrandColorHex || '#222222',
           imageUrl: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=800&auto=format&fit=crop&q=80',
         },
@@ -211,40 +234,62 @@ export default function AdminRestockPage() {
         },
       ],
       specs: {
-        screen: '6.7 inch AMOLED',
-        chip: 'Chip hiệu năng cao',
-        ram: '8 GB',
+        screen: '6.7 inch Super AMOLED 120Hz',
+        chip: 'Chip hiệu năng cao thế hệ mới',
+        ram: '8 GB / 12 GB',
         storage: newBrandCapacity,
-        rearCamera: '50 MP',
-        frontCamera: '32 MP',
+        rearCamera: '50 MP OIS + Góc Siêu Rộng',
+        frontCamera: '32 MP HDR Chân Dung',
         battery: '5000 mAh',
-        charging: 'Sạc nhanh 67W',
+        charging: 'Sạc nhanh siêu tốc 67W',
         os: 'Android / iOS',
-        sim: '2 SIM',
-        waterResistant: 'IP68',
-        weight: '200g',
+        sim: '2 SIM (Nano SIM + eSIM)',
+        waterResistant: 'IP68 Kháng Nước & Bụi',
+        weight: '198g',
       },
     };
 
-    const currentPhones = IShopStore.getPhones();
-    IShopStore.updatePhone(newId, newPhoneItem);
-    // Add to storage list
-    const updated = [newPhoneItem, ...currentPhones];
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('ishop_phones', JSON.stringify(updated));
-      window.dispatchEvent(new Event('ishop_data_changed'));
+    // 1. Lưu Brand vào MySQL qua /api/brands
+    try {
+      await fetch('/api/brands', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: trimmedBrand }),
+      });
+    } catch (err) {
+      console.warn('POST /api/brands error:', err);
     }
 
+    // 2. Lưu Dòng máy mới vào MySQL qua /api/phones
+    try {
+      await fetch('/api/phones', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newPhoneItem),
+      });
+    } catch (err) {
+      console.warn('POST /api/phones error:', err);
+    }
+
+    // 3. Lưu vào IShopStore đồng bộ tức thì cho client
+    IShopStore.addPhone(newPhoneItem);
+
+    // 4. Chọn ngay hãng và dòng máy mới trên giao diện
     setSelectedBrand(trimmedBrand);
     setSelectedPhoneId(newId);
     setCapacity(newBrandCapacity);
-    setColor(newBrandColorName.trim() || 'Đen');
+    setColor(cleanColor);
     setSellingPrice(newBrandPrice);
     setCostPrice(Math.round((newBrandPrice * 0.92) / 10000) * 10000);
+
+    setSuccessMessage(
+      `✓ Đã thêm thành công thương hiệu "${trimmedBrand}" và dòng máy "${trimmedModel}" (${newBrandCapacity}) vào hệ thống!`
+    );
 
     setIsAddBrandModalOpen(false);
     setNewBrandName('');
     setNewBrandModelName('');
+    setIsSubmittingBrand(false);
     loadData();
   };
 
@@ -551,8 +596,8 @@ export default function AdminRestockPage() {
             {/* 2. CHỌN DÒNG MÁY (PHÂN LOẠI RÕ RÀNG THEO HÃNG ĐÃ CHỌN)   */}
             {/* ======================================================== */}
             <div className="space-y-1.5 text-xs">
-              <label className="text-slate-700 font-bold block flex items-center justify-between">
-                <span>
+              <div className="flex items-center justify-between">
+                <label className="text-slate-700 font-bold block">
                   2. Chọn Dòng Máy{' '}
                   {selectedBrand !== 'all' ? (
                     <span className="text-blue-700 uppercase font-black">
@@ -562,28 +607,61 @@ export default function AdminRestockPage() {
                     ''
                   )}{' '}
                   *:
-                </span>
-                <span className="text-[11px] text-slate-500 font-medium">
-                  {filteredPhonesByBrand.length} model khả dụng
-                </span>
-              </label>
+                </label>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-slate-500 font-medium">
+                    {filteredPhonesByBrand.length} model khả dụng
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (selectedBrand !== 'all') {
+                        setNewBrandName(selectedBrand);
+                      }
+                      setIsAddBrandModalOpen(true);
+                    }}
+                    className="text-[11px] text-blue-700 hover:text-blue-800 font-bold hover:underline inline-flex items-center gap-0.5 cursor-pointer"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>Thêm Dòng Máy</span>
+                  </button>
+                </div>
+              </div>
 
-              <select
-                value={selectedPhoneId}
-                onChange={(e) => setSelectedPhoneId(e.target.value)}
-                className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-bold text-sm focus:outline-none focus:border-blue-500 transition-all cursor-pointer"
-              >
-                {filteredPhonesByBrand.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {selectedBrand === 'all' ? `[${p.brand}] ` : ''}
-                    {p.name}
-                  </option>
-                ))}
-              </select>
+              {filteredPhonesByBrand.length === 0 ? (
+                <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center justify-between gap-3">
+                  <span>
+                    Chưa có dòng máy nào cho hãng <strong>{selectedBrand}</strong>.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewBrandName(selectedBrand);
+                      setIsAddBrandModalOpen(true);
+                    }}
+                    className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold shrink-0 shadow-xs cursor-pointer"
+                  >
+                    + Thêm Dòng Máy Ngay
+                  </button>
+                </div>
+              ) : (
+                <select
+                  value={selectedPhoneId}
+                  onChange={(e) => setSelectedPhoneId(e.target.value)}
+                  className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-bold text-sm focus:outline-none focus:border-blue-500 transition-all cursor-pointer"
+                >
+                  {filteredPhonesByBrand.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {selectedBrand === 'all' ? `[${p.brand}] ` : ''}
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
             {/* ======================================================== */}
-            {/* 3. CHỌN DUNG LƯỢNG (ĐA DẠNG: 64GB, 128GB, 256GB, 512GB, 1TB, 2TB) */}
+            {/* 3. CHỌN DUNG LƯỢNG (128GB, 256GB, 512GB, 1TB, 2TB)       */}
             {/* ======================================================== */}
             <div className="space-y-2 text-xs">
               <div className="flex items-center justify-between">
@@ -596,7 +674,7 @@ export default function AdminRestockPage() {
                 </span>
               </div>
 
-              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
                 {ALL_STANDARD_CAPACITIES.map((capSize) => {
                   const isCapSelected = capacity === capSize;
                   return (
@@ -604,7 +682,7 @@ export default function AdminRestockPage() {
                       key={capSize}
                       type="button"
                       onClick={() => handleSelectCapacity(capSize)}
-                      className={`py-2.5 px-2 rounded-xl border text-center transition-all ${
+                      className={`py-2.5 px-2 rounded-xl border text-center transition-all cursor-pointer ${
                         isCapSelected
                           ? 'bg-blue-600 text-white border-blue-600 shadow-sm font-black'
                           : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-800 font-bold'
@@ -745,15 +823,15 @@ export default function AdminRestockPage() {
       {/* ======================================================== */}
       {isAddBrandModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl space-y-4">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-7 max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200">
               <div>
                 <h3 className="font-black text-slate-900 text-base flex items-center gap-2">
                   <Smartphone className="w-5 h-5 text-blue-600" />
-                  <span>Thêm Thương Hiệu (Hãng Máy) Mới</span>
+                  <span>Thêm Thương Hiệu &amp; Dòng Máy Mới</span>
                 </h3>
                 <p className="text-[11px] text-slate-500 mt-0.5">
-                  Khai báo hãng máy và model đầu tiên vào danh mục
+                  Đồng bộ tức thì vào CSDL MySQL (PhoneBrand &amp; PhoneProduct) và danh mục kho
                 </p>
               </div>
               <button
@@ -765,7 +843,7 @@ export default function AdminRestockPage() {
               </button>
             </div>
 
-            <form onSubmit={handleSaveNewBrand} className="space-y-3.5 text-xs">
+            <form onSubmit={handleSaveNewBrand} className="space-y-4 text-xs">
               <div>
                 <label className="text-slate-700 font-bold mb-1 block">
                   Tên Hãng Máy (Thương hiệu) *:
@@ -778,18 +856,39 @@ export default function AdminRestockPage() {
                   placeholder="Ví dụ: Google Pixel, Sony, Vivo, Asus..."
                   className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:border-blue-500"
                 />
+                {/* Gợi ý nhanh các hãng phổ biến */}
+                <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                  <span className="text-[10px] text-slate-400 font-semibold">Gợi ý nhanh:</span>
+                  {['Google Pixel', 'Sony', 'Vivo', 'Realme', 'OnePlus', 'Asus ROG', 'Nokia', 'Honor'].map(
+                    (suggestedBrand) => (
+                      <button
+                        key={suggestedBrand}
+                        type="button"
+                        onClick={() => {
+                          setNewBrandName(suggestedBrand);
+                          if (!newBrandModelName) {
+                            setNewBrandModelName(`${suggestedBrand} Flagship`);
+                          }
+                        }}
+                        className="px-2 py-0.5 rounded-lg bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-600 text-[11px] font-semibold border border-slate-200 transition-colors cursor-pointer"
+                      >
+                        {suggestedBrand}
+                      </button>
+                    )
+                  )}
+                </div>
               </div>
 
               <div>
                 <label className="text-slate-700 font-bold mb-1 block">
-                  Tên Dòng Máy đầu tiên của hãng *:
+                  Tên Dòng Máy (Model) ban đầu *:
                 </label>
                 <input
                   type="text"
                   required
                   value={newBrandModelName}
                   onChange={(e) => setNewBrandModelName(e.target.value)}
-                  placeholder="Ví dụ: Pixel 9 Pro XL, Xperia 1 VI..."
+                  placeholder="Ví dụ: Pixel 9 Pro XL, Xperia 1 VI, ROG Phone 8..."
                   className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
                 />
               </div>
@@ -802,7 +901,7 @@ export default function AdminRestockPage() {
                   <select
                     value={newBrandCapacity}
                     onChange={(e) => setNewBrandCapacity(e.target.value)}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:border-blue-500"
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:border-blue-500 cursor-pointer"
                   >
                     {ALL_STANDARD_CAPACITIES.map((cap) => (
                       <option key={cap} value={cap}>
@@ -816,13 +915,21 @@ export default function AdminRestockPage() {
                   <label className="text-slate-700 font-bold mb-1 block">
                     Màu sắc ban đầu:
                   </label>
-                  <input
-                    type="text"
-                    value={newBrandColorName}
-                    onChange={(e) => setNewBrandColorName(e.target.value)}
-                    placeholder="Ví dụ: Đen Obsidian"
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
-                  />
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={newBrandColorHex}
+                      onChange={(e) => setNewBrandColorHex(e.target.value)}
+                      className="w-9 h-9 rounded-xl cursor-pointer border border-slate-300 p-0.5 bg-white shrink-0"
+                    />
+                    <input
+                      type="text"
+                      value={newBrandColorName}
+                      onChange={(e) => setNewBrandColorName(e.target.value)}
+                      placeholder="VD: Đen Titan, Xanh Bạc..."
+                      className="flex-1 p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -839,19 +946,28 @@ export default function AdminRestockPage() {
                   onChange={(e) => setNewBrandPrice(Number(e.target.value) || 0)}
                   className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-emerald-700 font-black font-mono text-sm focus:outline-none focus:border-emerald-500"
                 />
+                <span className="text-[10px] text-slate-500 mt-1 block">
+                  Giá vốn ước tính: ~{formatVND(Math.round((newBrandPrice * 0.92) / 10000) * 10000)} (lãi gộp dự kiến ~8%)
+                </span>
               </div>
 
               <div className="pt-2 flex gap-2.5">
                 <button
                   type="submit"
-                  className="flex-1 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md transition-colors cursor-pointer"
+                  disabled={isSubmittingBrand}
+                  className="flex-1 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-xs shadow-md transition-colors cursor-pointer flex items-center justify-center gap-2"
                 >
-                  Lưu Thương Hiệu &amp; Dòng Máy
+                  {isSubmittingBrand ? (
+                    <span>Đang lưu vào hệ thống...</span>
+                  ) : (
+                    <span>Lưu Thương Hiệu &amp; Dòng Máy</span>
+                  )}
                 </button>
                 <button
                   type="button"
+                  disabled={isSubmittingBrand}
                   onClick={() => setIsAddBrandModalOpen(false)}
-                  className="px-5 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors cursor-pointer"
+                  className="px-5 py-3.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors cursor-pointer"
                 >
                   Hủy
                 </button>
