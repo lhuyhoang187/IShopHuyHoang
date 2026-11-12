@@ -495,6 +495,11 @@ export const IShopStore = {
     const updated = exists ? phones.map((p) => (p.id === phone.id ? { ...p, ...phone } : p)) : [phone, ...phones];
     setStorage('phones', updated);
   },
+  deletePhoneBrand(brandName: string): void {
+    const phones = this.getPhones();
+    const updated = phones.filter((p) => p.brand.toLowerCase() !== brandName.toLowerCase());
+    setStorage('phones', updated);
+  },
   updatePhone(phoneId: string, data: Partial<PhoneProduct>): void {
     const phones = this.getPhones();
     const updated = phones.map((p) => (p.id === phoneId ? { ...p, ...data } : p));

@@ -90,3 +90,62 @@ export async function POST(request: NextRequest) {
   }
 }
 
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    let id = searchParams.get('id');
+    let name = searchParams.get('name');
+
+    if (!id && !name) {
+      try {
+        const body = await request.json();
+        id = body.id;
+        name = body.name;
+      } catch (e) {
+        // ignore parse error if no body
+      }
+    }
+
+    if (!id && !name) {
+      return NextResponse.json(
+        { error: 'Vui lòng cung cấp ID hoặc Tên thương hiệu cần xóa' },
+        { status: 400 }
+      );
+    }
+
+    const cleanName = name ? sanitizeString(name, 50) : undefined;
+
+    const target = await prisma.phoneBrand.findFirst({
+      where: {
+        OR: [
+          id ? { id } : {},
+          cleanName ? { name: cleanName } : {},
+        ],
+      },
+    });
+
+    if (!target) {
+      return NextResponse.json(
+        { error: 'Không tìm thấy thương hiệu cần xóa' },
+        { status: 404 }
+      );
+    }
+
+    await prisma.phoneBrand.delete({
+      where: { id: target.id },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: `Đã xóa thương hiệu "${target.name}" thành công`,
+      data: target,
+    });
+  } catch (error: any) {
+    console.error('Phone brands DELETE error:', error);
+    return NextResponse.json(
+      { error: 'Lỗi xóa thương hiệu: ' + (error?.message || '') },
+      { status: 500 }
+    );
+  }
+}
+
