@@ -126,26 +126,22 @@ export default function RepairPriceListPage() {
     const listener = () => loadData();
     window.addEventListener('ishop_data_changed', listener);
 
-    // Also sync from backend API
+    // Sync from backend API once on mount (only update local state, don't trigger store write loops)
     fetch('/api/repairs/config')
       .then((res) => res.json())
       .then((json) => {
         if (json.success && json.data) {
           if (Array.isArray(json.data.devices) && json.data.devices.length > 0) {
             setDeviceList(json.data.devices);
-            IShopStore.setRepairDeviceOptions(json.data.devices);
           }
           if (Array.isArray(json.data.services) && json.data.services.length > 0) {
             setServiceCatalog(json.data.services);
-            IShopStore.setRepairServiceCatalog(json.data.services);
           }
           if (Array.isArray(json.data.symptoms) && json.data.symptoms.length > 0) {
             setSymptomList(json.data.symptoms);
-            IShopStore.setRepairSymptomOptions(json.data.symptoms);
           }
           if (Array.isArray(json.data.timeSlots) && json.data.timeSlots.length > 0) {
             setTimeSlots(json.data.timeSlots);
-            IShopStore.setRepairTimeSlotOptions(json.data.timeSlots);
           }
         }
       })

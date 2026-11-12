@@ -137,15 +137,20 @@ export default function AdminRepairsPage() {
   // Print Receipt Modal
   const [printTicket, setPrintTicket] = useState<RepairTicket | null>(null);
 
-  const loadData = () => {
+  const refreshLocalState = () => {
     setRepairs(IShopStore.getRepairs());
     setSpareParts(IShopStore.getSpareParts());
     setDeviceList(IShopStore.getRepairDeviceOptions());
     setServiceCatalog(IShopStore.getRepairServiceCatalog());
     setSymptomList(IShopStore.getRepairSymptomOptions());
     setTimeSlots(IShopStore.getRepairTimeSlotOptions());
+  };
 
-    // Sync live from MySQL Database
+  useEffect(() => {
+    // 1. Initial read from local store synchronously
+    refreshLocalState();
+
+    // 2. Fetch live data from API once on mount
     fetch('/api/repairs')
       .then((res) => res.json())
       .then((json) => {
@@ -155,35 +160,30 @@ export default function AdminRepairsPage() {
       })
       .catch((err) => console.warn('Repairs API notice:', err));
 
-    // Sync config from API if available
     fetch('/api/repairs/config')
       .then((res) => res.json())
       .then((json) => {
         if (json.success && json.data) {
           if (Array.isArray(json.data.devices) && json.data.devices.length > 0) {
             setDeviceList(json.data.devices);
-            IShopStore.setRepairDeviceOptions(json.data.devices);
           }
           if (Array.isArray(json.data.services) && json.data.services.length > 0) {
             setServiceCatalog(json.data.services);
-            IShopStore.setRepairServiceCatalog(json.data.services);
           }
           if (Array.isArray(json.data.symptoms) && json.data.symptoms.length > 0) {
             setSymptomList(json.data.symptoms);
-            IShopStore.setRepairSymptomOptions(json.data.symptoms);
           }
           if (Array.isArray(json.data.timeSlots) && json.data.timeSlots.length > 0) {
             setTimeSlots(json.data.timeSlots);
-            IShopStore.setRepairTimeSlotOptions(json.data.timeSlots);
           }
         }
       })
       .catch((err) => console.warn('Config fetch notice:', err));
-  };
 
-  useEffect(() => {
-    loadData();
-    const listener = () => loadData();
+    // 3. Store listener ONLY reads local state (no write back to IShopStore, no fetch loop)
+    const listener = () => {
+      refreshLocalState();
+    };
     window.addEventListener('ishop_data_changed', listener);
     return () => window.removeEventListener('ishop_data_changed', listener);
   }, []);
@@ -437,7 +437,7 @@ export default function AdminRepairsPage() {
 
     setIsCreateModalOpen(false);
     setPrintTicket(created);
-    loadData();
+    refreshLocalState();
     showToast(`Đã tiếp nhận máy ${created.ticketCode} thành công!`);
   };
 
@@ -743,10 +743,10 @@ export default function AdminRepairsPage() {
 
         <div className="flex items-center gap-2.5 flex-wrap">
           {/* View Mode Toggle */}
-          <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-2xs">
+          <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-xs">
             <button
               onClick={() => setViewMode('kanban')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
                 viewMode === 'kanban'
                   ? 'bg-amber-500 text-slate-950 font-black shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
@@ -757,7 +757,7 @@ export default function AdminRepairsPage() {
             </button>
             <button
               onClick={() => setViewMode('table')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
                 viewMode === 'table'
                   ? 'bg-amber-500 text-slate-950 font-black shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
@@ -796,7 +796,7 @@ export default function AdminRepairsPage() {
               }));
               setIsCreateModalOpen(true);
             }}
-            className="px-4 py-2 rounded-xl text-xs font-black bg-amber-500 hover:bg-amber-600 text-slate-950 flex items-center gap-1.5 transition-transform hover:scale-105 shadow-md shadow-amber-500/20 cursor-pointer"
+            className="px-4 py-2 rounded-xl text-xs font-black bg-amber-500 hover:bg-amber-600 text-slate-950 flex items-center gap-1.5 transition-colors shadow-md shadow-amber-500/20 cursor-pointer active:scale-95"
           >
             <Plus className="w-4 h-4 text-slate-950" />
             <span>Tiếp Nhận Máy Mới (30s)</span>
@@ -908,7 +908,7 @@ export default function AdminRepairsPage() {
 
       {/* VIEW MODE 1: BÀN KỸ THUẬT (KANBAN BOARD 6 BƯỚC) */}
       {viewMode === 'kanban' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 items-start">
+        <div className="flex gap-4 overflow-x-auto pb-4 items-start select-none">
           {kanbanColumns.map((col) => {
             const ColumnIcon = col.icon;
             const columnTickets = filteredRepairs.filter((r) => r.status === col.status);
@@ -916,7 +916,7 @@ export default function AdminRepairsPage() {
             return (
               <div
                 key={col.status}
-                className={`bg-slate-50/70 border border-slate-200 rounded-2xl p-3 space-y-3 border-t-4 ${col.borderTop} min-h-[450px] shadow-2xs`}
+                className={`w-[290px] min-w-[290px] shrink-0 bg-slate-50/80 border border-slate-200/90 rounded-2xl p-3.5 space-y-3 border-t-4 ${col.borderTop} min-h-[480px] shadow-xs`}
               >
                 {/* Column Header */}
                 <div className="flex items-center justify-between pb-2 border-b border-slate-200">
@@ -934,7 +934,7 @@ export default function AdminRepairsPage() {
                   {columnTickets.map((ticket) => (
                     <div
                       key={ticket.id}
-                      className="bg-white rounded-xl p-3 border border-slate-200 hover:border-amber-400 hover:shadow-md transition-all space-y-2.5 group"
+                      className="bg-white rounded-xl p-3.5 border border-slate-200 hover:border-amber-400 hover:shadow-md transition-[border-color,box-shadow] duration-150 space-y-2.5"
                     >
                       {/* Top: Ticket Code & Received Time */}
                       <div className="flex items-center justify-between">
@@ -996,14 +996,14 @@ export default function AdminRepairsPage() {
                       <div className="flex items-center gap-1.5 pt-1">
                         <button
                           onClick={() => handleOpenTicket(ticket)}
-                          className="flex-1 py-1.5 px-2 rounded-lg bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white border border-blue-200 text-[11px] font-bold transition-all text-center cursor-pointer shadow-2xs"
+                          className="flex-1 py-1.5 px-2 rounded-lg bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white border border-blue-200 text-[11px] font-bold transition-colors text-center cursor-pointer shadow-xs active:scale-95"
                         >
                           Xử lý
                         </button>
                         {col.status !== 'delivered' && (
                           <button
                             onClick={() => handleQuickAdvanceStep(ticket)}
-                            className="p-1.5 rounded-lg bg-amber-50 hover:bg-amber-500 text-amber-800 hover:text-slate-950 border border-amber-200 transition-colors cursor-pointer"
+                            className="p-1.5 rounded-lg bg-amber-50 hover:bg-amber-500 text-amber-800 hover:text-slate-950 border border-amber-200 transition-colors cursor-pointer active:scale-95"
                             title="Chuyển nhanh sang bước kỹ thuật kế tiếp"
                           >
                             <ArrowRight className="w-3.5 h-3.5" />
@@ -1011,7 +1011,7 @@ export default function AdminRepairsPage() {
                         )}
                         <button
                           onClick={() => setPrintTicket(ticket)}
-                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 transition-colors cursor-pointer"
+                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 transition-colors cursor-pointer active:scale-95"
                           title="In phiếu K80"
                         >
                           <Printer className="w-3.5 h-3.5" />
@@ -1110,7 +1110,7 @@ export default function AdminRepairsPage() {
                       <div className="flex items-center justify-center gap-2">
                         <button
                           onClick={() => handleOpenTicket(ticket)}
-                          className="px-3.5 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white border border-blue-200 text-xs font-bold transition-all cursor-pointer shadow-2xs"
+                          className="px-3.5 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white border border-blue-200 text-xs font-bold transition-colors cursor-pointer shadow-xs active:scale-95"
                         >
                           Xử lý
                         </button>
@@ -1306,7 +1306,7 @@ export default function AdminRepairsPage() {
               <div className="pt-2 flex gap-3">
                 <button
                   type="submit"
-                  className="flex-1 py-3.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs flex items-center justify-center gap-2 shadow-md transition-transform hover:scale-[1.01] cursor-pointer"
+                  className="flex-1 py-3.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs flex items-center justify-center gap-2 shadow-md transition-colors cursor-pointer active:scale-95"
                 >
                   <Printer className="w-4 h-4 text-slate-950" />
                   <span>XÁC NHẬN TIẾP NHẬN &amp; IN BIÊN NHẬN QR CODE</span>
@@ -1467,9 +1467,9 @@ export default function AdminRepairsPage() {
                   <button
                     key={st}
                     onClick={() => handleUpdateStep(st)}
-                    className={`p-3 rounded-2xl border text-center font-bold transition-all cursor-pointer flex flex-col items-center gap-1 ${
+                    className={`p-3 rounded-2xl border text-center font-bold transition-colors cursor-pointer flex flex-col items-center gap-1 active:scale-95 ${
                       selectedTicket.status === st
-                        ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md font-black scale-102 ring-2 ring-amber-400/30'
+                        ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md font-black ring-2 ring-amber-400/40'
                         : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
                     }`}
                   >
@@ -1665,7 +1665,7 @@ export default function AdminRepairsPage() {
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-amber-200/60">
                 <button
                   onClick={() => setPrintTicket(selectedTicket)}
-                  className="px-4 py-2.5 rounded-xl bg-white hover:bg-slate-100 text-slate-800 font-bold flex items-center gap-1.5 text-xs transition-colors cursor-pointer border border-slate-300 shadow-2xs"
+                  className="px-4 py-2.5 rounded-xl bg-white hover:bg-slate-100 text-slate-800 font-bold flex items-center gap-1.5 text-xs transition-colors cursor-pointer border border-slate-300 shadow-xs active:scale-95"
                 >
                   <Printer className="w-4 h-4 text-slate-700" />
                   <span>In Phiếu K80 (QR)</span>
@@ -1673,7 +1673,7 @@ export default function AdminRepairsPage() {
                 {selectedTicket.status !== 'delivered' && (
                   <button
                     onClick={() => handleUpdateStep('delivered')}
-                    className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm"
+                    className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm active:scale-95"
                   >
                     <CheckCircle2 className="w-4 h-4" />
                     <span>Bàn Giao Máy Cho Khách</span>
@@ -1681,7 +1681,7 @@ export default function AdminRepairsPage() {
                 )}
                 <button
                   onClick={() => setSelectedTicket(null)}
-                  className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs shadow-md transition-transform hover:scale-105 cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs shadow-md transition-colors cursor-pointer active:scale-95"
                 >
                   Đóng Bàn Sửa Chữa
                 </button>
@@ -1882,7 +1882,7 @@ export default function AdminRepairsPage() {
                   <div className="flex justify-end">
                     <button
                       type="submit"
-                      className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-sm transition-transform hover:scale-105 cursor-pointer"
+                      className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer active:scale-95"
                     >
                       <Plus className="w-4 h-4" />
                       <span>Lưu Dòng Máy Mới</span>
@@ -2075,7 +2075,7 @@ export default function AdminRepairsPage() {
                     )}
                     <button
                       type="submit"
-                      className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-sm transition-transform hover:scale-105 cursor-pointer"
+                      className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer active:scale-95"
                     >
                       {editingService ? (
                         <>
@@ -2093,7 +2093,7 @@ export default function AdminRepairsPage() {
                 </form>
 
                 {/* Service List Table with Edit and Delete options */}
-                <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-2xs">
+                <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
                   <table className="w-full text-left text-xs">
                     <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200 text-[11px] uppercase">
                       <tr>
@@ -2233,7 +2233,7 @@ export default function AdminRepairsPage() {
                   <div className="flex justify-end pt-1">
                     <button
                       type="submit"
-                      className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-sm transition-transform hover:scale-105 cursor-pointer"
+                      className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer active:scale-95"
                     >
                       <Plus className="w-4 h-4" />
                       <span>Lưu Triệu Chứng Mới</span>
@@ -2338,7 +2338,7 @@ export default function AdminRepairsPage() {
                   <div className="flex justify-end pt-1">
                     <button
                       type="submit"
-                      className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-sm transition-transform hover:scale-105 cursor-pointer"
+                      className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer active:scale-95"
                     >
                       <Plus className="w-4 h-4" />
                       <span>Lưu Khung Giờ Mới</span>
