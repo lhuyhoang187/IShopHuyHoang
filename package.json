@@ -26,6 +26,7 @@
     "react-dom": "19.2.8"
   },
   "devDependencies": {
+    "@mermaid-js/mermaid-cli": "^11.17.1",
     "@tailwindcss/postcss": "^4",
     "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^20",
@@ -33,6 +34,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.3",
+    "prisma-erd-generator": "^3.2.1",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

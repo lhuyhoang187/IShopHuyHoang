@@ -1,0 +1,258 @@
+erDiagram
+    %% ==========================================
+    %% 1. QUAN HỆ DANH MỤC & SẢN PHẨM (3NF)
+    %% ==========================================
+    PhoneBrand ||--o{ PhoneProduct : "manufactures"
+    PhoneProduct ||--o{ PhoneVariant : "has_variants"
+    PhoneProduct ||--o{ PhoneStock : "tracks_inventory"
+    
+    AccessoryCategory ||--o{ AccessoryProduct : "categorizes"
+    SparePartCategory ||--o{ SparePart : "categorizes"
+
+    %% ==========================================
+    %% 2. QUAN HỆ NHẬP HÀNG & KHO NCC
+    %% ==========================================
+    Supplier ||--o{ PhoneStock : "supplies"
+    Supplier ||--o{ SupplierOrder : "bills"
+    SupplierOrder ||--o{ SupplierOrderItem : "contains"
+
+    %% ==========================================
+    %% 3. QUAN HỆ BÁN HÀNG POS & HÓA ĐƠN (3NF)
+    %% ==========================================
+    Customer ||--o{ Invoice : "purchases"
+    Invoice ||--o{ InvoiceItem : "contains_items"
+    Invoice ||--o{ PhoneStock : "sold_imei"
+
+    %% ==========================================
+    %% 4. QUAN HỆ TIẾP NHẬN SỬA CHỮA ICARE (3NF)
+    %% ==========================================
+    Customer ||--o{ RepairTicket : "requests_repair"
+    User ||--o{ RepairTicket : "assigned_technician"
+    RepairTicket ||--o{ RepairTicketPart : "uses_spare_parts"
+    SparePart ||--o{ RepairTicketPart : "supplied_from"
+    RepairTicket ||--o{ RepairStatusHistory : "logs_progress"
+
+    %% ==========================================
+    %% ĐỊNH NGHĨA CHI TIẾT CÁC BẢNG (ENTITIES)
+    %% ==========================================
+
+    User {
+        string id PK
+        string username UK
+        string password
+        string name
+        string role
+        string phone
+        boolean isActive
+    }
+
+    Customer {
+        string id PK
+        string phone UK
+        string name
+        string email
+        string address
+        float totalSpent
+        int points
+        string membershipTier
+        string customerType
+    }
+
+    Supplier {
+        string id PK
+        string name
+        string phone
+        string email
+        string contactPerson
+        float totalPurchased
+        float currentDebt
+    }
+
+    PhoneBrand {
+        string id PK
+        string name UK
+        string slug UK
+        string country
+        int displayOrder
+    }
+
+    PhoneProduct {
+        string id PK
+        string name
+        string slug UK
+        string brand FK
+        string description
+        float rating
+        boolean isHot
+        boolean isNew
+    }
+
+    PhoneVariant {
+        string id PK
+        string phoneId FK
+        string colorName
+        string colorHex
+        string capacity
+        float price
+        float originalPrice
+        boolean isOutOfStock
+    }
+
+    PhoneStock {
+        string imei PK
+        string phoneId FK
+        string supplierId FK
+        string color
+        string capacity
+        float costPrice
+        float sellingPrice
+        string status
+        string soldInvoiceId FK
+        string importDate
+    }
+
+    AccessoryCategory {
+        string id PK
+        string code UK
+        string name
+    }
+
+    AccessoryProduct {
+        string id PK
+        string name
+        string slug UK
+        string category FK
+        string barcode UK
+        float costPrice
+        float sellingPrice
+        int stock
+    }
+
+    SparePartCategory {
+        string id PK
+        string code UK
+        string name
+    }
+
+    SparePart {
+        string id PK
+        string name
+        string category FK
+        string barcode UK
+        float costPrice
+        float retailRepairPrice
+        int stock
+        int warrantyMonths
+    }
+
+    RepairService {
+        string id PK
+        string name
+        string category
+        string deviceBrand
+        string deviceModels
+        float price
+        string warrantyPeriod
+        int estimatedMinutes
+    }
+
+    RepairTicket {
+        string id PK
+        string ticketCode UK
+        string customerPhone FK
+        string technicianId FK
+        string deviceModel
+        string imeiOrSerial
+        string unlockPasscode
+        string status
+        float laborFee
+        float totalAmount
+        string deadlineTime
+        int deadlineMinutes
+        string estimatedDeliveryDate
+    }
+
+    RepairTicketPart {
+        string id PK
+        string ticketCode FK
+        string sparePartId FK
+        string partName
+        int quantity
+        float unitPrice
+        int warrantyMonths
+    }
+
+    RepairStatusHistory {
+        string id PK
+        string ticketCode FK
+        string status
+        string statusLabel
+        string note
+        string updatedBy
+        datetime createdAt
+    }
+
+    Invoice {
+        string id PK
+        string invoiceCode UK
+        string customerPhone FK
+        float subtotal
+        float discount
+        float totalAmount
+        string paymentMethod
+        string cashierName
+        string status
+        datetime createdAt
+    }
+
+    InvoiceItem {
+        string id PK
+        string invoiceCode FK
+        string itemType
+        string productId
+        string productName
+        string imei
+        string color
+        string capacity
+        float unitPrice
+        int quantity
+        float discount
+        float subtotal
+    }
+
+    CashbookEntry {
+        string id PK
+        string code UK
+        string date
+        string type
+        string category
+        float amount
+        string paymentMethod
+        string referenceCode
+        string description
+        string creator
+    }
+
+    SupplierOrder {
+        string id PK
+        string orderCode UK
+        string supplierId FK
+        string date
+        float totalAmount
+        float paidAmount
+        float debtAmount
+        string status
+    }
+
+    SupplierOrderItem {
+        string id PK
+        string orderCode FK
+        string itemType
+        string productName
+        string imei
+        string color
+        string capacity
+        float unitCost
+        float totalCost
+    }
+
