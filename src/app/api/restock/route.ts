@@ -150,6 +150,24 @@ export async function POST(request: NextRequest) {
         },
       });
 
+      // 2.1. Insert 3NF Normalized Supplier Order Items
+      for (const imei of uniqueImeis) {
+        await tx.supplierOrderItem.create({
+          data: {
+            orderCode,
+            itemType: 'phone',
+            productId: resolvedPhoneId,
+            productName: sanitizeString(phoneName || 'iPhone', 191),
+            color: sanitizeString(color || 'Titan', 100),
+            capacity: sanitizeString(capacity || '256GB', 50),
+            quantity: 1,
+            unitCost: costNum,
+            totalCost: costNum,
+            imei,
+          },
+        });
+      }
+
       // 3. Update Supplier debt & purchase totals
       await tx.supplier.update({
         where: { id: supplierId },

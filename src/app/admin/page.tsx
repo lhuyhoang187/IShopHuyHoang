@@ -84,7 +84,43 @@ export default function AdminUnifiedPage() {
     setCampaigns(IShopStore.getPromotionCampaigns());
     setEntries(IShopStore.getCashbook());
 
-    // Sync from MySQL database for cashbook
+    // Sync from MySQL database for all overview metrics
+    fetch('/api/orders')
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+          setInvoices(json.data);
+        }
+      })
+      .catch((err) => console.warn('Orders sync notice:', err));
+
+    fetch('/api/repairs')
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+          setRepairs(json.data);
+        }
+      })
+      .catch((err) => console.warn('Repairs sync notice:', err));
+
+    fetch('/api/inventory/phones')
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+          setPhoneStock(json.data);
+        }
+      })
+      .catch((err) => console.warn('Phone stock sync notice:', err));
+
+    fetch('/api/inventory/accessories')
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+          setAccessories(json.data);
+        }
+      })
+      .catch((err) => console.warn('Accessories sync notice:', err));
+
     fetch('/api/cashbook')
       .then((res) => res.json())
       .then((json) => {

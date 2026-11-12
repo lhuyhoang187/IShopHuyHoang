@@ -51,12 +51,12 @@ export default function POSPage() {
   // POS Order & Customer State (Mẫu IncomSoft: Chọn, Xóa, Thêm, Sửa)
   const [posItems, setPosItems] = useState<InvoiceItem[]>([]);
   const [customersList, setCustomersList] = useState<Customer[]>([]);
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>('cust-1');
-  const [customerName, setCustomerName] = useState('Khách Lẻ Cửa Hàng (Hoàng Gia Bảo)');
-  const [customerPhone, setCustomerPhone] = useState('0909123456');
-  const [customerAddress, setCustomerAddress] = useState('45 Lê Văn Việt, TP. Thủ Đức, TP.HCM');
-  const [customerMembership, setCustomerMembership] = useState('Thẻ Bạch Kim');
-  const [customerPoints, setCustomerPoints] = useState<number>(62365);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const [customerName, setCustomerName] = useState('Khách Mua Tại Quầy');
+  const [customerPhone, setCustomerPhone] = useState('0900000000');
+  const [customerAddress, setCustomerAddress] = useState('');
+  const [customerMembership, setCustomerMembership] = useState('Thành viên mới');
+  const [customerPoints, setCustomerPoints] = useState<number>(0);
   const [customerType, setCustomerType] = useState('Khách lẻ');
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'vietqr'>('cash');
   const [cashGiven, setCashGiven] = useState<number>(0);
@@ -86,7 +86,7 @@ export default function POSPage() {
   const [formCustEmail, setFormCustEmail] = useState('');
   const [formCustAddress, setFormCustAddress] = useState('');
   const [formCustType, setFormCustType] = useState('Khách lẻ');
-  const [formCustTier, setFormCustTier] = useState('Thẻ Bạch Kim');
+  const [formCustTier, setFormCustTier] = useState('Thành viên mới');
   const [formCustPoints, setFormCustPoints] = useState<number>(0);
   const [formCustTaxCode, setFormCustTaxCode] = useState('');
   const [formCustBirthday, setFormCustBirthday] = useState('');
@@ -115,31 +115,22 @@ export default function POSPage() {
       })
       .catch((err) => console.warn('POS stock sync notice:', err));
 
+    // Sync live accessories from MySQL
+    fetch('/api/inventory/accessories')
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && Array.isArray(json.data)) {
+          setAccessories(json.data);
+        }
+      })
+      .catch((err) => console.warn('POS accessories sync notice:', err));
+
     // Sync live customers from MySQL
     fetch('/api/customers')
       .then((res) => res.json())
       .then((json) => {
         if (json.success && Array.isArray(json.data) && json.data.length > 0) {
-          const merged = [...custs];
-          json.data.forEach((apiCust: any) => {
-            if (!merged.some((c) => c.phone === apiCust.phone)) {
-              merged.push({
-                id: apiCust.id,
-                name: apiCust.name,
-                phone: apiCust.phone,
-                email: apiCust.email || '',
-                address: apiCust.address || '',
-                totalSpent: apiCust.totalSpent || 0,
-                points: apiCust.points || 0,
-                customerType: 'Khách lẻ',
-                membershipTier: apiCust.points > 50000 ? 'Thẻ Bạch Kim' : apiCust.points > 10000 ? 'Thẻ Vàng' : 'Thành viên mới',
-                createdAt: apiCust.createdAt ? apiCust.createdAt.substring(0, 10) : '2026-08-24',
-                purchaseCount: apiCust.purchaseCount || 1,
-                repairCount: apiCust.repairCount || 0,
-              });
-            }
-          });
-          setCustomersList(merged);
+          setCustomersList(json.data);
         }
       })
       .catch((err) => console.warn('Customer sync notice:', err));

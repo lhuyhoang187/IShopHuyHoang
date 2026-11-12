@@ -19,6 +19,15 @@ export default function PhonesPage() {
   const loadData = () => {
     setPhones(IShopStore.getPhones());
     setCompareIds(IShopStore.getComparisonList());
+
+    fetch('/api/phones')
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+          setPhones(json.data);
+        }
+      })
+      .catch((err) => console.warn('Phones live fetch notice:', err));
   };
 
   useEffect(() => {

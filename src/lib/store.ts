@@ -249,6 +249,55 @@ export const initialRepairTimeSlots: RepairTimeSlotOption[] = [
 ];
 
 export const IShopStore = {
+  // Centralized Database Hydration: Automatically synchronizes all live tables from MySQL
+  async hydrateFromDatabase() {
+    if (typeof window === 'undefined') return;
+    try {
+      const [custRes, supRes, phoneRes, stockRes, accRes, partsRes, invRes, repRes, cashRes] = await Promise.all([
+        fetch('/api/customers').then((r) => r.json()).catch(() => null),
+        fetch('/api/suppliers').then((r) => r.json()).catch(() => null),
+        fetch('/api/phones').then((r) => r.json()).catch(() => null),
+        fetch('/api/inventory/phones').then((r) => r.json()).catch(() => null),
+        fetch('/api/inventory/accessories').then((r) => r.json()).catch(() => null),
+        fetch('/api/inventory/spare-parts').then((r) => r.json()).catch(() => null),
+        fetch('/api/orders').then((r) => r.json()).catch(() => null),
+        fetch('/api/repairs').then((r) => r.json()).catch(() => null),
+        fetch('/api/cashbook').then((r) => r.json()).catch(() => null),
+      ]);
+
+      if (custRes?.success && Array.isArray(custRes.data) && custRes.data.length > 0) {
+        setStorage('customers', custRes.data);
+      }
+      if (supRes?.success && Array.isArray(supRes.data) && supRes.data.length > 0) {
+        setStorage('suppliers', supRes.data);
+      }
+      if (phoneRes?.success && Array.isArray(phoneRes.data) && phoneRes.data.length > 0) {
+        setStorage('phones', phoneRes.data);
+      }
+      if (stockRes?.success && Array.isArray(stockRes.data) && stockRes.data.length > 0) {
+        setStorage('phone_stock', stockRes.data);
+      }
+      if (accRes?.success && Array.isArray(accRes.data) && accRes.data.length > 0) {
+        setStorage('accessories', accRes.data);
+      }
+      if (partsRes?.success && Array.isArray(partsRes.data) && partsRes.data.length > 0) {
+        setStorage('spare_parts', partsRes.data);
+      }
+      if (invRes?.success && Array.isArray(invRes.data) && invRes.data.length > 0) {
+        setStorage('invoices', invRes.data);
+      }
+      if (repRes?.success && Array.isArray(repRes.data) && repRes.data.length > 0) {
+        setStorage('repairs', repRes.data);
+      }
+      if (cashRes?.success && Array.isArray(cashRes.data) && cashRes.data.length > 0) {
+        setStorage('cashbook', cashRes.data);
+      }
+      window.dispatchEvent(new Event('ishop_data_changed'));
+    } catch (e) {
+      console.warn('Hydration notice:', e);
+    }
+  },
+
   // Roles & RBAC Matrix
   getPermissionMatrix(): PermissionItem[] {
     const stored = getStorage<PermissionItem[]>('permission_matrix', defaultPermissions);
@@ -1506,6 +1555,16 @@ export const IShopStore = {
       updated = [customer, ...list];
     }
     setStorage('customers', updated);
+
+    // Sync to MySQL API
+    if (typeof window !== 'undefined') {
+      fetch('/api/customers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(customer),
+      }).catch((e) => console.warn('Sync customer API notice:', e));
+    }
+
     return customer;
   },
   updateCustomer(id: string, data: Partial<Customer>): Customer | null {
@@ -1515,12 +1574,31 @@ export const IShopStore = {
     const updatedCustomer = { ...existing, ...data };
     const updated = list.map((c) => (c.id === id ? updatedCustomer : c));
     setStorage('customers', updated);
+
+    // Sync to MySQL API
+    if (typeof window !== 'undefined') {
+      fetch('/api/customers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedCustomer),
+      }).catch((e) => console.warn('Update customer API notice:', e));
+    }
+
     return updatedCustomer;
   },
   deleteCustomer(id: string) {
     const list = this.getCustomers();
+    const target = list.find((c) => c.id === id);
     const updated = list.filter((c) => c.id !== id);
     setStorage('customers', updated);
+
+    // Sync to MySQL API
+    if (typeof window !== 'undefined') {
+      const q = target?.phone ? `phone=${encodeURIComponent(target.phone)}` : `id=${encodeURIComponent(id)}`;
+      fetch(`/api/customers?${q}`, {
+        method: 'DELETE',
+      }).catch((e) => console.warn('Delete customer API notice:', e));
+    }
   },
   getCustomerByPhone(phone: string): Customer | undefined {
     if (!phone) return undefined;
@@ -1641,6 +1719,20 @@ export const IShopStore = {
       description: `Thanh toán công nợ cho nhà cung cấp: ${supplier.name}`,
       creator: 'Admin',
     });
+
+    // Sync to MySQL API
+    if (typeof window !== 'undefined') {
+      fetch('/api/suppliers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          supplierId,
+          amount,
+          paymentMethod,
+          creator: 'Admin',
+        }),
+      }).catch((e) => console.warn('Pay supplier debt API error:', e));
+    }
   },
 
   // Recent items ("Xem cuối: SP.xxxxx")
@@ -2260,3 +2352,11 @@ export const IShopStore = {
     window.dispatchEvent(new Event('ishop_data_changed'));
   },
 };
+
+// Automatic one-shot background hydration from live MySQL Database on page load
+if (typeof window !== 'undefined') {
+  setTimeout(() => {
+    IShopStore.hydrateFromDatabase();
+  }, 150);
+}
+

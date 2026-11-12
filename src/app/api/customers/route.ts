@@ -140,3 +140,45 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id')?.trim();
+    const phone = searchParams.get('phone')?.trim();
+
+    if (!id && !phone) {
+      return NextResponse.json(
+        { error: 'Vui lòng cung cấp ID hoặc số điện thoại khách hàng cần xóa' },
+        { status: 400 }
+      );
+    }
+
+    const where: any = {};
+    if (id) where.id = id;
+    if (phone) where.phone = phone;
+
+    const existing = await prisma.customer.findFirst({ where });
+    if (!existing) {
+      return NextResponse.json(
+        { error: 'Không tìm thấy khách hàng để xóa' },
+        { status: 404 }
+      );
+    }
+
+    await prisma.customer.delete({
+      where: { id: existing.id },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: `Đã xóa khách hàng ${existing.name} (${existing.phone}) thành công`,
+    });
+  } catch (error: any) {
+    console.error('Customers API DELETE error:', error);
+    return NextResponse.json(
+      { error: 'Lỗi xóa khách hàng: ' + (error?.message || '') },
+      { status: 500 }
+    );
+  }
+}

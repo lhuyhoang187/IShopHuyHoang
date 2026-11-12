@@ -15,6 +15,15 @@ export default function AccessoriesPage() {
 
   const loadData = () => {
     setAccessories(IShopStore.getAccessories());
+
+    fetch('/api/inventory/accessories')
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+          setAccessories(json.data);
+        }
+      })
+      .catch((err) => console.warn('Accessories live fetch notice:', err));
   };
 
   useEffect(() => {

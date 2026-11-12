@@ -8,6 +8,7 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' },
       include: {
         phoneStocks: true,
+        variants: true,
       },
     });
 
@@ -34,6 +35,9 @@ export async function GET(request: NextRequest) {
         specs = {};
       }
 
+      // If variants exist in 3NF table, ensure capacities/colors can be computed
+      const variants = p.variants || [];
+
       // Calculate in_stock units from physical stock
       const inStockUnits = (p.phoneStocks || []).filter((s) => s.status === 'in_stock');
       const inStockCount = inStockUnits.length;
@@ -50,6 +54,7 @@ export async function GET(request: NextRequest) {
         isNew: p.isNew,
         colors,
         capacities,
+        variants,
         specs,
         warrantyInfo: p.warrantyInfo,
         inStockCount,
@@ -182,6 +187,52 @@ export async function POST(request: NextRequest) {
           warrantyInfo: warrantyInfo || 'Bảo hành 12 tháng chính hãng.',
         },
       });
+    }
+
+    // Upsert 3NF PhoneVariants
+    try {
+      const parsedColors = typeof colors === 'string' ? JSON.parse(colors) : colors || [{ name: 'Mặc định', hex: '#333333' }];
+      const parsedCaps = typeof capacities === 'string' ? JSON.parse(capacities) : capacities || [{ size: '128GB', price: 20000000 }];
+
+      for (const cap of parsedCaps) {
+        for (const col of parsedColors) {
+          const colorName = col.name || 'Mặc định';
+          const capacitySize = cap.size || '128GB';
+          const existingVariant = await prisma.phoneVariant.findFirst({
+            where: {
+              phoneId: product.id,
+              colorName,
+              capacity: capacitySize,
+            },
+          });
+          if (existingVariant) {
+            await prisma.phoneVariant.update({
+              where: { id: existingVariant.id },
+              data: {
+                price: Number(cap.price) || 20000000,
+                originalPrice: cap.originalPrice ? Number(cap.originalPrice) : null,
+                colorHex: col.hex || '#333333',
+                imageUrl: col.imageUrl || null,
+              },
+            });
+          } else {
+            await prisma.phoneVariant.create({
+              data: {
+                phoneId: product.id,
+                colorName,
+                colorHex: col.hex || '#333333',
+                imageUrl: col.imageUrl || null,
+                capacity: capacitySize,
+                price: Number(cap.price) || 20000000,
+                originalPrice: cap.originalPrice ? Number(cap.originalPrice) : null,
+                isOutOfStock: false,
+              },
+            });
+          }
+        }
+      }
+    } catch (variantErr) {
+      console.warn('PhoneVariant sync error:', variantErr);
     }
 
     return NextResponse.json({

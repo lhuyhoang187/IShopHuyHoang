@@ -29,6 +29,10 @@ export async function GET(request: NextRequest) {
             { imeiOrSerial: cleanCode },
           ],
         },
+        include: {
+          parts: true,
+          statusLogs: { orderBy: { createdAt: 'asc' } },
+        },
       });
 
       if (repair) {
@@ -37,8 +41,23 @@ export async function GET(request: NextRequest) {
           source: 'mysql_database',
           data: {
             ...repair,
-            statusHistory: repair.statusHistory ? JSON.parse(repair.statusHistory) : [],
-            partsUsed: repair.partsUsed ? JSON.parse(repair.partsUsed) : [],
+            statusHistory: repair.statusHistory
+              ? JSON.parse(repair.statusHistory)
+              : repair.statusLogs.map((l) => ({
+                  step: l.status,
+                  label: l.statusLabel,
+                  time: l.createdAt.toISOString().replace('T', ' ').substring(0, 19),
+                  note: l.note,
+                  actor: l.updatedBy,
+                })),
+            partsUsed: repair.partsUsed
+              ? JSON.parse(repair.partsUsed)
+              : repair.parts.map((p) => ({
+                  partId: p.sparePartId,
+                  partName: p.partName,
+                  quantity: p.quantity,
+                  unitPrice: p.unitPrice,
+                })),
           },
         });
       }
@@ -56,13 +75,32 @@ export async function GET(request: NextRequest) {
 
     // List all
     const repairs = await prisma.repairTicket.findMany({
+      include: {
+        parts: true,
+        statusLogs: { orderBy: { createdAt: 'asc' } },
+      },
       orderBy: { createdAt: 'desc' },
     });
 
     const parsed = repairs.map((r) => ({
       ...r,
-      statusHistory: r.statusHistory ? JSON.parse(r.statusHistory) : [],
-      partsUsed: r.partsUsed ? JSON.parse(r.partsUsed) : [],
+      statusHistory: r.statusHistory
+        ? JSON.parse(r.statusHistory)
+        : r.statusLogs.map((l) => ({
+            step: l.status,
+            label: l.statusLabel,
+            time: l.createdAt.toISOString().replace('T', ' ').substring(0, 19),
+            note: l.note,
+            actor: l.updatedBy,
+          })),
+      partsUsed: r.partsUsed
+        ? JSON.parse(r.partsUsed)
+        : r.parts.map((p) => ({
+            partId: p.sparePartId,
+            partName: p.partName,
+            quantity: p.quantity,
+            unitPrice: p.unitPrice,
+          })),
     }));
 
     return NextResponse.json({
@@ -227,6 +265,17 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // 3.1. Insert into 3NF RepairStatusHistory table
+    await prisma.repairStatusHistory.create({
+      data: {
+        ticketCode,
+        status: 'received',
+        statusLabel: 'Tiếp nhận máy tại quầy',
+        note: 'Biên nhận sửa chữa K80 được tạo tự động và lưu vào CSDL MySQL.',
+        updatedBy: sanitizeString(assignedBy || 'Lễ tân tiếp nhận', 100),
+      },
+    });
+
     // Also sync in-memory
     ServerStore.createRepair({
       customerName,
@@ -337,6 +386,17 @@ export async function PUT(request: NextRequest) {
       updateData.status = status;
       updateData.statusHistory = JSON.stringify([...currentHistory, newHistoryItem]);
 
+      // 3.1. Insert 3NF RepairStatusHistory record
+      await prisma.repairStatusHistory.create({
+        data: {
+          ticketCode: ticket.ticketCode,
+          status,
+          statusLabel: statusLabels[status] || status,
+          note: note ? sanitizeString(note, 500) : `Cập nhật trạng thái: ${statusLabels[status] || status}`,
+          updatedBy: actor ? sanitizeString(actor, 100) : 'Kỹ thuật viên',
+        },
+      });
+
       if (status === 'delivered') {
         updateData.deliveredAt = now;
       }
@@ -373,6 +433,18 @@ export async function PUT(request: NextRequest) {
 
       // Deduct stock in SparePart table if applicable
       for (const part of partsUsed) {
+        // 3.2. Insert 3NF RepairTicketPart record
+        await prisma.repairTicketPart.create({
+          data: {
+            ticketCode: ticket.ticketCode,
+            sparePartId: part.partId || part.id || null,
+            partName: sanitizeString(part.partName || part.name || 'Linh kiện thay thế', 191),
+            quantity: Number(part.quantity || 1),
+            unitPrice: Number(part.unitPrice || part.price || part.retailRepairPrice || 0),
+            warrantyMonths: 6,
+          },
+        });
+
         if (part.id || part.barcode) {
           try {
             await prisma.sparePart.updateMany({

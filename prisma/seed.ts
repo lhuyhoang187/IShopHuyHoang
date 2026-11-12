@@ -670,6 +670,7 @@ async function main() {
     { name: 'Xiaomi', slug: 'xiaomi', country: 'Trung Quốc', displayOrder: 3, description: 'Flagship Xiaomi trang bị ống kính Leica siêu cảm biến và sạc nhanh siêu tốc.' },
     { name: 'OPPO', slug: 'oppo', country: 'Trung Quốc', displayOrder: 4, description: 'Điện thoại nhiếp ảnh đỉnh cao Find X Series, Reno Series với thiết kế thời thượng.' },
     { name: 'Google', slug: 'google', country: 'Mỹ', displayOrder: 5, description: 'Google Pixel tích hợp AI thông minh Gemini nguyên bản mượt mà.' },
+    { name: 'Sony', slug: 'sony', country: 'Nhật Bản', displayOrder: 6, description: 'Dòng điện thoại Sony Xperia với màn hình OLED 4K và cảm biến máy ảnh Alpha đỉnh cao.' },
   ];
 
   for (const b of initialBrands) {
@@ -729,7 +730,136 @@ async function main() {
     });
   }
 
-  console.log('✅ Hoàn tất nạp dữ liệu mẫu với các ràng buộc quan hệ toàn vẹn!');
+  // 22. Seed 3NF Phone Variants
+  console.log('22. Seeding 3NF Phone Variants...');
+  const phones = await prisma.phoneProduct.findMany();
+  for (const phone of phones) {
+    let colors: any[] = [];
+    let caps: any[] = [];
+    try { colors = JSON.parse(phone.colors || '[]'); } catch {}
+    try { caps = JSON.parse(phone.capacities || '[]'); } catch {}
+
+    if (colors.length === 0) colors = [{ name: 'Mặc định', hex: '#000000' }];
+    if (caps.length === 0) caps = [{ size: '128GB', price: 20000000 }];
+
+    for (const cap of caps) {
+      for (const col of colors) {
+        const existing = await prisma.phoneVariant.findFirst({
+          where: {
+            phoneId: phone.id,
+            colorName: col.name || 'Mặc định',
+            capacity: cap.size || '128GB',
+          },
+        });
+        if (!existing) {
+          await prisma.phoneVariant.create({
+            data: {
+              phoneId: phone.id,
+              colorName: col.name || 'Mặc định',
+              colorHex: col.hex || '#333333',
+              imageUrl: col.imageUrl || null,
+              capacity: cap.size || '128GB',
+              price: Number(cap.price) || 20000000,
+              originalPrice: cap.originalPrice ? Number(cap.originalPrice) : null,
+              isOutOfStock: false,
+            },
+          });
+        }
+      }
+    }
+  }
+
+  // 23. Seed 3NF Invoice Items
+  console.log('23. Seeding 3NF Invoice Items...');
+  const invoices = await prisma.invoice.findMany({ include: { invoiceItems: true } });
+  for (const inv of invoices) {
+    if (inv.invoiceItems.length === 0) {
+      let items: any[] = [];
+      try { items = JSON.parse(inv.items || '[]'); } catch {}
+      for (const item of items) {
+        await prisma.invoiceItem.create({
+          data: {
+            invoiceCode: inv.invoiceCode,
+            itemType: item.type || (item.imei ? 'phone' : 'accessory'),
+            productId: item.id || null,
+            productName: item.name || 'Sản phẩm',
+            imei: item.imei || null,
+            color: item.color || (item.variant ? item.variant.split('/')[0]?.trim() : null),
+            capacity: item.capacity || (item.variant ? item.variant.split('/')[1]?.trim() : null),
+            unitPrice: Number(item.unitPrice || item.price) || 0,
+            quantity: Number(item.quantity) || 1,
+            discount: Number(item.discount) || 0,
+            subtotal: Number(item.total || item.unitPrice || item.price) || 0,
+            warrantyMonths: 12,
+          },
+        });
+      }
+    }
+  }
+
+  // 24. Seed 3NF Repair Ticket Parts & Status History
+  console.log('24. Seeding 3NF Repair Ticket Parts & History...');
+  const repairs = await prisma.repairTicket.findMany({ include: { parts: true, statusLogs: true } });
+  for (const rep of repairs) {
+    if (rep.parts.length === 0) {
+      let parts: any[] = [];
+      try { parts = JSON.parse(rep.partsUsed || '[]'); } catch {}
+      for (const part of parts) {
+        await prisma.repairTicketPart.create({
+          data: {
+            ticketCode: rep.ticketCode,
+            sparePartId: part.partId || null,
+            partName: part.partName || 'Linh kiện thay thế',
+            quantity: Number(part.quantity) || 1,
+            unitPrice: Number(part.unitPrice) || 0,
+            warrantyMonths: 6,
+          },
+        });
+      }
+    }
+
+    if (rep.statusLogs.length === 0) {
+      let history: any[] = [];
+      try { history = JSON.parse(rep.statusHistory || '[]'); } catch {}
+      for (const h of history) {
+        await prisma.repairStatusHistory.create({
+          data: {
+            ticketCode: rep.ticketCode,
+            status: h.step || rep.status,
+            statusLabel: h.label || 'Cập nhật trạng thái',
+            note: h.note || null,
+            updatedBy: h.actor || 'Hệ thống',
+            createdAt: h.time ? new Date(h.time) : new Date(),
+          },
+        });
+      }
+    }
+  }
+
+  // 25. Seed 3NF Supplier Order Items
+  console.log('25. Seeding 3NF Supplier Order Items...');
+  const orders = await prisma.supplierOrder.findMany({ include: { orderItems: true } });
+  for (const ord of orders) {
+    if (ord.orderItems.length === 0) {
+      let imeis: string[] = [];
+      try { imeis = JSON.parse(ord.importedImeis || '[]'); } catch {}
+      for (const imei of imeis) {
+        await prisma.supplierOrderItem.create({
+          data: {
+            orderCode: ord.orderCode,
+            itemType: 'phone',
+            productName: ord.itemsSummary || 'Điện thoại nhập kho',
+            unitCost: Math.round(ord.totalAmount / (imeis.length || 1)),
+            totalCost: Math.round(ord.totalAmount / (imeis.length || 1)),
+            quantity: 1,
+            imei,
+          },
+        });
+      }
+    }
+  }
+
+  console.log('✅ Hoàn tất nạp dữ liệu mẫu với các ràng buộc quan hệ toàn vẹn và chuẩn 3 (3NF)!');
 }
 
 main()

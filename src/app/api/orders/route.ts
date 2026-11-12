@@ -27,6 +27,9 @@ export async function GET(request: NextRequest) {
             ...(normalizedPhone ? [{ customerPhone: normalizedPhone }] : []),
           ],
         },
+        include: {
+          invoiceItems: true,
+        },
       });
 
       if (invoice) {
@@ -35,7 +38,7 @@ export async function GET(request: NextRequest) {
           source: 'mysql_database',
           data: {
             ...invoice,
-            items: invoice.items ? JSON.parse(invoice.items) : [],
+            items: invoice.items ? JSON.parse(invoice.items) : (invoice.invoiceItems || []),
           },
         });
       }
@@ -51,12 +54,15 @@ export async function GET(request: NextRequest) {
     }
 
     const invoices = await prisma.invoice.findMany({
+      include: {
+        invoiceItems: true,
+      },
       orderBy: { createdAt: 'desc' },
     });
 
     const parsed = invoices.map((inv) => ({
       ...inv,
-      items: inv.items ? JSON.parse(inv.items) : [],
+      items: inv.items ? JSON.parse(inv.items) : (inv.invoiceItems || []),
     }));
 
     return NextResponse.json({
@@ -188,6 +194,26 @@ export async function POST(request: NextRequest) {
           warrantyNote: sanitizeString(body.warrantyNote || 'Bảo hành điện tử 12 tháng theo IMEI/Hóa đơn.', 500),
         },
       });
+
+      // 3.1. Insert 3NF Normalized Invoice Items
+      for (const item of body.items) {
+        await tx.invoiceItem.create({
+          data: {
+            invoiceCode,
+            itemType: item.type || (item.imei ? 'phone' : 'accessory'),
+            productId: item.productId || item.id || null,
+            productName: sanitizeString(item.name || 'Sản phẩm', 191),
+            imei: item.imei || null,
+            color: item.color || (item.variant ? item.variant.split('/')[0]?.trim() : null),
+            capacity: item.capacity || (item.variant ? item.variant.split('/')[1]?.trim() : null),
+            unitPrice: Number(item.unitPrice || item.price) || 0,
+            quantity: Number(item.quantity) || 1,
+            discount: Number(item.discount) || 0,
+            subtotal: Number(item.subtotal || item.total || item.unitPrice || item.price) || 0,
+            warrantyMonths: 12,
+          },
+        });
+      }
 
       // 4. Mark PhoneStock as sold & update accessory stock
       for (const item of body.items) {
