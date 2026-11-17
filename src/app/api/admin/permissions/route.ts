@@ -1,17 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { db } from '@/lib/db';
 
 export async function GET(request: NextRequest) {
   try {
-    const permissions = await prisma.rolePermission.findMany({
-      orderBy: { id: 'asc' },
-    });
+    const permissions = await db.query('SELECT * FROM rolepermission ORDER BY id ASC');
+
+    const mapped = permissions.map((p) => ({
+      ...p,
+      admin: Boolean(p.admin),
+      tech: Boolean(p.tech),
+      cashier: Boolean(p.cashier),
+    }));
 
     return NextResponse.json({
       success: true,
       source: 'mysql_database',
-      total: permissions.length,
-      data: permissions,
+      total: mapped.length,
+      data: mapped,
     });
   } catch (error: any) {
     console.error('Permissions API GET error:', error);
@@ -34,34 +39,42 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Upsert each permission
+    // Upsert each permission into MySQL
     for (const perm of permissions) {
       if (perm.id) {
-        await prisma.rolePermission.upsert({
-          where: { id: perm.id },
-          update: {
-            admin: Boolean(perm.admin),
-            tech: Boolean(perm.tech),
-            cashier: Boolean(perm.cashier),
-          },
-          create: {
-            id: perm.id,
-            module: perm.module || perm.id,
-            category: perm.category || 'hệ thống',
-            description: perm.description || null,
-            admin: Boolean(perm.admin),
-            tech: Boolean(perm.tech),
-            cashier: Boolean(perm.cashier),
-          },
-        });
+        await db.execute(
+          `INSERT INTO rolepermission (id, module, category, description, admin, tech, cashier, createdAt, updatedAt)
+           VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+           ON DUPLICATE KEY UPDATE
+             admin = VALUES(admin),
+             tech = VALUES(tech),
+             cashier = VALUES(cashier),
+             updatedAt = NOW()`,
+          [
+            perm.id,
+            perm.module || perm.id,
+            perm.category || 'hệ thống',
+            perm.description || null,
+            perm.admin ? 1 : 0,
+            perm.tech ? 1 : 0,
+            perm.cashier ? 1 : 0,
+          ]
+        );
       }
     }
 
-    const updated = await prisma.rolePermission.findMany();
+    const updated = await db.query('SELECT * FROM rolepermission ORDER BY id ASC');
+    const mapped = updated.map((p) => ({
+      ...p,
+      admin: Boolean(p.admin),
+      tech: Boolean(p.tech),
+      cashier: Boolean(p.cashier),
+    }));
+
     return NextResponse.json({
       success: true,
       message: 'Cập nhật ma trận phân quyền thành công vào CSDL',
-      data: updated,
+      data: mapped,
     });
   } catch (error: any) {
     console.error('Permissions API POST error:', error);
@@ -71,4 +84,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

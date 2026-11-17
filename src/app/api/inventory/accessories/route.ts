@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { isValidAmount, sanitizeString } from '@/lib/validation';
+import { db } from '@/lib/db';
+import { sanitizeString } from '@/lib/validation';
 
 export async function GET(request: NextRequest) {
   try {
@@ -8,22 +8,26 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get('category');
     const search = searchParams.get('search')?.trim();
 
-    const where: any = {};
+    let sql = 'SELECT * FROM accessoryproduct';
+    const whereClauses: string[] = [];
+    const params: any[] = [];
+
     if (category && category !== 'all') {
-      where.category = category;
+      whereClauses.push('category = ?');
+      params.push(category);
     }
     if (search) {
-      where.OR = [
-        { name: { contains: search } },
-        { barcode: { contains: search } },
-        { brand: { contains: search } },
-      ];
+      whereClauses.push('(name LIKE ? OR barcode LIKE ? OR brand LIKE ?)');
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
     }
 
-    const accessories = await prisma.accessoryProduct.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-    });
+    if (whereClauses.length > 0) {
+      sql += ' WHERE ' + whereClauses.join(' AND ');
+    }
+
+    sql += ' ORDER BY createdAt DESC';
+
+    const accessories = await db.query(sql, params);
 
     return NextResponse.json({
       success: true,
@@ -84,28 +88,33 @@ export async function POST(request: NextRequest) {
           .replace(/[^a-z0-9]+/g, '-')
           .replace(/(^-|-$)+/g, '') + `-${Date.now().toString().slice(-4)}`;
 
-      const newAccessory = await prisma.accessoryProduct.create({
-        data: {
-          id: generatedId,
-          name: sanitizeString(name, 191),
-          slug: generatedSlug,
-          category: category || 'other',
-          categoryName: categoryName || 'Phụ kiện khác',
-          barcode: sanitizeString(barcode, 50),
-          brand: brand || 'Khác',
-          costPrice: Number(costPrice) || 0,
-          sellingPrice: Number(sellingPrice) || 0,
-          originalPrice: Number(originalPrice) || Number(sellingPrice) || 0,
-          stock: Math.max(0, Math.floor(Number(stock) || 0)),
-          minStockAlert: Math.max(0, Math.floor(Number(minStockAlert) || 5)),
-          imageUrl: imageUrl || 'https://images.unsplash.com/photo-1583863788434-e58a36330cf0?w=600&q=80',
-          specs: specs || '',
-          description: description || '',
-          compatibleWith: compatibleWith || 'Tất cả thiết bị',
-          discountWhenBoughtWithPhone: Number(discountWhenBoughtWithPhone) || 15,
-          pointsToRedeem: pointsToRedeem !== undefined ? Math.max(0, Math.floor(Number(pointsToRedeem))) : null,
-        },
-      });
+      await db.execute(
+        `INSERT INTO accessoryproduct 
+         (id, name, slug, category, categoryName, barcode, brand, costPrice, sellingPrice, originalPrice, stock, minStockAlert, imageUrl, specs, description, compatibleWith, discountWhenBoughtWithPhone, pointsToRedeem, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+        [
+          generatedId,
+          sanitizeString(name, 191),
+          generatedSlug,
+          category || 'other',
+          categoryName || 'Phụ kiện khác',
+          sanitizeString(barcode, 50),
+          brand || 'Khác',
+          Number(costPrice) || 0,
+          Number(sellingPrice) || 0,
+          Number(originalPrice) || Number(sellingPrice) || 0,
+          Math.max(0, Math.floor(Number(stock) || 0)),
+          Math.max(0, Math.floor(Number(minStockAlert) || 5)),
+          imageUrl || 'https://images.unsplash.com/photo-1583863788434-e58a36330cf0?w=600&q=80',
+          specs || '',
+          description || '',
+          compatibleWith || 'Tất cả thiết bị',
+          Number(discountWhenBoughtWithPhone) || 15,
+          pointsToRedeem !== undefined ? Math.max(0, Math.floor(Number(pointsToRedeem))) : null,
+        ]
+      );
+
+      const newAccessory = await db.queryOne('SELECT * FROM accessoryproduct WHERE id = ?', [generatedId]);
 
       return NextResponse.json({
         success: true,
@@ -115,43 +124,81 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Chỉnh sửa phụ kiện đã có
-    const updateData: any = {};
-    if (name !== undefined) updateData.name = sanitizeString(name, 191);
-    if (barcode !== undefined) updateData.barcode = sanitizeString(barcode, 50);
-    if (brand !== undefined) updateData.brand = sanitizeString(brand, 100);
-    if (category !== undefined) updateData.category = category;
-    if (categoryName !== undefined) updateData.categoryName = categoryName;
-    if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
-    if (specs !== undefined) updateData.specs = specs;
-    if (description !== undefined) updateData.description = description;
-    if (compatibleWith !== undefined) updateData.compatibleWith = compatibleWith;
+    const setClauses: string[] = [];
+    const params: any[] = [];
 
+    if (name !== undefined) {
+      setClauses.push('name = ?');
+      params.push(sanitizeString(name, 191));
+    }
+    if (barcode !== undefined) {
+      setClauses.push('barcode = ?');
+      params.push(sanitizeString(barcode, 50));
+    }
+    if (brand !== undefined) {
+      setClauses.push('brand = ?');
+      params.push(sanitizeString(brand, 100));
+    }
+    if (category !== undefined) {
+      setClauses.push('category = ?');
+      params.push(category);
+    }
+    if (categoryName !== undefined) {
+      setClauses.push('categoryName = ?');
+      params.push(categoryName);
+    }
+    if (imageUrl !== undefined) {
+      setClauses.push('imageUrl = ?');
+      params.push(imageUrl);
+    }
+    if (specs !== undefined) {
+      setClauses.push('specs = ?');
+      params.push(specs);
+    }
+    if (description !== undefined) {
+      setClauses.push('description = ?');
+      params.push(description);
+    }
+    if (compatibleWith !== undefined) {
+      setClauses.push('compatibleWith = ?');
+      params.push(compatibleWith);
+    }
     if (costPrice !== undefined) {
-      updateData.costPrice = Math.max(0, Number(costPrice));
+      setClauses.push('costPrice = ?');
+      params.push(Math.max(0, Number(costPrice)));
     }
     if (sellingPrice !== undefined) {
-      updateData.sellingPrice = Math.max(0, Number(sellingPrice));
+      setClauses.push('sellingPrice = ?');
+      params.push(Math.max(0, Number(sellingPrice)));
     }
     if (originalPrice !== undefined) {
-      updateData.originalPrice = Math.max(0, Number(originalPrice));
+      setClauses.push('originalPrice = ?');
+      params.push(Math.max(0, Number(originalPrice)));
     }
     if (stock !== undefined) {
-      updateData.stock = Math.max(0, Math.floor(Number(stock)));
+      setClauses.push('stock = ?');
+      params.push(Math.max(0, Math.floor(Number(stock))));
     }
     if (minStockAlert !== undefined) {
-      updateData.minStockAlert = Math.max(0, Math.floor(Number(minStockAlert)));
+      setClauses.push('minStockAlert = ?');
+      params.push(Math.max(0, Math.floor(Number(minStockAlert))));
     }
     if (discountWhenBoughtWithPhone !== undefined) {
-      updateData.discountWhenBoughtWithPhone = Math.max(0, Math.min(100, Number(discountWhenBoughtWithPhone)));
+      setClauses.push('discountWhenBoughtWithPhone = ?');
+      params.push(Math.max(0, Math.min(100, Number(discountWhenBoughtWithPhone))));
     }
     if (pointsToRedeem !== undefined) {
-      updateData.pointsToRedeem = Math.max(0, Math.floor(Number(pointsToRedeem)));
+      setClauses.push('pointsToRedeem = ?');
+      params.push(Math.max(0, Math.floor(Number(pointsToRedeem))));
     }
 
-    const updated = await prisma.accessoryProduct.update({
-      where: { id },
-      data: updateData,
-    });
+    if (setClauses.length > 0) {
+      setClauses.push('updatedAt = NOW()');
+      params.push(id);
+      await db.execute(`UPDATE accessoryproduct SET ${setClauses.join(', ')} WHERE id = ?`, params);
+    }
+
+    const updated = await db.queryOne('SELECT * FROM accessoryproduct WHERE id = ?', [id]);
 
     return NextResponse.json({
       success: true,
@@ -179,9 +226,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    await prisma.accessoryProduct.delete({
-      where: { id },
-    });
+    await db.execute('DELETE FROM accessoryproduct WHERE id = ?', [id]);
 
     return NextResponse.json({
       success: true,
@@ -195,4 +240,3 @@ export async function DELETE(request: NextRequest) {
     );
   }
 }
-

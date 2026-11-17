@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { db } from '@/lib/db';
 import { ServerStore } from '@/lib/serverStore';
 import { normalizePhone } from '@/lib/validation';
 
@@ -29,19 +29,12 @@ export async function GET(request: NextRequest) {
     const seenIds = new Set<string>();
 
     // 1. Query PhoneStock by IMEI, Customer Phone, or Invoice ID
-    const phoneStockItems = await prisma.phoneStock.findMany({
-      where: {
-        OR: [
-          { imei: q },
-          { imei: upperCode },
-          { soldToCustomerPhone: q },
-          ...(normalizedPhone ? [{ soldToCustomerPhone: normalizedPhone }] : []),
-          { soldInvoiceId: q },
-          { soldInvoiceId: upperCode },
-        ],
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    const phoneStockItems = await db.query(
+      `SELECT * FROM phonestock 
+       WHERE imei = ? OR imei = ? OR soldToCustomerPhone = ? OR soldToCustomerPhone = ? OR soldInvoiceId = ? OR soldInvoiceId = ?
+       ORDER BY createdAt DESC`,
+      [q, upperCode, q, normalizedPhone || q, q, upperCode]
+    );
 
     const today = new Date();
 
@@ -72,9 +65,9 @@ export async function GET(request: NextRequest) {
         phoneName: item.phoneName,
         color: item.color,
         capacity: item.capacity,
-        sellingPrice: item.sellingPrice,
+        sellingPrice: Number(item.sellingPrice || 0),
         status: item.status,
-        warrantyMonths: item.warrantyMonths,
+        warrantyMonths: Number(item.warrantyMonths || 12),
         soldAt: item.soldAt,
         soldInvoiceId: item.soldInvoiceId,
         soldToCustomerName: item.soldToCustomerName,
@@ -88,18 +81,12 @@ export async function GET(request: NextRequest) {
     }
 
     // 2. Query RepairTicket by Ticket Code, IMEI/Serial, or Customer Phone
-    const repairTickets = await prisma.repairTicket.findMany({
-      where: {
-        OR: [
-          { ticketCode: q },
-          { ticketCode: upperCode },
-          { imeiOrSerial: q },
-          { customerPhone: q },
-          ...(normalizedPhone ? [{ customerPhone: normalizedPhone }] : []),
-        ],
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    const repairTickets = await db.query(
+      `SELECT * FROM repairticket 
+       WHERE ticketCode = ? OR ticketCode = ? OR imeiOrSerial = ? OR customerPhone = ? OR customerPhone = ?
+       ORDER BY createdAt DESC`,
+      [q, upperCode, q, q, normalizedPhone || q]
+    );
 
     for (const ticket of repairTickets) {
       if (seenIds.has(ticket.ticketCode)) continue;
@@ -172,8 +159,8 @@ export async function GET(request: NextRequest) {
       source: 'mysql_database',
       query: q,
       total: results.length,
-      data: results[0], // Single item backwards compatibility
-      items: results,   // Full list of matched warranty items
+      data: results[0],
+      items: results,
     });
   } catch (error: any) {
     console.error('Warranty query error:', error);

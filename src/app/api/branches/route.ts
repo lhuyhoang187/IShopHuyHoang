@@ -1,17 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { db } from '@/lib/db';
 import { sanitizeString } from '@/lib/validation';
 
 export async function GET() {
   try {
-    const branches = await prisma.storeBranch.findMany({
-      where: { isActive: true },
-      orderBy: [{ isMainBranch: 'desc' }, { code: 'asc' }],
-    });
+    const branches = await db.query(
+      `SELECT * FROM storebranch 
+       WHERE isActive = 1 
+       ORDER BY isMainBranch DESC, code ASC`
+    );
+
+    const mapped = branches.map((b) => ({
+      ...b,
+      isMainBranch: Boolean(b.isMainBranch),
+      isActive: Boolean(b.isActive),
+    }));
 
     return NextResponse.json({
       success: true,
-      data: branches,
+      data: mapped,
     });
   } catch (error: any) {
     console.error('Store branches GET error:', error);
@@ -32,37 +39,42 @@ export async function POST(request: NextRequest) {
     }
 
     const cleanCode = sanitizeString(code, 50).toUpperCase();
-    const branch = await prisma.storeBranch.upsert({
-      where: { code: cleanCode },
-      update: {
-        name: sanitizeString(name, 150),
-        phone: sanitizeString(phone || '', 20),
-        address: sanitizeString(address, 191),
-        district: district ? sanitizeString(district, 100) : null,
-        city: city ? sanitizeString(city, 100) : 'TP. Hồ Chí Minh',
-        openingHours: openingHours ? sanitizeString(openingHours, 100) : '08:00 - 21:30',
-        isMainBranch: Boolean(isMainBranch),
-        mapUrl: mapUrl || null,
-        isActive: true,
-      },
-      create: {
-        code: cleanCode,
-        name: sanitizeString(name, 150),
-        phone: sanitizeString(phone || '', 20),
-        address: sanitizeString(address, 191),
-        district: district ? sanitizeString(district, 100) : null,
-        city: city ? sanitizeString(city, 100) : 'TP. Hồ Chí Minh',
-        openingHours: openingHours ? sanitizeString(openingHours, 100) : '08:00 - 21:30',
-        isMainBranch: Boolean(isMainBranch),
-        mapUrl: mapUrl || null,
-        isActive: true,
-      },
-    });
+    const cleanName = sanitizeString(name, 150);
+    const cleanPhone = sanitizeString(phone || '', 20);
+    const cleanAddress = sanitizeString(address, 191);
+    const cleanDistrict = district ? sanitizeString(district, 100) : null;
+    const cleanCity = city ? sanitizeString(city, 100) : 'TP. Hồ Chí Minh';
+    const cleanHours = openingHours ? sanitizeString(openingHours, 100) : '08:00 - 21:30';
+    const boolMain = isMainBranch ? 1 : 0;
+    const cleanMap = mapUrl || null;
+
+    const existing = await db.queryOne('SELECT id FROM storebranch WHERE code = ?', [cleanCode]);
+
+    let branchId = existing?.id;
+    if (existing) {
+      await db.execute(
+        `UPDATE storebranch SET 
+           name = ?, phone = ?, address = ?, district = ?, city = ?, 
+           openingHours = ?, isMainBranch = ?, mapUrl = ?, isActive = 1, updatedAt = NOW()
+         WHERE id = ?`,
+        [cleanName, cleanPhone, cleanAddress, cleanDistrict, cleanCity, cleanHours, boolMain, cleanMap, branchId]
+      );
+    } else {
+      branchId = 'branch_' + Date.now();
+      await db.execute(
+        `INSERT INTO storebranch 
+         (id, code, name, phone, address, district, city, openingHours, isMainBranch, mapUrl, isActive, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW(), NOW())`,
+        [branchId, cleanCode, cleanName, cleanPhone, cleanAddress, cleanDistrict, cleanCity, cleanHours, boolMain, cleanMap]
+      );
+    }
+
+    const branch = await db.queryOne('SELECT * FROM storebranch WHERE id = ?', [branchId]);
 
     return NextResponse.json({
       success: true,
       message: 'Đã lưu chi nhánh thành công',
-      data: branch,
+      data: branch ? { ...branch, isMainBranch: Boolean(branch.isMainBranch), isActive: Boolean(branch.isActive) } : null,
     });
   } catch (error: any) {
     console.error('Store branches POST error:', error);
@@ -72,4 +84,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { isValidAmount, sanitizeString } from '@/lib/validation';
+import { db } from '@/lib/db';
+import { sanitizeString } from '@/lib/validation';
 
 export async function GET(request: NextRequest) {
   try {
@@ -8,28 +8,32 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get('category');
     const search = searchParams.get('search')?.trim();
 
-    const where: any = {};
+    let sql = 'SELECT * FROM sparepart';
+    const whereClauses: string[] = [];
+    const params: any[] = [];
+
     if (category && category !== 'all') {
-      where.category = category;
+      whereClauses.push('category = ?');
+      params.push(category);
     }
     if (search) {
-      where.OR = [
-        { name: { contains: search } },
-        { barcode: { contains: search } },
-        { compatibleModels: { contains: search } },
-      ];
+      whereClauses.push('(name LIKE ? OR barcode LIKE ? OR compatibleModels LIKE ?)');
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
     }
 
-    const spareParts = await prisma.sparePart.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-    });
+    if (whereClauses.length > 0) {
+      sql += ' WHERE ' + whereClauses.join(' AND ');
+    }
+
+    sql += ' ORDER BY createdAt DESC';
+
+    const spareParts = await db.query(sql, params);
 
     const parsed = spareParts.map((sp) => {
       let models: string[] = [];
       try {
         models = typeof sp.compatibleModels === 'string'
-          ? (sp.compatibleModels.startsWith('[') ? JSON.parse(sp.compatibleModels) : sp.compatibleModels.split(',').map((s) => s.trim()).filter(Boolean))
+          ? (sp.compatibleModels.startsWith('[') ? JSON.parse(sp.compatibleModels) : sp.compatibleModels.split(',').map((s: string) => s.trim()).filter(Boolean))
           : [];
       } catch (e) {
         models = sp.compatibleModels ? [sp.compatibleModels] : [];
@@ -97,34 +101,50 @@ export async function POST(request: NextRequest) {
       ? JSON.stringify(compatibleModels.split(',').map((s: string) => s.trim()).filter(Boolean))
       : '[]';
 
-    const part = await prisma.sparePart.upsert({
-      where: { id: cleanId },
-      update: {
-        name: cleanName,
-        category: cleanCat,
-        categoryName: cleanCatName,
-        barcode: cleanBarcode,
-        compatibleModels: formattedModels,
-        costPrice: cleanCost,
-        retailRepairPrice: cleanRetail,
-        stock: cleanStock,
-        unit: cleanUnit,
-        warrantyMonths: cleanWarranty,
-      },
-      create: {
-        id: cleanId,
-        name: cleanName,
-        category: cleanCat,
-        categoryName: cleanCatName,
-        barcode: cleanBarcode,
-        compatibleModels: formattedModels,
-        costPrice: cleanCost,
-        retailRepairPrice: cleanRetail,
-        stock: cleanStock,
-        unit: cleanUnit,
-        warrantyMonths: cleanWarranty,
-      },
-    });
+    const existing = await db.queryOne('SELECT id FROM sparepart WHERE id = ?', [cleanId]);
+
+    if (existing) {
+      await db.execute(
+        `UPDATE sparepart SET 
+           name = ?, category = ?, categoryName = ?, barcode = ?, compatibleModels = ?, 
+           costPrice = ?, retailRepairPrice = ?, stock = ?, unit = ?, warrantyMonths = ?, updatedAt = NOW()
+         WHERE id = ?`,
+        [
+          cleanName,
+          cleanCat,
+          cleanCatName,
+          cleanBarcode,
+          formattedModels,
+          cleanCost,
+          cleanRetail,
+          cleanStock,
+          cleanUnit,
+          cleanWarranty,
+          cleanId,
+        ]
+      );
+    } else {
+      await db.execute(
+        `INSERT INTO sparepart 
+         (id, name, category, categoryName, barcode, compatibleModels, costPrice, retailRepairPrice, stock, unit, warrantyMonths, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+        [
+          cleanId,
+          cleanName,
+          cleanCat,
+          cleanCatName,
+          cleanBarcode,
+          formattedModels,
+          cleanCost,
+          cleanRetail,
+          cleanStock,
+          cleanUnit,
+          cleanWarranty,
+        ]
+      );
+    }
+
+    const part = await db.queryOne('SELECT * FROM sparepart WHERE id = ?', [cleanId]);
 
     return NextResponse.json({
       success: true,
@@ -149,9 +169,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Thiếu ID linh kiện' }, { status: 400 });
     }
 
-    await prisma.sparePart.delete({
-      where: { id },
-    });
+    await db.execute('DELETE FROM sparepart WHERE id = ?', [id]);
 
     return NextResponse.json({
       success: true,

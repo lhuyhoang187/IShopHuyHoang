@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { db } from '@/lib/db';
 import { normalizePhone, isValidPhone, sanitizeString } from '@/lib/validation';
 
 export async function GET(request: NextRequest) {
@@ -7,19 +7,23 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const phone = searchParams.get('phone')?.trim();
 
-    const where: any = {};
+    let sql = 'SELECT * FROM redeemedgift';
+    const whereClauses: string[] = [];
+    const params: any[] = [];
+
     if (phone) {
       const normalized = normalizePhone(phone);
-      where.OR = [
-        { customerPhone: phone },
-        ...(normalized ? [{ customerPhone: normalized }] : []),
-      ];
+      whereClauses.push('(customerPhone = ? OR customerPhone = ?)');
+      params.push(phone, normalized);
     }
 
-    const gifts = await prisma.redeemedGift.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-    });
+    if (whereClauses.length > 0) {
+      sql += ' WHERE ' + whereClauses.join(' AND ');
+    }
+
+    sql += ' ORDER BY createdAt DESC';
+
+    const gifts = await db.query(sql, params);
 
     return NextResponse.json({
       success: true,
@@ -57,11 +61,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Atomic transaction for gift redemption
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await db.transaction(async (conn) => {
       // 1. Check accessory
-      const accessory = await tx.accessoryProduct.findUnique({
-        where: { id: accessoryId },
-      });
+      const [accRows]: any = await conn.query('SELECT * FROM accessoryproduct WHERE id = ?', [accessoryId]);
+      const accessory = accRows[0];
 
       if (!accessory) {
         throw new Error('Phụ kiện quà tặng không tồn tại');
@@ -74,9 +77,8 @@ export async function POST(request: NextRequest) {
       const pointsNeeded = accessory.pointsToRedeem || Math.ceil(accessory.sellingPrice / 1000);
 
       // 2. Check customer
-      const customer = await tx.customer.findUnique({
-        where: { phone: normPhone },
-      });
+      const [custRows]: any = await conn.query('SELECT * FROM customer WHERE phone = ?', [normPhone]);
+      const customer = custRows[0];
 
       if (!customer) {
         throw new Error('Khách hàng chưa đăng ký thành viên iShop');
@@ -87,41 +89,42 @@ export async function POST(request: NextRequest) {
       }
 
       // 3. Deduct points and deduct accessory stock
-      await tx.customer.update({
-        where: { phone: normPhone },
-        data: {
-          points: { decrement: pointsNeeded },
-        },
-      });
+      await conn.execute(
+        'UPDATE customer SET points = points - ?, updatedAt = NOW() WHERE phone = ?',
+        [pointsNeeded, normPhone]
+      );
 
-      await tx.accessoryProduct.update({
-        where: { id: accessoryId },
-        data: {
-          stock: { decrement: 1 },
-        },
-      });
+      await conn.execute(
+        'UPDATE accessoryproduct SET stock = stock - 1, updatedAt = NOW() WHERE id = ?',
+        [accessoryId]
+      );
 
       // 4. Create gift redemption record
-      const count = await tx.redeemedGift.count();
+      const [countRow]: any = await conn.query('SELECT COUNT(*) as cnt FROM redeemedgift');
+      const count = countRow[0]?.cnt || 0;
       const giftCode = `GIFT-2608-${String(count + 1).padStart(3, '0')}`;
+      const giftId = 'gift-' + Date.now();
 
-      const gift = await tx.redeemedGift.create({
-        data: {
-          id: 'gift-' + Date.now(),
+      await conn.execute(
+        `INSERT INTO redeemedgift 
+         (id, giftCode, customerId, customerPhone, customerName, accessoryId, accessoryName, accessoryImage, pointsRedeemed, redeemedAt, status, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), 'active', NOW(), NOW())`,
+        [
+          giftId,
           giftCode,
-          customerId: customer.id,
-          customerPhone: normPhone,
-          customerName: sanitizeString(customerName || customer.name, 100),
-          accessoryId: accessory.id,
-          accessoryName: accessory.name,
-          accessoryImage: accessory.imageUrl,
-          pointsRedeemed: pointsNeeded,
-          redeemedAt: new Date(),
-          status: 'active',
-        },
-      });
+          customer.id,
+          normPhone,
+          sanitizeString(customerName || customer.name, 100),
+          accessory.id,
+          accessory.name,
+          accessory.imageUrl,
+          pointsNeeded,
+        ]
+      );
 
-      return { gift, remainingPoints: customer.points - pointsNeeded };
+      const [giftRows]: any = await conn.query('SELECT * FROM redeemedgift WHERE id = ?', [giftId]);
+
+      return { gift: giftRows[0], remainingPoints: customer.points - pointsNeeded };
     });
 
     return NextResponse.json({
@@ -137,4 +140,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

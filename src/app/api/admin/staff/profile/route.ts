@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { db } from '@/lib/db';
 import {
   normalizePhone,
   isValidPhone,
@@ -20,9 +20,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Find user in database
-    const user = await prisma.user.findFirst({
-      where: id ? { id } : { username: String(username).toLowerCase() },
-    });
+    const user = id
+      ? await db.queryOne('SELECT * FROM user WHERE id = ?', [id])
+      : await db.queryOne('SELECT * FROM user WHERE LOWER(username) = ?', [String(username).toLowerCase()]);
 
     if (!user) {
       return NextResponse.json(
@@ -47,9 +47,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Prepare update data
-    const updateData: any = {};
-    if (name) updateData.name = sanitizeString(name, 100);
+    // Prepare update clauses
+    const setClauses: string[] = [];
+    const params: any[] = [];
+
+    if (name) {
+      setClauses.push('name = ?');
+      params.push(sanitizeString(name, 100));
+    }
 
     if (phone !== undefined) {
       const cleanPhone = normalizePhone(phone);
@@ -59,7 +64,8 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
-      updateData.phone = cleanPhone || null;
+      setClauses.push('phone = ?');
+      params.push(cleanPhone || null);
     }
 
     if (email !== undefined) {
@@ -70,44 +76,59 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
-      updateData.email = cleanEmail || null;
+      setClauses.push('email = ?');
+      params.push(cleanEmail || null);
     }
 
-    if (avatar !== undefined) updateData.avatar = avatar;
-    if (department !== undefined) updateData.department = sanitizeString(department, 100);
-    if (birthday !== undefined) updateData.birthday = sanitizeString(birthday, 50);
-    if (address !== undefined) updateData.address = sanitizeString(address, 191);
-    if (bio !== undefined) updateData.bio = bio;
-    if (newPassword) updateData.password = String(newPassword);
+    if (avatar !== undefined) {
+      setClauses.push('avatar = ?');
+      params.push(avatar);
+    }
+    if (department !== undefined) {
+      setClauses.push('department = ?');
+      params.push(sanitizeString(department, 100));
+    }
+    if (birthday !== undefined) {
+      setClauses.push('birthday = ?');
+      params.push(sanitizeString(birthday, 50));
+    }
+    if (address !== undefined) {
+      setClauses.push('address = ?');
+      params.push(sanitizeString(address, 191));
+    }
+    if (bio !== undefined) {
+      setClauses.push('bio = ?');
+      params.push(bio);
+    }
+    if (newPassword) {
+      setClauses.push('password = ?');
+      params.push(String(newPassword));
+    }
 
-    const updated = await prisma.user.update({
-      where: { id: user.id },
-      data: updateData,
-      select: {
-        id: true,
-        username: true,
-        name: true,
-        role: true,
-        phone: true,
-        email: true,
-        avatar: true,
-        department: true,
-        birthday: true,
-        address: true,
-        bio: true,
-        createdAt: true,
-      },
-    });
+    if (setClauses.length > 0) {
+      setClauses.push('updatedAt = NOW()');
+      params.push(user.id);
+      await db.execute(
+        `UPDATE user SET ${setClauses.join(', ')} WHERE id = ?`,
+        params
+      );
+    }
+
+    const updated = await db.queryOne(
+      `SELECT id, username, name, role, phone, email, avatar, department, birthday, address, bio, createdAt, updatedAt 
+       FROM user WHERE id = ?`,
+      [user.id]
+    );
 
     return NextResponse.json({
       success: true,
-      message: 'Cập nhật thông tin tài khoản thành công',
+      message: 'Cập nhật hồ sơ cá nhân thành công trong CSDL',
       data: updated,
     });
   } catch (error: any) {
-    console.error('Staff profile update error:', error);
+    console.error('Profile update error:', error);
     return NextResponse.json(
-      { error: 'Lỗi cập nhật hồ sơ: ' + (error?.message || '') },
+      { error: 'Lỗi cập nhật hồ sơ cá nhân: ' + (error?.message || '') },
       { status: 500 }
     );
   }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { db } from '@/lib/db';
 import {
   normalizePhone,
   isValidPhone,
@@ -12,23 +12,22 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search')?.trim();
 
-    const normalized = search ? normalizePhone(search) : '';
+    let sql = 'SELECT * FROM customer';
+    const params: any[] = [];
 
-    const where = search
-      ? {
-          OR: [
-            { name: { contains: search } },
-            { phone: { contains: search } },
-            ...(normalized ? [{ phone: { contains: normalized } }] : []),
-          ],
-        }
-      : {};
+    if (search) {
+      const normalized = normalizePhone(search);
+      sql += ' WHERE name LIKE ? OR phone LIKE ?';
+      params.push(`%${search}%`, `%${search}%`);
+      if (normalized && normalized !== search) {
+        sql += ' OR phone LIKE ?';
+        params.push(`%${normalized}%`);
+      }
+    }
 
-    const customers = await prisma.customer.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      take: 50,
-    });
+    sql += ' ORDER BY createdAt DESC LIMIT 50';
+
+    const customers = await db.query(sql, params);
 
     return NextResponse.json({
       success: true,
@@ -77,29 +76,58 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const existing = await prisma.customer.findUnique({
-      where: { phone },
-    });
-
-    const updateFields: any = {
-      name,
-      email: email || existing?.email,
-      address: address || existing?.address,
-    };
-    if (body.customerType) updateFields.customerType = sanitizeString(body.customerType, 50);
-    if (body.membershipTier) updateFields.membershipTier = sanitizeString(body.membershipTier, 50);
-    if (body.taxCode) updateFields.taxCode = sanitizeString(body.taxCode, 50);
-    if (body.birthday) updateFields.birthday = sanitizeString(body.birthday, 50);
-    if (body.city) updateFields.city = sanitizeString(body.city, 100);
-    if (body.notes) updateFields.notes = body.notes;
-    if (body.avatar) updateFields.avatar = body.avatar;
-    if (body.points !== undefined) updateFields.points = Math.max(0, Math.floor(Number(body.points) || 0));
+    const existing = await db.queryOne('SELECT * FROM customer WHERE phone = ?', [phone]);
 
     if (existing) {
-      const updated = await prisma.customer.update({
-        where: { phone },
-        data: updateFields,
-      });
+      const setClauses: string[] = ['name = ?', 'updatedAt = NOW()'];
+      const params: any[] = [name];
+
+      if (email !== null) {
+        setClauses.push('email = ?');
+        params.push(email);
+      }
+      if (address !== null) {
+        setClauses.push('address = ?');
+        params.push(address);
+      }
+      if (body.customerType) {
+        setClauses.push('customerType = ?');
+        params.push(sanitizeString(body.customerType, 50));
+      }
+      if (body.membershipTier) {
+        setClauses.push('membershipTier = ?');
+        params.push(sanitizeString(body.membershipTier, 50));
+      }
+      if (body.taxCode) {
+        setClauses.push('taxCode = ?');
+        params.push(sanitizeString(body.taxCode, 50));
+      }
+      if (body.birthday) {
+        setClauses.push('birthday = ?');
+        params.push(sanitizeString(body.birthday, 50));
+      }
+      if (body.city) {
+        setClauses.push('city = ?');
+        params.push(sanitizeString(body.city, 100));
+      }
+      if (body.notes !== undefined) {
+        setClauses.push('notes = ?');
+        params.push(body.notes);
+      }
+      if (body.avatar !== undefined) {
+        setClauses.push('avatar = ?');
+        params.push(body.avatar);
+      }
+      if (body.points !== undefined) {
+        setClauses.push('points = ?');
+        params.push(Math.max(0, Math.floor(Number(body.points) || 0)));
+      }
+
+      params.push(existing.id);
+      await db.execute(`UPDATE customer SET ${setClauses.join(', ')} WHERE id = ?`, params);
+
+      const updated = await db.queryOne('SELECT * FROM customer WHERE id = ?', [existing.id]);
+
       return NextResponse.json({
         success: true,
         data: updated,
@@ -107,25 +135,31 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    const customerId = body.id || 'cust-' + Date.now();
     const points = Math.max(0, Math.floor(Number(body.points) || 0));
 
-    const created = await prisma.customer.create({
-      data: {
-        id: 'cust-' + Date.now(),
+    await db.execute(
+      `INSERT INTO customer 
+       (id, name, phone, email, address, points, customerType, membershipTier, taxCode, birthday, city, notes, avatar, totalSpent, purchaseCount, repairCount, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, NOW(), NOW())`,
+      [
+        customerId,
         name,
         phone,
         email,
         address,
         points,
-        customerType: body.customerType || 'Khách lẻ',
-        membershipTier: body.membershipTier || 'Thành viên mới',
-        taxCode: body.taxCode || null,
-        birthday: body.birthday || null,
-        city: body.city || 'TP. Hồ Chí Minh',
-        notes: body.notes || null,
-        avatar: body.avatar || null,
-      },
-    });
+        body.customerType ? sanitizeString(body.customerType, 50) : 'Khách lẻ',
+        body.membershipTier ? sanitizeString(body.membershipTier, 50) : 'Thành viên mới',
+        body.taxCode ? sanitizeString(body.taxCode, 50) : null,
+        body.birthday ? sanitizeString(body.birthday, 50) : null,
+        body.city ? sanitizeString(body.city, 100) : 'TP. Hồ Chí Minh',
+        body.notes || null,
+        body.avatar || null,
+      ]
+    );
+
+    const created = await db.queryOne('SELECT * FROM customer WHERE id = ?', [customerId]);
 
     return NextResponse.json({
       success: true,
@@ -154,11 +188,14 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const where: any = {};
-    if (id) where.id = id;
-    if (phone) where.phone = phone;
+    let existing = null;
+    if (id) {
+      existing = await db.queryOne('SELECT * FROM customer WHERE id = ?', [id]);
+    }
+    if (!existing && phone) {
+      existing = await db.queryOne('SELECT * FROM customer WHERE phone = ?', [phone]);
+    }
 
-    const existing = await prisma.customer.findFirst({ where });
     if (!existing) {
       return NextResponse.json(
         { error: 'Không tìm thấy khách hàng để xóa' },
@@ -166,9 +203,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    await prisma.customer.delete({
-      where: { id: existing.id },
-    });
+    await db.execute('DELETE FROM customer WHERE id = ?', [existing.id]);
 
     return NextResponse.json({
       success: true,

@@ -1,26 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { db } from '@/lib/db';
 import { sanitizeString } from '@/lib/validation';
 
 export async function GET() {
   try {
-    // 1. Lấy danh sách category từ bảng AccessoryCategory trong MySQL
-    const dbCategories = await prisma.accessoryCategory.findMany({
-      where: { isActive: true },
-      orderBy: { displayOrder: 'asc' },
-    });
+    const dbCategories = await db.query(
+      'SELECT * FROM accessorycategory WHERE isActive = 1 ORDER BY displayOrder ASC'
+    );
 
-    const categoryCounts = await prisma.accessoryProduct.groupBy({
-      by: ['category'],
-      _count: {
-        id: true,
-      },
-    });
+    const counts = await db.query(
+      'SELECT category, COUNT(*) as cnt FROM accessoryproduct GROUP BY category'
+    );
 
     const countMap: Record<string, number> = {};
-    categoryCounts.forEach((c) => {
-      countMap[c.category] = c._count.id;
-    });
+    for (const c of counts) {
+      countMap[c.category] = Number(c.cnt || 0);
+    }
 
     const categories = dbCategories.map((c) => ({
       id: c.id,
@@ -66,30 +61,26 @@ export async function POST(request: NextRequest) {
     );
 
     if (action === 'update' && oldCode) {
-      // 1. Cập nhật bảng AccessoryCategory
-      await prisma.accessoryCategory.upsert({
-        where: { code: oldCode },
-        update: {
-          code: cleanCode,
-          name: cleanName,
-          description: description || null,
-        },
-        create: {
-          code: cleanCode,
-          name: cleanName,
-          description: description || null,
-          isActive: true,
-        },
-      });
+      const existing = await db.queryOne('SELECT id FROM accessorycategory WHERE code = ?', [oldCode]);
+      if (existing) {
+        await db.execute(
+          `UPDATE accessorycategory SET 
+             code = ?, name = ?, description = ?, updatedAt = NOW()
+           WHERE id = ?`,
+          [cleanCode, cleanName, description || null, existing.id]
+        );
+      } else {
+        await db.execute(
+          `INSERT INTO accessorycategory (id, code, name, description, isActive, createdAt, updatedAt)
+           VALUES (?, ?, ?, ?, 1, NOW(), NOW())`,
+          ['acc_cat_' + Date.now(), cleanCode, cleanName, description || null]
+        );
+      }
 
-      // 2. Cập nhật toàn bộ sản phẩm thuộc danh mục này
-      await prisma.accessoryProduct.updateMany({
-        where: { category: oldCode },
-        data: {
-          category: cleanCode,
-          categoryName: cleanName,
-        },
-      });
+      await db.execute(
+        `UPDATE accessoryproduct SET category = ?, categoryName = ?, updatedAt = NOW() WHERE category = ?`,
+        [cleanCode, cleanName, oldCode]
+      );
 
       return NextResponse.json({
         success: true,
@@ -99,20 +90,23 @@ export async function POST(request: NextRequest) {
     }
 
     // Action create
-    const created = await prisma.accessoryCategory.upsert({
-      where: { code: cleanCode },
-      update: {
-        name: cleanName,
-        description: description || null,
-        isActive: true,
-      },
-      create: {
-        code: cleanCode,
-        name: cleanName,
-        description: description || null,
-        isActive: true,
-      },
-    });
+    const existing = await db.queryOne('SELECT id FROM accessorycategory WHERE code = ?', [cleanCode]);
+    let catId = existing?.id;
+    if (existing) {
+      await db.execute(
+        `UPDATE accessorycategory SET name = ?, description = ?, isActive = 1, updatedAt = NOW() WHERE id = ?`,
+        [cleanName, description || null, catId]
+      );
+    } else {
+      catId = 'acc_cat_' + Date.now();
+      await db.execute(
+        `INSERT INTO accessorycategory (id, code, name, description, isActive, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, 1, NOW(), NOW())`,
+        [catId, cleanCode, cleanName, description || null]
+      );
+    }
+
+    const created = await db.queryOne('SELECT * FROM accessorycategory WHERE id = ?', [catId]);
 
     return NextResponse.json({
       success: true,
@@ -137,19 +131,11 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Thiếu mã danh mục' }, { status: 400 });
     }
 
-    // 1. Xóa trong bảng AccessoryCategory
-    await prisma.accessoryCategory.deleteMany({
-      where: { code },
-    });
-
-    // 2. Chuyển toàn bộ sản phẩm thuộc category này về 'other'
-    await prisma.accessoryProduct.updateMany({
-      where: { category: code },
-      data: {
-        category: 'other',
-        categoryName: 'Phụ kiện khác',
-      },
-    });
+    await db.execute('DELETE FROM accessorycategory WHERE code = ?', [code]);
+    await db.execute(
+      'UPDATE accessoryproduct SET category = "other", categoryName = "Phụ kiện khác", updatedAt = NOW() WHERE category = ?',
+      [code]
+    );
 
     return NextResponse.json({
       success: true,
@@ -163,4 +149,3 @@ export async function DELETE(request: NextRequest) {
     );
   }
 }
-

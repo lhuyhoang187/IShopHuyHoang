@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { db } from '@/lib/db';
 import {
   isValidImei,
   isValidAmount,
@@ -63,9 +63,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Resolve Supplier
-    const supplier = await prisma.supplier.findUnique({
-      where: { id: supplierId },
-    });
+    const supplier = await db.queryOne('SELECT * FROM supplier WHERE id = ?', [supplierId]);
 
     if (!supplier) {
       return NextResponse.json(
@@ -79,11 +77,11 @@ export async function POST(request: NextRequest) {
     // Resolve PhoneProduct foreign key
     let resolvedPhoneId = phoneId ? sanitizeString(phoneId, 50) : null;
     if (resolvedPhoneId) {
-      const existsPhone = await prisma.phoneProduct.findUnique({ where: { id: resolvedPhoneId } });
+      const existsPhone = await db.queryOne('SELECT id FROM phoneproduct WHERE id = ?', [resolvedPhoneId]);
       if (!existsPhone) resolvedPhoneId = null;
     }
     if (!resolvedPhoneId) {
-      const firstPhone = await prisma.phoneProduct.findFirst({ select: { id: true } });
+      const firstPhone = await db.queryOne('SELECT id FROM phoneproduct LIMIT 1');
       resolvedPhoneId = firstPhone ? firstPhone.id : 'p-1';
     }
 
@@ -94,113 +92,126 @@ export async function POST(request: NextRequest) {
     const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
     const dateStr = now.split(' ')[0];
 
-    const orderCount = await prisma.supplierOrder.count();
+    const countRow = await db.queryOne('SELECT COUNT(*) as cnt FROM supplierorder');
+    const orderCount = countRow?.cnt || 0;
     const orderCode = `NH-2608-${String(orderCount + 1).padStart(3, '0')}`;
 
-    // Execute in Prisma Transaction for full atomic data integrity
-    const result = await prisma.$transaction(async (tx) => {
+    // Execute in SQL Transaction for full atomic data integrity
+    const result = await db.transaction(async (conn) => {
       // 1. Insert/Update PhoneStock for each IMEI
       for (const imei of uniqueImeis) {
-        await tx.phoneStock.upsert({
-          where: { imei },
-          update: {
-            phoneId: resolvedPhoneId!,
-            phoneName: sanitizeString(phoneName || 'iPhone Mới Nhập', 191),
-            color: sanitizeString(color || 'Titan Tự Nhiên', 100),
-            capacity: sanitizeString(capacity || '256GB', 50),
-            costPrice: costNum,
-            sellingPrice: sellNum,
-            supplierId,
-            supplierName,
-            status: 'in_stock',
-          },
-          create: {
+        await conn.execute(
+          `INSERT INTO phonestock 
+           (imei, phoneId, phoneName, color, capacity, costPrice, sellingPrice, supplierId, supplierName, importDate, status, warrantyMonths, createdAt, updatedAt)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'in_stock', 12, NOW(), NOW())
+           ON DUPLICATE KEY UPDATE
+             phoneId = VALUES(phoneId),
+             phoneName = VALUES(phoneName),
+             color = VALUES(color),
+             capacity = VALUES(capacity),
+             costPrice = VALUES(costPrice),
+             sellingPrice = VALUES(sellingPrice),
+             supplierId = VALUES(supplierId),
+             supplierName = VALUES(supplierName),
+             status = 'in_stock',
+             updatedAt = NOW()`,
+          [
             imei,
-            phoneId: resolvedPhoneId!,
-            phoneName: sanitizeString(phoneName || 'iPhone Mới Nhập', 191),
-            color: sanitizeString(color || 'Titan Tự Nhiên', 100),
-            capacity: sanitizeString(capacity || '256GB', 50),
-            costPrice: costNum,
-            sellingPrice: sellNum,
+            resolvedPhoneId,
+            sanitizeString(phoneName || 'iPhone Mới Nhập', 191),
+            sanitizeString(color || 'Titan Tự Nhiên', 100),
+            sanitizeString(capacity || '256GB', 50),
+            costNum,
+            sellNum,
             supplierId,
             supplierName,
-            importDate: dateStr,
-            status: 'in_stock',
-            warrantyMonths: 12,
-          },
-        });
+            dateStr,
+          ]
+        );
       }
 
       // 2. Create Supplier Order record
-      const order = await tx.supplierOrder.create({
-        data: {
-          id: 'ord-' + Date.now(),
+      const orderId = 'ord-' + Date.now();
+      await conn.execute(
+        `INSERT INTO supplierorder 
+         (id, orderCode, supplierId, supplierName, date, type, itemsSummary, totalAmount, paidAmount, debtAmount, status, notes, importedImeis, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, ?, 'phones', ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+        [
+          orderId,
           orderCode,
           supplierId,
           supplierName,
-          date: dateStr,
-          type: 'phones',
-          itemsSummary: `Nhập ${uniqueImeis.length} cây ${phoneName || 'iPhone'} (${color || 'Titan'} - ${capacity || '256GB'})`,
-          totalAmount: totalBatchCost,
-          paidAmount: paid,
-          debtAmount: debtIncrease,
-          status: debtIncrease === 0 ? 'completed' : 'partial',
-          notes: sanitizeString(notes || 'Nhập lô hàng chính ngạch.', 1000),
-          importedImeis: JSON.stringify(uniqueImeis),
-        },
-      });
+          dateStr,
+          `Nhập ${uniqueImeis.length} cây ${phoneName || 'iPhone'} (${color || 'Titan'} - ${capacity || '256GB'})`,
+          totalBatchCost,
+          paid,
+          debtIncrease,
+          debtIncrease === 0 ? 'completed' : 'partial',
+          sanitizeString(notes || 'Nhập lô hàng chính ngạch.', 1000),
+          JSON.stringify(uniqueImeis),
+        ]
+      );
 
       // 2.1. Insert 3NF Normalized Supplier Order Items
       for (const imei of uniqueImeis) {
-        await tx.supplierOrderItem.create({
-          data: {
+        const itemId = 'soi_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
+        await conn.execute(
+          `INSERT INTO supplierorderitem 
+           (id, orderCode, itemType, productId, productName, color, capacity, quantity, unitCost, totalCost, imei, createdAt)
+           VALUES (?, ?, 'phone', ?, ?, ?, ?, 1, ?, ?, ?, NOW())`,
+          [
+            itemId,
             orderCode,
-            itemType: 'phone',
-            productId: resolvedPhoneId,
-            productName: sanitizeString(phoneName || 'iPhone', 191),
-            color: sanitizeString(color || 'Titan', 100),
-            capacity: sanitizeString(capacity || '256GB', 50),
-            quantity: 1,
-            unitCost: costNum,
-            totalCost: costNum,
+            resolvedPhoneId,
+            sanitizeString(phoneName || 'iPhone', 191),
+            sanitizeString(color || 'Titan', 100),
+            sanitizeString(capacity || '256GB', 50),
+            costNum,
+            costNum,
             imei,
-          },
-        });
+          ]
+        );
       }
 
       // 3. Update Supplier debt & purchase totals
-      await tx.supplier.update({
-        where: { id: supplierId },
-        data: {
-          totalPurchased: { increment: totalBatchCost },
-          currentDebt: { increment: debtIncrease },
-        },
-      });
+      await conn.execute(
+        `UPDATE supplier SET 
+           totalPurchased = totalPurchased + ?, 
+           currentDebt = currentDebt + ?, 
+           updatedAt = NOW() 
+         WHERE id = ?`,
+        [totalBatchCost, debtIncrease, supplierId]
+      );
 
       // 4. Auto-generate Cashbook Payment Entry (Phiếu Chi tiền mặt/chuyển khoản)
       let cashbookEntry = null;
       if (paid > 0) {
-        const cashCount = await tx.cashbookEntry.count();
+        const [cashCountRow]: any = await conn.query('SELECT COUNT(*) as cnt FROM cashbookentry');
+        const cashCount = cashCountRow[0]?.cnt || 0;
         const cashCode = `PC-2608-${String(cashCount + 1).padStart(3, '0')}`;
+        const cashId = 'cb-' + Date.now();
 
-        cashbookEntry = await tx.cashbookEntry.create({
-          data: {
-            id: 'cb-' + Date.now(),
-            code: cashCode,
-            date: dateStr,
-            type: 'payment',
-            category: 'supplier_restock',
-            categoryLabel: 'Nhập hàng nhà cung cấp',
-            amount: paid,
-            paymentMethod: 'transfer',
-            referenceCode: orderCode,
-            description: `Thanh toán tiền nhập lô ${uniqueImeis.length} máy đơn hàng ${orderCode} cho ${supplierName}`,
-            creator: 'Lê Huy Hoàng (Chủ Shop)',
-          },
-        });
+        await conn.execute(
+          `INSERT INTO cashbookentry 
+           (id, code, date, type, category, categoryLabel, amount, paymentMethod, referenceCode, description, creator, createdAt, updatedAt)
+           VALUES (?, ?, ?, 'payment', 'supplier_restock', 'Nhập hàng nhà cung cấp', ?, 'transfer', ?, ?, 'Lê Huy Hoàng (Chủ Shop)', NOW(), NOW())`,
+          [
+            cashId,
+            cashCode,
+            dateStr,
+            paid,
+            orderCode,
+            `Thanh toán tiền nhập lô ${uniqueImeis.length} máy đơn hàng ${orderCode} cho ${supplierName}`,
+          ]
+        );
+
+        const [cashRows]: any = await conn.query('SELECT * FROM cashbookentry WHERE id = ?', [cashId]);
+        cashbookEntry = cashRows[0];
       }
 
-      return { order, cashbookEntry, importedCount: uniqueImeis.length };
+      const [orderRows]: any = await conn.query('SELECT * FROM supplierorder WHERE id = ?', [orderId]);
+
+      return { order: orderRows[0], cashbookEntry, importedCount: uniqueImeis.length };
     });
 
     return NextResponse.json({

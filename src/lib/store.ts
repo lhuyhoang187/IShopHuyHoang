@@ -49,7 +49,7 @@ import {
   initialInvoices,
 } from './initialData';
 
-const STORAGE_PREFIX = 'ishop_huyhoang_';
+const STORAGE_PREFIX = 'ishop_huyhoang_v3_mysql_';
 
 function getStorage<T>(key: string, defaultValue: T): T {
   if (typeof window === 'undefined') return defaultValue;

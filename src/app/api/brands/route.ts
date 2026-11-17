@@ -1,17 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { db } from '@/lib/db';
 import { sanitizeString } from '@/lib/validation';
 
 export async function GET() {
   try {
-    const brands = await prisma.phoneBrand.findMany({
-      where: { isActive: true },
-      orderBy: { displayOrder: 'asc' },
-    });
+    const brands = await db.query(
+      `SELECT * FROM phonebrand 
+       WHERE isActive = 1 
+       ORDER BY displayOrder ASC`
+    );
+
+    const mapped = brands.map((b) => ({
+      ...b,
+      isActive: Boolean(b.isActive),
+    }));
 
     return NextResponse.json({
       success: true,
-      data: brands,
+      data: mapped,
     });
   } catch (error: any) {
     console.error('Phone brands GET error:', error);
@@ -43,43 +49,50 @@ export async function POST(request: NextRequest) {
       50
     );
 
-    const existing = await prisma.phoneBrand.findFirst({
-      where: {
-        OR: [{ name: cleanName }, { slug: cleanSlug }],
-      },
-    });
+    const existing = await db.queryOne(
+      'SELECT id, name, slug, country, description, logoUrl, displayOrder FROM phonebrand WHERE name = ? OR slug = ?',
+      [cleanName, cleanSlug]
+    );
 
-    let brand;
+    let brandId = existing?.id;
     if (existing) {
-      brand = await prisma.phoneBrand.update({
-        where: { id: existing.id },
-        data: {
-          name: cleanName,
-          country: country ? sanitizeString(country, 50) : existing.country,
-          description: description || existing.description,
-          logoUrl: logoUrl || existing.logoUrl,
-          displayOrder: displayOrder !== undefined ? Number(displayOrder) : existing.displayOrder,
-          isActive: true,
-        },
-      });
+      await db.execute(
+        `UPDATE phonebrand SET 
+           name = ?, country = ?, description = ?, logoUrl = ?, displayOrder = ?, isActive = 1, updatedAt = NOW()
+         WHERE id = ?`,
+        [
+          cleanName,
+          country ? sanitizeString(country, 50) : existing.country,
+          description || existing.description,
+          logoUrl || existing.logoUrl,
+          displayOrder !== undefined ? Number(displayOrder) : existing.displayOrder,
+          brandId,
+        ]
+      );
     } else {
-      brand = await prisma.phoneBrand.create({
-        data: {
-          name: cleanName,
-          slug: cleanSlug,
-          country: country ? sanitizeString(country, 50) : null,
-          description: description || null,
-          logoUrl: logoUrl || null,
-          displayOrder: Number(displayOrder) || 0,
-          isActive: true,
-        },
-      });
+      brandId = 'brand_' + Date.now();
+      await db.execute(
+        `INSERT INTO phonebrand 
+         (id, name, slug, country, description, logoUrl, displayOrder, isActive, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 1, NOW(), NOW())`,
+        [
+          brandId,
+          cleanName,
+          cleanSlug,
+          country ? sanitizeString(country, 50) : null,
+          description || null,
+          logoUrl || null,
+          Number(displayOrder) || 0,
+        ]
+      );
     }
+
+    const brand = await db.queryOne('SELECT * FROM phonebrand WHERE id = ?', [brandId]);
 
     return NextResponse.json({
       success: true,
       message: 'Đã lưu thương hiệu thành công',
-      data: brand,
+      data: brand ? { ...brand, isActive: Boolean(brand.isActive) } : null,
     });
   } catch (error: any) {
     console.error('Phone brands POST error:', error);
@@ -115,14 +128,13 @@ export async function DELETE(request: NextRequest) {
 
     const cleanName = name ? sanitizeString(name, 50) : undefined;
 
-    const target = await prisma.phoneBrand.findFirst({
-      where: {
-        OR: [
-          id ? { id } : {},
-          cleanName ? { name: cleanName } : {},
-        ],
-      },
-    });
+    let target = null;
+    if (id) {
+      target = await db.queryOne('SELECT * FROM phonebrand WHERE id = ?', [id]);
+    }
+    if (!target && cleanName) {
+      target = await db.queryOne('SELECT * FROM phonebrand WHERE name = ?', [cleanName]);
+    }
 
     if (!target) {
       return NextResponse.json(
@@ -131,9 +143,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    await prisma.phoneBrand.delete({
-      where: { id: target.id },
-    });
+    await db.execute('DELETE FROM phonebrand WHERE id = ?', [target.id]);
 
     return NextResponse.json({
       success: true,
@@ -148,4 +158,3 @@ export async function DELETE(request: NextRequest) {
     );
   }
 }
-

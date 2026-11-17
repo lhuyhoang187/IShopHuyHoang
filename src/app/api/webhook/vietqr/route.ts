@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { db } from '@/lib/db';
 import { ServerStore } from '@/lib/serverStore';
 import { isValidAmount } from '@/lib/validation';
 
@@ -50,27 +50,28 @@ export async function POST(request: NextRequest) {
       referenceCode,
     });
 
-    // 2. Persist directly into MySQL database via Prisma
+    // 2. Persist directly into MySQL database via db (mysql2)
     const now = new Date();
     const dateStr = now.toISOString().split('T')[0];
-    const cashCount = await prisma.cashbookEntry.count();
+    const countRow = await db.queryOne('SELECT COUNT(*) as cnt FROM cashbookentry');
+    const cashCount = countRow?.cnt || 0;
     const cashbookCode = `PT-NAPAS-${dateStr.replace(/-/g, '').slice(2)}-${String(cashCount + 1).padStart(3, '0')}`;
+    const cbId = 'cb-webhook-' + Date.now();
 
-    await prisma.cashbookEntry.create({
-      data: {
-        id: 'cb-webhook-' + Date.now(),
-        code: cashbookCode,
-        date: dateStr,
-        type: 'receipt',
-        category: result.type === 'repair' ? 'repair_service' : 'sale_phone',
-        categoryLabel: 'VietQR Napas 247 Webhook',
-        amount: transferAmount,
-        paymentMethod: 'transfer',
-        referenceCode: result.targetCode || referenceCode || 'WEBHOOK',
-        description: `[Tự Động Napas 247] Nhận ${transferAmount.toLocaleString('vi-VN')}đ. Nội dung: ${content}`,
-        creator: 'Hệ Thống Webhook Tự Động',
-      },
-    });
+    await db.execute(
+      `INSERT INTO cashbookentry 
+       (id, code, date, type, category, categoryLabel, amount, paymentMethod, referenceCode, description, creator, createdAt, updatedAt)
+       VALUES (?, ?, ?, 'receipt', ?, 'VietQR Napas 247 Webhook', ?, 'transfer', ?, ?, 'Hệ Thống Webhook Tự Động', NOW(), NOW())`,
+      [
+        cbId,
+        cashbookCode,
+        dateStr,
+        result.type === 'repair' ? 'repair_service' : 'sale_phone',
+        transferAmount,
+        result.targetCode || referenceCode || 'WEBHOOK',
+        `[Tự Động Napas 247] Nhận ${transferAmount.toLocaleString('vi-VN')}đ. Nội dung: ${content}`,
+      ]
+    );
 
     return NextResponse.json({
       success: true,

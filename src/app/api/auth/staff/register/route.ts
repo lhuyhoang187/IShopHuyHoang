@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { db } from '@/lib/db';
 import { isValidUsername, sanitizeString } from '@/lib/validation';
 
 export async function POST(request: NextRequest) {
@@ -41,9 +41,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const exists = await prisma.user.findUnique({
-      where: { username },
-    });
+    const exists = await db.queryOne('SELECT id FROM user WHERE LOWER(username) = ?', [username]);
 
     if (exists) {
       return NextResponse.json(
@@ -52,17 +50,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // New staff registers with pending role awaiting Admin approval
-    const newUser = await prisma.user.create({
-      data: {
-        username,
-        password,
-        name,
-        role: 'pending',
-        avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400&auto=format&fit=crop&q=80',
-        isActive: true,
-      },
-    });
+    const newId = 'user_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
+    const defaultAvatar = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400&auto=format&fit=crop&q=80';
+
+    await db.execute(
+      `INSERT INTO user (id, username, password, name, role, avatar, isActive, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, 'pending', ?, 1, NOW(), NOW())`,
+      [newId, username, password, name, defaultAvatar]
+    );
 
     return NextResponse.json(
       {
@@ -70,10 +65,10 @@ export async function POST(request: NextRequest) {
         isPending: true,
         message: 'Đăng ký tài khoản nhân viên thành công! Tài khoản đang ở trạng thái chờ Chủ Cửa Hàng (Admin) xét duyệt và cấp quyền.',
         data: {
-          id: newUser.id,
-          username: newUser.username,
-          name: newUser.name,
-          role: newUser.role,
+          id: newId,
+          username,
+          name,
+          role: 'pending',
         },
       },
       { status: 201 }

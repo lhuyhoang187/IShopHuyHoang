@@ -1,23 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { db } from '@/lib/db';
 import { sanitizeString } from '@/lib/validation';
 
 export async function GET(request: NextRequest) {
   try {
-    const campaigns = await prisma.promotionCampaign.findMany({
-      orderBy: { createdAt: 'desc' },
-    });
+    const campaigns = await db.query('SELECT * FROM promotioncampaign ORDER BY createdAt DESC');
+    const promoQRs = await db.query('SELECT * FROM promoqrcode ORDER BY createdAt DESC');
 
-    const promoQRs = await prisma.promoQRCode.findMany({
-      orderBy: { createdAt: 'desc' },
-    });
+    const mappedCampaigns = campaigns.map((c) => ({
+      ...c,
+      isActive: Boolean(c.isActive),
+    }));
+
+    const mappedPromoQRs = promoQRs.map((q) => ({
+      ...q,
+      isActive: Boolean(q.isActive),
+    }));
 
     return NextResponse.json({
       success: true,
       source: 'mysql_database',
       data: {
-        campaigns,
-        promoQRs,
+        campaigns: mappedCampaigns,
+        promoQRs: mappedPromoQRs,
       },
     });
   } catch (error: any) {
@@ -40,36 +45,60 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Tiêu đề và mức chiết khấu không được để trống' }, { status: 400 });
       }
 
-      const campaign = await prisma.promotionCampaign.upsert({
-        where: { id: id || 'camp-' + Date.now() },
-        update: {
-          title: sanitizeString(title, 191),
-          description: description || '',
-          badgeText: badgeText || null,
-          discountType: discountType || 'percentage',
-          discountValue: Number(discountValue),
-          startDate: new Date(startDate || Date.now()),
-          endDate: new Date(endDate || Date.now() + 7 * 86400000),
-          isActive: isActive !== undefined ? Boolean(isActive) : true,
-          targetCategory: targetCategory || 'all',
-          bannerGradient: bannerGradient || null,
-        },
-        create: {
-          id: id || 'camp-' + Date.now(),
-          title: sanitizeString(title, 191),
-          description: description || '',
-          badgeText: badgeText || null,
-          discountType: discountType || 'percentage',
-          discountValue: Number(discountValue),
-          startDate: new Date(startDate || Date.now()),
-          endDate: new Date(endDate || Date.now() + 7 * 86400000),
-          isActive: isActive !== undefined ? Boolean(isActive) : true,
-          targetCategory: targetCategory || 'all',
-          bannerGradient: bannerGradient || null,
-        },
-      });
+      const campId = id || 'camp-' + Date.now();
+      const existing = await db.queryOne('SELECT id FROM promotioncampaign WHERE id = ?', [campId]);
 
-      return NextResponse.json({ success: true, message: 'Đã lưu chiến dịch khuyến mãi', data: campaign });
+      const start = startDate ? new Date(startDate).toISOString().replace('T', ' ').substring(0, 19) : new Date().toISOString().replace('T', ' ').substring(0, 19);
+      const end = endDate ? new Date(endDate).toISOString().replace('T', ' ').substring(0, 19) : new Date(Date.now() + 7 * 86400000).toISOString().replace('T', ' ').substring(0, 19);
+      const boolActive = isActive !== undefined ? (isActive ? 1 : 0) : 1;
+
+      if (existing) {
+        await db.execute(
+          `UPDATE promotioncampaign SET 
+             title = ?, description = ?, badgeText = ?, discountType = ?, discountValue = ?, 
+             startDate = ?, endDate = ?, isActive = ?, targetCategory = ?, bannerGradient = ?, updatedAt = NOW()
+           WHERE id = ?`,
+          [
+            sanitizeString(title, 191),
+            description || '',
+            badgeText || null,
+            discountType || 'percentage',
+            Number(discountValue),
+            start,
+            end,
+            boolActive,
+            targetCategory || 'all',
+            bannerGradient || null,
+            campId,
+          ]
+        );
+      } else {
+        await db.execute(
+          `INSERT INTO promotioncampaign 
+           (id, title, description, badgeText, discountType, discountValue, startDate, endDate, isActive, targetCategory, bannerGradient, createdAt, updatedAt)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+          [
+            campId,
+            sanitizeString(title, 191),
+            description || '',
+            badgeText || null,
+            discountType || 'percentage',
+            Number(discountValue),
+            start,
+            end,
+            boolActive,
+            targetCategory || 'all',
+            bannerGradient || null,
+          ]
+        );
+      }
+
+      const campaign = await db.queryOne('SELECT * FROM promotioncampaign WHERE id = ?', [campId]);
+      return NextResponse.json({
+        success: true,
+        message: 'Đã lưu chiến dịch khuyến mãi',
+        data: campaign ? { ...campaign, isActive: Boolean(campaign.isActive) } : null,
+      });
     }
 
     if (type === 'qrcode') {
@@ -79,37 +108,61 @@ export async function POST(request: NextRequest) {
       }
 
       const cleanCode = sanitizeString(code, 50).toUpperCase().replace(/\s+/g, '-');
-      const promoQR = await prisma.promoQRCode.upsert({
-        where: { code: cleanCode },
-        update: {
-          title: sanitizeString(title, 191),
-          description: description || '',
-          discountType: discountType || 'percentage',
-          discountValue: Number(discountValue),
-          minOrderValue: Number(minOrderValue || 0),
-          startDate: new Date(startDate || Date.now()),
-          endDate: new Date(endDate || Date.now() + 7 * 86400000),
-          isActive: isActive !== undefined ? Boolean(isActive) : true,
-          qrPayload: qrPayload || `https://ishop.vn/promo/${cleanCode}`,
-          bannerColor: bannerColor || null,
-        },
-        create: {
-          id: id || 'qr-promo-' + Date.now(),
-          code: cleanCode,
-          title: sanitizeString(title, 191),
-          description: description || '',
-          discountType: discountType || 'percentage',
-          discountValue: Number(discountValue),
-          minOrderValue: Number(minOrderValue || 0),
-          startDate: new Date(startDate || Date.now()),
-          endDate: new Date(endDate || Date.now() + 7 * 86400000),
-          isActive: isActive !== undefined ? Boolean(isActive) : true,
-          qrPayload: qrPayload || `https://ishop.vn/promo/${cleanCode}`,
-          bannerColor: bannerColor || null,
-        },
-      });
+      const existing = await db.queryOne('SELECT id FROM promoqrcode WHERE code = ?', [cleanCode]);
+      const qrId = existing?.id || id || 'qr-promo-' + Date.now();
 
-      return NextResponse.json({ success: true, message: 'Đã lưu mã QR khuyến mãi', data: promoQR });
+      const start = startDate ? new Date(startDate).toISOString().replace('T', ' ').substring(0, 19) : new Date().toISOString().replace('T', ' ').substring(0, 19);
+      const end = endDate ? new Date(endDate).toISOString().replace('T', ' ').substring(0, 19) : new Date(Date.now() + 7 * 86400000).toISOString().replace('T', ' ').substring(0, 19);
+      const boolActive = isActive !== undefined ? (isActive ? 1 : 0) : 1;
+
+      if (existing) {
+        await db.execute(
+          `UPDATE promoqrcode SET 
+             title = ?, description = ?, discountType = ?, discountValue = ?, minOrderValue = ?, 
+             startDate = ?, endDate = ?, isActive = ?, qrPayload = ?, bannerColor = ?, updatedAt = NOW()
+           WHERE id = ?`,
+          [
+            sanitizeString(title, 191),
+            description || '',
+            discountType || 'percentage',
+            Number(discountValue),
+            Number(minOrderValue || 0),
+            start,
+            end,
+            boolActive,
+            qrPayload || `https://ishop.vn/promo/${cleanCode}`,
+            bannerColor || null,
+            qrId,
+          ]
+        );
+      } else {
+        await db.execute(
+          `INSERT INTO promoqrcode 
+           (id, code, title, description, discountType, discountValue, minOrderValue, startDate, endDate, isActive, qrPayload, bannerColor, createdAt, updatedAt)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+          [
+            qrId,
+            cleanCode,
+            sanitizeString(title, 191),
+            description || '',
+            discountType || 'percentage',
+            Number(discountValue),
+            Number(minOrderValue || 0),
+            start,
+            end,
+            boolActive,
+            qrPayload || `https://ishop.vn/promo/${cleanCode}`,
+            bannerColor || null,
+          ]
+        );
+      }
+
+      const promoQR = await db.queryOne('SELECT * FROM promoqrcode WHERE id = ?', [qrId]);
+      return NextResponse.json({
+        success: true,
+        message: 'Đã lưu mã QR khuyến mãi',
+        data: promoQR ? { ...promoQR, isActive: Boolean(promoQR.isActive) } : null,
+      });
     }
 
     return NextResponse.json({ error: 'Loại thao tác không hợp lệ' }, { status: 400 });
@@ -121,4 +174,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

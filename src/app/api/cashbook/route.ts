@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { db } from '@/lib/db';
 import {
   isValidAmount,
   sanitizeString,
@@ -7,17 +7,15 @@ import {
 
 export async function GET(request: NextRequest) {
   try {
-    const entries = await prisma.cashbookEntry.findMany({
-      orderBy: { createdAt: 'desc' },
-    });
+    const entries = await db.query('SELECT * FROM cashbookentry ORDER BY createdAt DESC');
 
     const totalReceipt = entries
       .filter((e) => e.type === 'receipt')
-      .reduce((acc, curr) => acc + curr.amount, 0);
+      .reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
 
     const totalPayment = entries
       .filter((e) => e.type === 'payment')
-      .reduce((acc, curr) => acc + curr.amount, 0);
+      .reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
 
     const balance = totalReceipt - totalPayment;
 
@@ -74,27 +72,24 @@ export async function POST(request: NextRequest) {
       100
     );
 
-    const count = await prisma.cashbookEntry.count();
+    const countRow = await db.queryOne('SELECT COUNT(*) as cnt FROM cashbookentry');
+    const count = countRow?.cnt || 0;
     const prefix = type === 'receipt' ? 'PT' : 'PC';
     const now = new Date();
     const code = `${prefix}-2608-${String(count + 1).padStart(3, '0')}`;
     const dateStr = now.toISOString().split('T')[0];
+    const id = body.id || 'cb-' + Date.now();
+    const referenceCode = body.referenceCode ? sanitizeString(body.referenceCode, 50) : null;
+    const creator = sanitizeString(body.creator || 'Lê Huy Hoàng (Chủ Shop)', 100);
 
-    const newEntry = await prisma.cashbookEntry.create({
-      data: {
-        id: 'cb-' + Date.now(),
-        code,
-        date: dateStr,
-        type,
-        category,
-        categoryLabel,
-        amount,
-        paymentMethod,
-        referenceCode: body.referenceCode ? sanitizeString(body.referenceCode, 50) : null,
-        description,
-        creator: sanitizeString(body.creator || 'Lê Huy Hoàng (Chủ Shop)', 100),
-      },
-    });
+    await db.execute(
+      `INSERT INTO cashbookentry 
+       (id, code, date, type, category, categoryLabel, amount, paymentMethod, referenceCode, description, creator, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+      [id, code, dateStr, type, category, categoryLabel, amount, paymentMethod, referenceCode, description, creator]
+    );
+
+    const newEntry = await db.queryOne('SELECT * FROM cashbookentry WHERE id = ?', [id]);
 
     return NextResponse.json(
       {

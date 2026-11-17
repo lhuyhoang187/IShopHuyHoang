@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { db } from '@/lib/db';
 import { sanitizeString } from '@/lib/validation';
 
 export async function POST(request: NextRequest) {
@@ -15,9 +15,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const user = await prisma.user.findUnique({
-      where: { username },
-    });
+    const user = await db.queryOne(
+      'SELECT id, username, password, name, role, avatar, isActive FROM user WHERE LOWER(username) = ?',
+      [username]
+    );
 
     if (!user || user.password !== password) {
       return NextResponse.json(

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { db } from '@/lib/db';
 import { ServerStore } from '@/lib/serverStore';
 import {
   normalizePhone,
@@ -20,22 +20,20 @@ export async function GET(request: NextRequest) {
       const normalizedPhone = normalizePhone(cleanCode);
 
       // Search MySQL by ticketCode, phone, or IMEI
-      const repair = await prisma.repairTicket.findFirst({
-        where: {
-          OR: [
-            { ticketCode: cleanCode },
-            { customerPhone: cleanCode },
-            ...(normalizedPhone ? [{ customerPhone: normalizedPhone }] : []),
-            { imeiOrSerial: cleanCode },
-          ],
-        },
-        include: {
-          parts: true,
-          statusLogs: { orderBy: { createdAt: 'asc' } },
-        },
-      });
+      const repair = await db.queryOne(
+        `SELECT * FROM repairticket 
+         WHERE ticketCode = ? OR customerPhone = ? OR customerPhone = ? OR imeiOrSerial = ?
+         LIMIT 1`,
+        [cleanCode, cleanCode, normalizedPhone || cleanCode, cleanCode]
+      );
 
       if (repair) {
+        const parts = await db.query('SELECT * FROM repairticketpart WHERE ticketCode = ?', [repair.ticketCode]);
+        const statusLogs = await db.query(
+          'SELECT * FROM repairstatushistory WHERE ticketCode = ? ORDER BY createdAt ASC',
+          [repair.ticketCode]
+        );
+
         return NextResponse.json({
           success: true,
           source: 'mysql_database',
@@ -43,21 +41,23 @@ export async function GET(request: NextRequest) {
             ...repair,
             statusHistory: repair.statusHistory
               ? JSON.parse(repair.statusHistory)
-              : repair.statusLogs.map((l) => ({
+              : statusLogs.map((l: any) => ({
                   step: l.status,
                   label: l.statusLabel,
-                  time: l.createdAt.toISOString().replace('T', ' ').substring(0, 19),
+                  time: l.createdAt,
                   note: l.note,
                   actor: l.updatedBy,
                 })),
             partsUsed: repair.partsUsed
               ? JSON.parse(repair.partsUsed)
-              : repair.parts.map((p) => ({
+              : parts.map((p: any) => ({
                   partId: p.sparePartId,
                   partName: p.partName,
                   quantity: p.quantity,
                   unitPrice: p.unitPrice,
                 })),
+            parts,
+            statusLogs,
           },
         });
       }
@@ -74,33 +74,43 @@ export async function GET(request: NextRequest) {
     }
 
     // List all
-    const repairs = await prisma.repairTicket.findMany({
-      include: {
-        parts: true,
-        statusLogs: { orderBy: { createdAt: 'asc' } },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    const repairs = await db.query('SELECT * FROM repairticket ORDER BY createdAt DESC');
+    const allParts = await db.query('SELECT * FROM repairticketpart');
+    const allLogs = await db.query('SELECT * FROM repairstatushistory ORDER BY createdAt ASC');
+
+    const partsByTicket: Record<string, any[]> = {};
+    for (const p of allParts) {
+      if (!partsByTicket[p.ticketCode]) partsByTicket[p.ticketCode] = [];
+      partsByTicket[p.ticketCode].push(p);
+    }
+
+    const logsByTicket: Record<string, any[]> = {};
+    for (const l of allLogs) {
+      if (!logsByTicket[l.ticketCode]) logsByTicket[l.ticketCode] = [];
+      logsByTicket[l.ticketCode].push(l);
+    }
 
     const parsed = repairs.map((r) => ({
       ...r,
       statusHistory: r.statusHistory
         ? JSON.parse(r.statusHistory)
-        : r.statusLogs.map((l) => ({
+        : (logsByTicket[r.ticketCode] || []).map((l: any) => ({
             step: l.status,
             label: l.statusLabel,
-            time: l.createdAt.toISOString().replace('T', ' ').substring(0, 19),
+            time: l.createdAt,
             note: l.note,
             actor: l.updatedBy,
           })),
       partsUsed: r.partsUsed
         ? JSON.parse(r.partsUsed)
-        : r.parts.map((p) => ({
+        : (partsByTicket[r.ticketCode] || []).map((p: any) => ({
             partId: p.sparePartId,
             partName: p.partName,
             quantity: p.quantity,
             unitPrice: p.unitPrice,
           })),
+      parts: partsByTicket[r.ticketCode] || [],
+      statusLogs: logsByTicket[r.ticketCode] || [],
     }));
 
     return NextResponse.json({
@@ -165,7 +175,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const count = await prisma.repairTicket.count();
+    const countRow = await db.queryOne('SELECT COUNT(*) as cnt FROM repairticket');
+    const count = countRow?.cnt || 0;
     const ticketCode = `SC-2608-${String(count + 1).padStart(3, '0')}`;
     const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
 
@@ -179,34 +190,27 @@ export async function POST(request: NextRequest) {
       },
     ];
 
-    // 1. Ensure Customer exists (Toàn vẹn khóa ngoại)
-    await prisma.customer.upsert({
-      where: { phone: customerPhone },
-      update: {
-        name: customerName,
-        repairCount: { increment: 1 },
-      },
-      create: {
-        id: 'cust-' + Date.now(),
-        name: customerName,
-        phone: customerPhone,
-        address: body.customerAddress ? sanitizeString(body.customerAddress, 191) : null,
-        totalSpent: 0,
-        purchaseCount: 0,
-        repairCount: 1,
-        points: 10,
-      },
-    });
+    // 1. Ensure Customer exists
+    const existingCust = await db.queryOne('SELECT id FROM customer WHERE phone = ?', [customerPhone]);
+    if (existingCust) {
+      await db.execute('UPDATE customer SET name = ?, repairCount = repairCount + 1, updatedAt = NOW() WHERE phone = ?', [
+        customerName,
+        customerPhone,
+      ]);
+    } else {
+      await db.execute(
+        `INSERT INTO customer (id, name, phone, address, totalSpent, purchaseCount, repairCount, points, membershipTier, customerType, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, 0, 0, 1, 10, 'Thành viên mới', 'Khách lẻ', NOW(), NOW())`,
+        ['cust-' + Date.now(), customerName, customerPhone, body.customerAddress ? sanitizeString(body.customerAddress, 191) : null]
+      );
+    }
 
-    // 2. Resolve a valid technician from User table to strictly preserve Foreign Key integrity
+    // 2. Resolve technician
     let technicianId = body.technicianId ? sanitizeString(body.technicianId, 50) : null;
     let technicianName = body.technicianName ? sanitizeString(body.technicianName, 100) : null;
 
     if (technicianId) {
-      const foundTech = await prisma.user.findFirst({
-        where: { id: technicianId, role: 'technician' },
-        select: { id: true, name: true },
-      });
+      const foundTech = await db.queryOne('SELECT id, name FROM user WHERE id = ? AND role = "technician"', [technicianId]);
       if (foundTech) {
         technicianId = foundTech.id;
         technicianName = technicianName || foundTech.name;
@@ -214,10 +218,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!technicianId) {
-      const fallbackTech = await prisma.user.findFirst({
-        where: { role: 'technician', isActive: true },
-        select: { id: true, name: true },
-      });
+      const fallbackTech = await db.queryOne('SELECT id, name FROM user WHERE role = "technician" AND isActive = 1 LIMIT 1');
       technicianId = fallbackTech?.id || null;
       technicianName = technicianName || fallbackTech?.name || 'Trần Trọng Nghĩa (KTV Trưởng)';
     }
@@ -233,48 +234,51 @@ export async function POST(request: NextRequest) {
     const assignedBy = body.assignedBy ? sanitizeString(body.assignedBy, 100) : 'Chủ shop / Thu ngân';
 
     // 3. Create RepairTicket in MySQL
-    const newTicket = await prisma.repairTicket.create({
-      data: {
-        id: 'rep-' + Date.now(),
+    const ticketId = 'rep-' + Date.now();
+    const imeiOrSerial = sanitizeString(body.imeiOrSerial || 'OL-' + Math.floor(100000 + Math.random() * 900000), 50);
+    const unlockPasscode = sanitizeString(body.unlockPasscode || 'Chưa cung cấp', 50);
+    const estimatedDelivery = deadlineTime || (body.estimatedDeliveryDate
+      ? sanitizeString(body.estimatedDeliveryDate, 50)
+      : `${now.split(' ')[0]} 18:00:00`);
+
+    await db.execute(
+      `INSERT INTO repairticket 
+       (id, ticketCode, customerName, customerPhone, customerAddress, deviceModel, imeiOrSerial, unlockPasscode, appearanceCondition, accessoriesIncluded, issueDescription, technicianNotes, status, statusHistory, partsUsed, laborFee, totalAmount, estimatedDeliveryDate, deadlineTime, deadlineMinutes, assignedBy, receivedAt, technicianId, technicianName, warrantyPeriod, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'received', ?, '[]', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+      [
+        ticketId,
         ticketCode,
         customerName,
         customerPhone,
-        customerAddress: sanitizeString(body.customerAddress || 'Khách đặt online', 191),
+        sanitizeString(body.customerAddress || 'Khách đặt online', 191),
         deviceModel,
-        imeiOrSerial: sanitizeString(body.imeiOrSerial || 'OL-' + Math.floor(100000 + Math.random() * 900000), 50),
-        unlockPasscode: sanitizeString(body.unlockPasscode || 'Chưa cung cấp', 50),
-        appearanceCondition: sanitizeString(body.appearanceCondition || 'Tiếp nhận đặt hẹn online', 500),
-        accessoriesIncluded: sanitizeString(body.accessoriesIncluded || 'Khách tự mang máy đến', 500),
+        imeiOrSerial,
+        unlockPasscode,
+        sanitizeString(body.appearanceCondition || 'Tiếp nhận đặt hẹn online', 500),
+        sanitizeString(body.accessoriesIncluded || 'Khách tự mang máy đến', 500),
         issueDescription,
-        technicianNotes: body.technicianNotes ? sanitizeString(body.technicianNotes, 1000) : '',
-        status: 'received',
-        statusHistory: JSON.stringify(initialHistory),
-        partsUsed: JSON.stringify([]),
+        body.technicianNotes ? sanitizeString(body.technicianNotes, 1000) : '',
+        JSON.stringify(initialHistory),
         laborFee,
-        totalAmount: laborFee,
-        estimatedDeliveryDate: deadlineTime || (body.estimatedDeliveryDate
-          ? sanitizeString(body.estimatedDeliveryDate, 50)
-          : `${now.split(' ')[0]} 18:00:00`),
+        laborFee,
+        estimatedDelivery,
         deadlineTime,
         deadlineMinutes,
         assignedBy,
-        receivedAt: now,
+        now,
         technicianId,
         technicianName,
-        warrantyPeriod: sanitizeString(body.warrantyPeriod || 'Bảo hành 12 tháng linh kiện', 100),
-      },
-    });
+        sanitizeString(body.warrantyPeriod || 'Bảo hành 12 tháng linh kiện', 100),
+      ]
+    );
 
     // 3.1. Insert into 3NF RepairStatusHistory table
-    await prisma.repairStatusHistory.create({
-      data: {
-        ticketCode,
-        status: 'received',
-        statusLabel: 'Tiếp nhận máy tại quầy',
-        note: 'Biên nhận sửa chữa K80 được tạo tự động và lưu vào CSDL MySQL.',
-        updatedBy: sanitizeString(assignedBy || 'Lễ tân tiếp nhận', 100),
-      },
-    });
+    const logId = 'rsh_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
+    await db.execute(
+      `INSERT INTO repairstatushistory (id, ticketCode, status, statusLabel, note, updatedBy, createdAt)
+       VALUES (?, ?, 'received', 'Tiếp nhận máy tại quầy', 'Biên nhận sửa chữa K80 được tạo tự động và lưu vào CSDL MySQL.', ?, NOW())`,
+      [logId, ticketCode, sanitizeString(assignedBy || 'Lễ tân tiếp nhận', 100)]
+    );
 
     // Also sync in-memory
     ServerStore.createRepair({
@@ -282,11 +286,13 @@ export async function POST(request: NextRequest) {
       customerPhone,
       customerAddress: body.customerAddress,
       deviceModel,
-      imeiOrSerial: newTicket.imeiOrSerial,
-      unlockPasscode: newTicket.unlockPasscode,
+      imeiOrSerial,
+      unlockPasscode,
       issueDescription,
-      laborFee: newTicket.laborFee,
+      laborFee,
     });
+
+    const newTicket = await db.queryOne('SELECT * FROM repairticket WHERE id = ?', [ticketId]);
 
     return NextResponse.json(
       {
@@ -337,11 +343,10 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const ticket = await prisma.repairTicket.findFirst({
-      where: {
-        OR: [{ id: identifier }, { ticketCode: identifier }],
-      },
-    });
+    const ticket = await db.queryOne(
+      'SELECT * FROM repairticket WHERE id = ? OR ticketCode = ?',
+      [identifier, identifier]
+    );
 
     if (!ticket) {
       return NextResponse.json(
@@ -351,7 +356,8 @@ export async function PUT(request: NextRequest) {
     }
 
     const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
-    const updateData: any = {};
+    const setClauses: string[] = ['updatedAt = NOW()'];
+    const sqlParams: any[] = [];
 
     // Validate Status constraint if provided
     if (status) {
@@ -383,30 +389,36 @@ export async function PUT(request: NextRequest) {
         actor: actor ? sanitizeString(actor, 100) : 'Kỹ thuật viên',
       };
 
-      updateData.status = status;
-      updateData.statusHistory = JSON.stringify([...currentHistory, newHistoryItem]);
+      setClauses.push('status = ?', 'statusHistory = ?');
+      sqlParams.push(status, JSON.stringify([...currentHistory, newHistoryItem]));
 
-      // 3.1. Insert 3NF RepairStatusHistory record
-      await prisma.repairStatusHistory.create({
-        data: {
-          ticketCode: ticket.ticketCode,
+      // Insert 3NF RepairStatusHistory record
+      const rshId = 'rsh_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
+      await db.execute(
+        `INSERT INTO repairstatushistory (id, ticketCode, status, statusLabel, note, updatedBy, createdAt)
+         VALUES (?, ?, ?, ?, ?, ?, NOW())`,
+        [
+          rshId,
+          ticket.ticketCode,
           status,
-          statusLabel: statusLabels[status] || status,
-          note: note ? sanitizeString(note, 500) : `Cập nhật trạng thái: ${statusLabels[status] || status}`,
-          updatedBy: actor ? sanitizeString(actor, 100) : 'Kỹ thuật viên',
-        },
-      });
+          statusLabels[status] || status,
+          note ? sanitizeString(note, 500) : `Cập nhật trạng thái: ${statusLabels[status] || status}`,
+          actor ? sanitizeString(actor, 100) : 'Kỹ thuật viên',
+        ]
+      );
 
       if (status === 'delivered') {
-        updateData.deliveredAt = now;
+        setClauses.push('deliveredAt = ?');
+        sqlParams.push(now);
       }
     }
 
     if (technicianNotes !== undefined) {
-      updateData.technicianNotes = sanitizeString(technicianNotes, 1000);
+      setClauses.push('technicianNotes = ?');
+      sqlParams.push(sanitizeString(technicianNotes, 1000));
     }
 
-    // Validate and update labor fee
+    let finalLaborFee = Number(ticket.laborFee || 0);
     if (laborFee !== undefined) {
       const feeNum = Number(laborFee);
       if (!isValidAmount(feeNum)) {
@@ -415,12 +427,16 @@ export async function PUT(request: NextRequest) {
           { status: 400 }
         );
       }
-      updateData.laborFee = feeNum;
+      finalLaborFee = feeNum;
+      setClauses.push('laborFee = ?');
+      sqlParams.push(finalLaborFee);
     }
 
     // Validate parts used and calculate total amount
     if (partsUsed && Array.isArray(partsUsed)) {
-      updateData.partsUsed = JSON.stringify(partsUsed);
+      setClauses.push('partsUsed = ?');
+      sqlParams.push(JSON.stringify(partsUsed));
+
       const partsTotal = partsUsed.reduce(
         (sum: number, p: any) =>
           sum +
@@ -428,52 +444,49 @@ export async function PUT(request: NextRequest) {
             Number(p.quantity || 1)),
         0
       );
-      const currentLabor = updateData.laborFee !== undefined ? updateData.laborFee : ticket.laborFee;
-      updateData.totalAmount = currentLabor + partsTotal;
+      const totalAmount = finalLaborFee + partsTotal;
+      setClauses.push('totalAmount = ?');
+      sqlParams.push(totalAmount);
 
-      // Deduct stock in SparePart table if applicable
+      // Insert 3NF RepairTicketPart record & deduct stock
       for (const part of partsUsed) {
-        // 3.2. Insert 3NF RepairTicketPart record
-        await prisma.repairTicketPart.create({
-          data: {
-            ticketCode: ticket.ticketCode,
-            sparePartId: part.partId || part.id || null,
-            partName: sanitizeString(part.partName || part.name || 'Linh kiện thay thế', 191),
-            quantity: Number(part.quantity || 1),
-            unitPrice: Number(part.unitPrice || part.price || part.retailRepairPrice || 0),
-            warrantyMonths: 6,
-          },
-        });
+        const rtpId = 'rtp_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
+        await db.execute(
+          `INSERT INTO repairticketpart (id, ticketCode, sparePartId, partName, quantity, unitPrice, warrantyMonths, createdAt)
+           VALUES (?, ?, ?, ?, ?, ?, 6, NOW())`,
+          [
+            rtpId,
+            ticket.ticketCode,
+            part.partId || part.id || null,
+            sanitizeString(part.partName || part.name || 'Linh kiện thay thế', 191),
+            Number(part.quantity || 1),
+            Number(part.unitPrice || part.price || part.retailRepairPrice || 0),
+          ]
+        );
 
         if (part.id || part.barcode) {
           try {
-            await prisma.sparePart.updateMany({
-              where: {
-                OR: [
-                  ...(part.id ? [{ id: part.id }] : []),
-                  ...(part.barcode ? [{ barcode: part.barcode }] : []),
-                ],
-                stock: { gte: Number(part.quantity || 1) },
-              },
-              data: {
-                stock: { decrement: Number(part.quantity || 1) },
-              },
-            });
+            await db.execute(
+              `UPDATE sparepart SET stock = GREATEST(0, stock - ?) 
+               WHERE (id = ? OR barcode = ?) AND stock >= ?`,
+              [Number(part.quantity || 1), part.id || '', part.barcode || '', Number(part.quantity || 1)]
+            );
           } catch (deductErr) {
             console.warn('Could not decrement spare part stock:', deductErr);
           }
         }
       }
-    } else if (updateData.laborFee !== undefined) {
+    } else if (laborFee !== undefined) {
       const currentParts = ticket.partsUsed ? JSON.parse(ticket.partsUsed) : [];
       const partsTotal = currentParts.reduce(
         (sum: number, p: any) => sum + (Number(p.price || p.retailRepairPrice || 0) * Number(p.quantity || 1)),
         0
       );
-      updateData.totalAmount = updateData.laborFee + partsTotal;
+      setClauses.push('totalAmount = ?');
+      sqlParams.push(finalLaborFee + partsTotal);
     }
 
-    // Technician & SLA Deadline Assignment Updates (Chỉ định KTV & Thời hạn sửa chữa)
+    // Technician & SLA Deadline Assignment Updates
     let hasAssignmentChange = false;
     let assignmentNote = '';
 
@@ -481,17 +494,20 @@ export async function PUT(request: NextRequest) {
       let resolvedTechId = technicianId;
       let resolvedTechName = technicianName;
       if (technicianId) {
-        const found = await prisma.user.findFirst({
-          where: { id: technicianId, role: 'technician' },
-          select: { id: true, name: true },
-        });
+        const found = await db.queryOne('SELECT id, name FROM user WHERE id = ? AND role = "technician"', [technicianId]);
         if (found) {
           resolvedTechId = found.id;
           resolvedTechName = technicianName || found.name;
         }
       }
-      if (resolvedTechId !== undefined) updateData.technicianId = resolvedTechId;
-      if (resolvedTechName !== undefined) updateData.technicianName = sanitizeString(resolvedTechName, 100);
+      if (resolvedTechId !== undefined) {
+        setClauses.push('technicianId = ?');
+        sqlParams.push(resolvedTechId);
+      }
+      if (resolvedTechName !== undefined) {
+        setClauses.push('technicianName = ?');
+        sqlParams.push(sanitizeString(resolvedTechName, 100));
+      }
 
       if (resolvedTechName && resolvedTechName !== ticket.technicianName) {
         hasAssignmentChange = true;
@@ -500,8 +516,8 @@ export async function PUT(request: NextRequest) {
     }
 
     if (deadlineTime !== undefined) {
-      updateData.deadlineTime = sanitizeString(deadlineTime, 50);
-      updateData.estimatedDeliveryDate = sanitizeString(deadlineTime, 50);
+      setClauses.push('deadlineTime = ?', 'estimatedDeliveryDate = ?');
+      sqlParams.push(sanitizeString(deadlineTime, 50), sanitizeString(deadlineTime, 50));
       if (deadlineTime !== ticket.deadlineTime) {
         hasAssignmentChange = true;
         assignmentNote += `Hạn chót KTV sửa xong: ${deadlineTime}. `;
@@ -509,11 +525,13 @@ export async function PUT(request: NextRequest) {
     }
 
     if (deadlineMinutes !== undefined) {
-      updateData.deadlineMinutes = Number(deadlineMinutes);
+      setClauses.push('deadlineMinutes = ?');
+      sqlParams.push(Number(deadlineMinutes));
     }
 
     if (assignedBy !== undefined) {
-      updateData.assignedBy = sanitizeString(assignedBy, 100);
+      setClauses.push('assignedBy = ?');
+      sqlParams.push(sanitizeString(assignedBy, 100));
     }
 
     // Append to status history if assignment changed and not already updated via status
@@ -527,13 +545,14 @@ export async function PUT(request: NextRequest) {
         note: assignmentNote.trim() || 'Cập nhật phân công kỹ thuật viên và thời hạn sửa',
         actor: assigner,
       };
-      updateData.statusHistory = JSON.stringify([...currentHistory, assignmentHistoryItem]);
+      setClauses.push('statusHistory = ?');
+      sqlParams.push(JSON.stringify([...currentHistory, assignmentHistoryItem]));
     }
 
-    const updated = await prisma.repairTicket.update({
-      where: { id: ticket.id },
-      data: updateData,
-    });
+    sqlParams.push(ticket.id);
+    await db.execute(`UPDATE repairticket SET ${setClauses.join(', ')} WHERE id = ?`, sqlParams);
+
+    const updated = await db.queryOne('SELECT * FROM repairticket WHERE id = ?', [ticket.id]);
 
     return NextResponse.json({
       success: true,

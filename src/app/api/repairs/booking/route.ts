@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { db } from '@/lib/db';
 import { normalizePhone, isValidPhone, sanitizeString } from '@/lib/validation';
 
 export async function GET(request: NextRequest) {
@@ -8,32 +8,46 @@ export async function GET(request: NextRequest) {
     const phone = searchParams.get('phone');
     const status = searchParams.get('status');
 
-    const where: any = {};
+    let sql = `
+      SELECT b.*, c.name as customer_name, c.membershipTier, c.points 
+      FROM repairbooking b
+      LEFT JOIN customer c ON b.customerId = c.id
+    `;
+    const whereClauses: string[] = [];
+    const params: any[] = [];
+
     if (phone) {
       const cleanPhone = normalizePhone(phone);
-      where.customerPhone = cleanPhone;
+      whereClauses.push('b.customerPhone = ?');
+      params.push(cleanPhone);
     }
     if (status) {
-      where.status = status;
+      whereClauses.push('b.status = ?');
+      params.push(status);
     }
 
-    const bookings = await prisma.repairBooking.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      include: {
-        customer: {
-          select: {
-            name: true,
-            membershipTier: true,
-            points: true,
-          },
-        },
-      },
-    });
+    if (whereClauses.length > 0) {
+      sql += ' WHERE ' + whereClauses.join(' AND ');
+    }
+
+    sql += ' ORDER BY b.createdAt DESC';
+
+    const bookings = await db.query(sql, params);
+
+    const parsed = bookings.map((b) => ({
+      ...b,
+      customer: b.customerId
+        ? {
+            name: b.customer_name || b.customerName,
+            membershipTier: b.membershipTier || 'Thành viên mới',
+            points: Number(b.points || 0),
+          }
+        : null,
+    }));
 
     return NextResponse.json({
       success: true,
-      data: bookings,
+      data: parsed,
     });
   } catch (error: any) {
     console.error('Repair booking GET error:', error);
@@ -76,29 +90,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const count = await prisma.repairBooking.count();
+    const countRow = await db.queryOne('SELECT COUNT(*) as cnt FROM repairbooking');
+    const count = countRow?.cnt || 0;
     const bookingCode = `DL-2608-${String(count + 1).padStart(3, '0')}`;
 
     // Tìm xem khách hàng đã có trong danh bạ chưa
-    const existingCustomer = await prisma.customer.findUnique({
-      where: { phone: customerPhone },
-    });
+    const existingCustomer = await db.queryOne('SELECT id FROM customer WHERE phone = ?', [customerPhone]);
 
-    const booking = await prisma.repairBooking.create({
-      data: {
+    const bookingId = 'rb_' + Date.now();
+    await db.execute(
+      `INSERT INTO repairbooking 
+       (id, bookingCode, customerName, customerPhone, customerId, deviceModel, serviceName, appointmentDate, appointmentTime, notes, branchName, status, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW(), NOW())`,
+      [
+        bookingId,
         bookingCode,
         customerName,
         customerPhone,
-        customerId: existingCustomer?.id || null,
-        deviceModel: sanitizeString(model || 'Thiết bị di động', 100),
-        serviceName: sanitizeString(service || 'Kiểm tra tổng quát', 191),
-        appointmentDate: String(date || new Date().toISOString().substring(0, 10)),
-        appointmentTime: String(time || '10:00'),
-        notes: notes ? sanitizeString(notes, 500) : null,
-        branchName: branchName || 'iShop Huy Hoàng - Chi Nhánh Thủ Đức',
-        status: 'pending',
-      },
-    });
+        existingCustomer?.id || null,
+        sanitizeString(model || 'Thiết bị di động', 100),
+        sanitizeString(service || 'Kiểm tra tổng quát', 191),
+        String(date || new Date().toISOString().substring(0, 10)),
+        String(time || '10:00'),
+        notes ? sanitizeString(notes, 500) : null,
+        branchName || 'iShop Huy Hoàng - Chi Nhánh Thủ Đức',
+      ]
+    );
+
+    const booking = await db.queryOne('SELECT * FROM repairbooking WHERE id = ?', [bookingId]);
 
     return NextResponse.json({
       success: true,
@@ -113,4 +132,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { db } from '@/lib/db';
 import {
   normalizePhone,
   isValidPhone,
@@ -37,17 +37,13 @@ export async function POST(request: Request) {
     }
 
     // Try finding existing customer by phone or email
-    let customer = null;
+    let customer: any = null;
     if (normalizedPhone) {
-      customer = await prisma.customer.findFirst({
-        where: { phone: normalizedPhone },
-      });
+      customer = await db.queryOne('SELECT * FROM customer WHERE phone = ?', [normalizedPhone]);
     }
 
     if (!customer && cleanEmail) {
-      customer = await prisma.customer.findFirst({
-        where: { email: cleanEmail },
-      });
+      customer = await db.queryOne('SELECT * FROM customer WHERE LOWER(email) = ?', [cleanEmail]);
     }
 
     // If customer exists and password is provided for login check
@@ -64,57 +60,89 @@ export async function POST(request: Request) {
     if (!customer) {
       const customerName = name ? sanitizeString(name, 100) : (cleanEmail ? cleanEmail.split('@')[0] : 'Khách Hàng');
       const customerPhone = normalizedPhone || ('09' + Math.floor(10000000 + Math.random() * 90000000));
+      const customerId = 'cust-' + Date.now();
 
-      customer = await prisma.customer.create({
-        data: {
-          id: 'cust-' + Date.now(),
-          name: customerName,
-          phone: customerPhone,
-          email: cleanEmail || null,
-          password: password ? String(password) : null,
-          avatar: avatar || null,
-          birthday: birthday || null,
-          gender: gender || 'male',
-          city: city || 'TP. Hồ Chí Minh',
-          address: address ? sanitizeString(address, 191) : null,
-          points: 100, // Thưởng 100 điểm chào mừng thành viên mới
-          totalSpent: 0,
-          purchaseCount: 0,
-          repairCount: 0,
-          membershipTier: 'Thành viên mới',
-          customerType: 'Khách lẻ',
-        },
-      });
+      await db.execute(
+        `INSERT INTO customer 
+         (id, name, phone, email, password, avatar, birthday, gender, city, address, points, totalSpent, purchaseCount, repairCount, membershipTier, customerType, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 100, 0, 0, 0, 'Thành viên mới', 'Khách lẻ', NOW(), NOW())`,
+        [
+          customerId,
+          customerName,
+          customerPhone,
+          cleanEmail || null,
+          password ? String(password) : null,
+          avatar || null,
+          birthday || null,
+          gender || 'male',
+          city || 'TP. Hồ Chí Minh',
+          address ? sanitizeString(address, 191) : null,
+        ]
+      );
+
+      customer = await db.queryOne('SELECT * FROM customer WHERE id = ?', [customerId]);
     } else {
       // If updating fields
-      const updateData: any = {};
-      if (name) updateData.name = sanitizeString(name, 100);
-      if (cleanEmail && !customer.email) updateData.email = cleanEmail;
-      if (password) updateData.password = String(password);
-      if (avatar !== undefined) updateData.avatar = avatar;
-      if (birthday !== undefined) updateData.birthday = birthday;
-      if (gender !== undefined) updateData.gender = gender;
-      if (city !== undefined) updateData.city = city;
-      if (address !== undefined) updateData.address = sanitizeString(address, 191);
+      const setClauses: string[] = [];
+      const params: any[] = [];
 
-      if (Object.keys(updateData).length > 0) {
-        customer = await prisma.customer.update({
-          where: { id: customer.id },
-          data: updateData,
-        });
+      if (name) {
+        setClauses.push('name = ?');
+        params.push(sanitizeString(name, 100));
+      }
+      if (cleanEmail && !customer.email) {
+        setClauses.push('email = ?');
+        params.push(cleanEmail);
+      }
+      if (password) {
+        setClauses.push('password = ?');
+        params.push(String(password));
+      }
+      if (avatar !== undefined) {
+        setClauses.push('avatar = ?');
+        params.push(avatar);
+      }
+      if (birthday !== undefined) {
+        setClauses.push('birthday = ?');
+        params.push(birthday);
+      }
+      if (gender !== undefined) {
+        setClauses.push('gender = ?');
+        params.push(gender);
+      }
+      if (city !== undefined) {
+        setClauses.push('city = ?');
+        params.push(city);
+      }
+      if (address !== undefined) {
+        setClauses.push('address = ?');
+        params.push(sanitizeString(address, 191));
+      }
+
+      if (setClauses.length > 0) {
+        setClauses.push('updatedAt = NOW()');
+        params.push(customer.id);
+        await db.execute(
+          `UPDATE customer SET ${setClauses.join(', ')} WHERE id = ?`,
+          params
+        );
+        customer = await db.queryOne('SELECT * FROM customer WHERE id = ?', [customer.id]);
       }
     }
 
     return NextResponse.json({
       success: true,
+      message: 'Đăng nhập / Đồng bộ thông tin khách hàng thành công',
       data: {
         id: customer.id,
         name: customer.name,
         phone: customer.phone,
         email: customer.email,
-        points: customer.points,
         membershipTier: customer.membershipTier,
-        customerType: customer.customerType,
+        points: customer.points,
+        totalSpent: customer.totalSpent,
+        purchaseCount: customer.purchaseCount,
+        repairCount: customer.repairCount,
         avatar: customer.avatar,
         birthday: customer.birthday,
         gender: customer.gender,
@@ -125,7 +153,7 @@ export async function POST(request: Request) {
   } catch (error: any) {
     console.error('Customer auth error:', error);
     return NextResponse.json(
-      { success: false, error: 'Lỗi xác thực thành viên: ' + (error?.message || '') },
+      { success: false, error: 'Lỗi xác thực khách hàng: ' + (error?.message || '') },
       { status: 500 }
     );
   }

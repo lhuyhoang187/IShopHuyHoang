@@ -1,25 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { db } from '@/lib/db';
 import { sanitizeString } from '@/lib/validation';
 
 export async function GET() {
   try {
-    const dbCategories = await prisma.sparePartCategory.findMany({
-      where: { isActive: true },
-      orderBy: { displayOrder: 'asc' },
-    });
+    const dbCategories = await db.query(
+      'SELECT * FROM sparepartcategory WHERE isActive = 1 ORDER BY displayOrder ASC'
+    );
 
-    const categoryCounts = await prisma.sparePart.groupBy({
-      by: ['category'],
-      _count: {
-        id: true,
-      },
-    });
+    const counts = await db.query(
+      'SELECT category, COUNT(*) as cnt FROM sparepart GROUP BY category'
+    );
 
     const countMap: Record<string, number> = {};
-    categoryCounts.forEach((c) => {
-      countMap[c.category] = c._count.id;
-    });
+    for (const c of counts) {
+      countMap[c.category] = Number(c.cnt || 0);
+    }
 
     const categories = dbCategories.map((c) => ({
       id: c.id,
@@ -65,30 +61,26 @@ export async function POST(request: NextRequest) {
     );
 
     if (action === 'update' && oldCode) {
-      // 1. Cập nhật bảng SparePartCategory
-      await prisma.sparePartCategory.upsert({
-        where: { code: oldCode },
-        update: {
-          code: cleanCode,
-          name: cleanName,
-          description: description || null,
-        },
-        create: {
-          code: cleanCode,
-          name: cleanName,
-          description: description || null,
-          isActive: true,
-        },
-      });
+      const existing = await db.queryOne('SELECT id FROM sparepartcategory WHERE code = ?', [oldCode]);
+      if (existing) {
+        await db.execute(
+          `UPDATE sparepartcategory SET 
+             code = ?, name = ?, description = ?, updatedAt = NOW()
+           WHERE id = ?`,
+          [cleanCode, cleanName, description || null, existing.id]
+        );
+      } else {
+        await db.execute(
+          `INSERT INTO sparepartcategory (id, code, name, description, isActive, createdAt, updatedAt)
+           VALUES (?, ?, ?, ?, 1, NOW(), NOW())`,
+          ['sp_cat_' + Date.now(), cleanCode, cleanName, description || null]
+        );
+      }
 
-      // 2. Cập nhật các linh kiện thuộc danh mục này
-      await prisma.sparePart.updateMany({
-        where: { category: oldCode },
-        data: {
-          category: cleanCode,
-          categoryName: cleanName,
-        },
-      });
+      await db.execute(
+        `UPDATE sparepart SET category = ?, categoryName = ?, updatedAt = NOW() WHERE category = ?`,
+        [cleanCode, cleanName, oldCode]
+      );
 
       return NextResponse.json({
         success: true,
@@ -98,20 +90,23 @@ export async function POST(request: NextRequest) {
     }
 
     // Action create
-    const created = await prisma.sparePartCategory.upsert({
-      where: { code: cleanCode },
-      update: {
-        name: cleanName,
-        description: description || null,
-        isActive: true,
-      },
-      create: {
-        code: cleanCode,
-        name: cleanName,
-        description: description || null,
-        isActive: true,
-      },
-    });
+    const existing = await db.queryOne('SELECT id FROM sparepartcategory WHERE code = ?', [cleanCode]);
+    let catId = existing?.id;
+    if (existing) {
+      await db.execute(
+        `UPDATE sparepartcategory SET name = ?, description = ?, isActive = 1, updatedAt = NOW() WHERE id = ?`,
+        [cleanName, description || null, catId]
+      );
+    } else {
+      catId = 'sp_cat_' + Date.now();
+      await db.execute(
+        `INSERT INTO sparepartcategory (id, code, name, description, isActive, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, 1, NOW(), NOW())`,
+        [catId, cleanCode, cleanName, description || null]
+      );
+    }
+
+    const created = await db.queryOne('SELECT * FROM sparepartcategory WHERE id = ?', [catId]);
 
     return NextResponse.json({
       success: true,
@@ -121,7 +116,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('Spare Part Categories POST error:', error);
     return NextResponse.json(
-      { error: 'Lỗi cập nhật danh mục linh kiện: ' + (error?.message || '') },
+      { error: 'Lỗi cập nhật danh mục: ' + (error?.message || '') },
       { status: 500 }
     );
   }
@@ -136,19 +131,11 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Thiếu mã danh mục' }, { status: 400 });
     }
 
-    // 1. Xóa trong bảng SparePartCategory
-    await prisma.sparePartCategory.deleteMany({
-      where: { code },
-    });
-
-    // 2. Chuyển toàn bộ linh kiện thuộc category này về 'other'
-    await prisma.sparePart.updateMany({
-      where: { category: code },
-      data: {
-        category: 'other',
-        categoryName: 'Linh kiện khác',
-      },
-    });
+    await db.execute('DELETE FROM sparepartcategory WHERE code = ?', [code]);
+    await db.execute(
+      'UPDATE sparepart SET category = "other", categoryName = "Linh kiện khác", updatedAt = NOW() WHERE category = ?',
+      [code]
+    );
 
     return NextResponse.json({
       success: true,
@@ -157,9 +144,8 @@ export async function DELETE(request: NextRequest) {
   } catch (error: any) {
     console.error('Spare Part Categories DELETE error:', error);
     return NextResponse.json(
-      { error: 'Lỗi xóa danh mục linh kiện: ' + (error?.message || '') },
+      { error: 'Lỗi xóa danh mục: ' + (error?.message || '') },
       { status: 500 }
     );
   }
 }
-

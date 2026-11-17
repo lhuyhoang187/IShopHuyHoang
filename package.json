@@ -3,25 +3,18 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -H 127.0.0.1 -p 3000",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "db:push": "prisma db push",
-    "db:seed": "prisma db seed",
-    "db:studio": "prisma studio"
-  },
-  "prisma": {
-    "seed": "npx tsx prisma/seed.ts"
+    "db:check": "node scripts/checkData.js"
   },
   "dependencies": {
-    "@prisma/client": "6.4.1",
     "canvas-confetti": "^1.9.4",
     "framer-motion": "^13.1.1",
     "lucide-react": "^1.34.0",
     "mysql2": "^3.24.5",
     "next": "16.3.3",
-    "prisma": "6.4.1",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
@@ -34,7 +27,6 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.3",
-    "prisma-erd-generator": "^3.2.1",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

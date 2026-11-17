@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { db } from '@/lib/db';
 import { ServerStore } from '@/lib/serverStore';
 import {
   normalizePhone,
@@ -19,26 +19,22 @@ export async function GET(request: NextRequest) {
       const cleanCode = code.trim();
       const normalizedPhone = normalizePhone(cleanCode);
 
-      const invoice = await prisma.invoice.findFirst({
-        where: {
-          OR: [
-            { invoiceCode: cleanCode },
-            { customerPhone: cleanCode },
-            ...(normalizedPhone ? [{ customerPhone: normalizedPhone }] : []),
-          ],
-        },
-        include: {
-          invoiceItems: true,
-        },
-      });
+      const invoice = await db.queryOne(
+        `SELECT * FROM invoice 
+         WHERE invoiceCode = ? OR customerPhone = ? OR customerPhone = ?
+         LIMIT 1`,
+        [cleanCode, cleanCode, normalizedPhone || cleanCode]
+      );
 
       if (invoice) {
+        const items = await db.query('SELECT * FROM invoiceitem WHERE invoiceCode = ?', [invoice.invoiceCode]);
         return NextResponse.json({
           success: true,
           source: 'mysql_database',
           data: {
             ...invoice,
-            items: invoice.items ? JSON.parse(invoice.items) : (invoice.invoiceItems || []),
+            items: invoice.items ? JSON.parse(invoice.items) : items,
+            invoiceItems: items,
           },
         });
       }
@@ -53,16 +49,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: true, source: 'fallback_store', data: fallback });
     }
 
-    const invoices = await prisma.invoice.findMany({
-      include: {
-        invoiceItems: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    const invoices = await db.query('SELECT * FROM invoice ORDER BY createdAt DESC');
+    const allItems = await db.query('SELECT * FROM invoiceitem');
+
+    const itemsByInvoice: Record<string, any[]> = {};
+    for (const it of allItems) {
+      if (!itemsByInvoice[it.invoiceCode]) itemsByInvoice[it.invoiceCode] = [];
+      itemsByInvoice[it.invoiceCode].push(it);
+    }
 
     const parsed = invoices.map((inv) => ({
       ...inv,
-      items: inv.items ? JSON.parse(inv.items) : (inv.invoiceItems || []),
+      items: inv.items ? JSON.parse(inv.items) : (itemsByInvoice[inv.invoiceCode] || []),
+      invoiceItems: itemsByInvoice[inv.invoiceCode] || [],
     }));
 
     return NextResponse.json({
@@ -132,7 +131,8 @@ export async function POST(request: NextRequest) {
       ? body.paymentMethod
       : 'vietqr';
 
-    const count = await prisma.invoice.count();
+    const countRow = await db.queryOne('SELECT COUNT(*) as cnt FROM invoice');
+    const count = countRow?.cnt || 0;
     const invoiceCode = `HD-2608-${String(count + 1).padStart(3, '0')}`;
     const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
 
@@ -141,15 +141,15 @@ export async function POST(request: NextRequest) {
         ? Number(body.earnedPoints)
         : Math.floor(totalAmount / 10000); // 10.000đ = 1 điểm
 
-    // Atomic Transaction to execute Order, Customer update, Stock deduction, Cashbook entry
-    const newInvoice = await prisma.$transaction(async (tx) => {
+    const invId = 'inv-' + Date.now();
+
+    // Atomic SQL Transaction
+    const newInvoice = await db.transaction(async (conn) => {
       // 1. Check IMEI availability for phones
       for (const item of body.items) {
         if (item.imei) {
-          const stockItem = await tx.phoneStock.findUnique({
-            where: { imei: item.imei },
-          });
-
+          const [stockRows]: any = await conn.query('SELECT status, phoneName FROM phonestock WHERE imei = ?', [item.imei]);
+          const stockItem = stockRows[0];
           if (stockItem && stockItem.status === 'sold') {
             throw new Error(`Điện thoại IMEI ${item.imei} (${stockItem.phoneName}) đã được bán trước đó!`);
           }
@@ -157,112 +157,114 @@ export async function POST(request: NextRequest) {
       }
 
       // 2. Ensure Customer exists and update loyalty stats
-      await tx.customer.upsert({
-        where: { phone: customerPhone },
-        update: {
-          name: customerName,
-          totalSpent: { increment: totalAmount },
-          purchaseCount: { increment: 1 },
-          points: { increment: earnedPoints },
-        },
-        create: {
-          id: 'cust-' + Date.now(),
-          name: customerName,
-          phone: customerPhone,
-          totalSpent: totalAmount,
-          purchaseCount: 1,
-          points: earnedPoints,
-        },
-      });
+      const [custRows]: any = await conn.query('SELECT id FROM customer WHERE phone = ?', [customerPhone]);
+      if (custRows.length > 0) {
+        await conn.execute(
+          `UPDATE customer SET 
+             name = ?, totalSpent = totalSpent + ?, purchaseCount = purchaseCount + 1, points = points + ?, updatedAt = NOW()
+           WHERE phone = ?`,
+          [customerName, totalAmount, earnedPoints, customerPhone]
+        );
+      } else {
+        await conn.execute(
+          `INSERT INTO customer (id, name, phone, points, totalSpent, purchaseCount, repairCount, membershipTier, customerType, createdAt, updatedAt)
+           VALUES (?, ?, ?, ?, ?, 1, 0, 'Thành viên mới', 'Khách lẻ', NOW(), NOW())`,
+          ['cust-' + Date.now(), customerName, customerPhone, earnedPoints, totalAmount]
+        );
+      }
 
       // 3. Create Invoice in MySQL
-      const inv = await tx.invoice.create({
-        data: {
-          id: 'inv-' + Date.now(),
+      await conn.execute(
+        `INSERT INTO invoice 
+         (id, invoiceCode, customerName, customerPhone, items, subtotal, discount, totalAmount, paymentMethod, cashReceived, cashChange, cashierName, warrantyNote, status, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'completed', NOW(), NOW())`,
+        [
+          invId,
           invoiceCode,
           customerName,
           customerPhone,
-          items: JSON.stringify(body.items),
+          JSON.stringify(body.items),
           subtotal,
           discount,
           totalAmount,
           paymentMethod,
-          cashReceived: body.cashReceived ? Number(body.cashReceived) : null,
-          cashChange: body.cashChange ? Number(body.cashChange) : null,
-          cashierName: sanitizeString(body.cashierName || 'Website Online Order', 100),
-          createdAt: new Date(),
-          warrantyNote: sanitizeString(body.warrantyNote || 'Bảo hành điện tử 12 tháng theo IMEI/Hóa đơn.', 500),
-        },
-      });
+          body.cashReceived ? Number(body.cashReceived) : null,
+          body.cashChange ? Number(body.cashChange) : null,
+          sanitizeString(body.cashierName || 'Website Online Order', 100),
+          sanitizeString(body.warrantyNote || 'Bảo hành điện tử 12 tháng theo IMEI/Hóa đơn.', 500),
+        ]
+      );
 
       // 3.1. Insert 3NF Normalized Invoice Items
       for (const item of body.items) {
-        await tx.invoiceItem.create({
-          data: {
+        const itemId = 'ii_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
+        await conn.execute(
+          `INSERT INTO invoiceitem 
+           (id, invoiceCode, itemType, productId, productName, imei, color, capacity, unitPrice, quantity, discount, subtotal, warrantyMonths, createdAt, updatedAt)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 12, NOW(), NOW())`,
+          [
+            itemId,
             invoiceCode,
-            itemType: item.type || (item.imei ? 'phone' : 'accessory'),
-            productId: item.productId || item.id || null,
-            productName: sanitizeString(item.name || 'Sản phẩm', 191),
-            imei: item.imei || null,
-            color: item.color || (item.variant ? item.variant.split('/')[0]?.trim() : null),
-            capacity: item.capacity || (item.variant ? item.variant.split('/')[1]?.trim() : null),
-            unitPrice: Number(item.unitPrice || item.price) || 0,
-            quantity: Number(item.quantity) || 1,
-            discount: Number(item.discount) || 0,
-            subtotal: Number(item.subtotal || item.total || item.unitPrice || item.price) || 0,
-            warrantyMonths: 12,
-          },
-        });
+            item.type || (item.imei ? 'phone' : 'accessory'),
+            item.productId || item.id || null,
+            sanitizeString(item.name || 'Sản phẩm', 191),
+            item.imei || null,
+            item.color || (item.variant ? item.variant.split('/')[0]?.trim() : null),
+            item.capacity || (item.variant ? item.variant.split('/')[1]?.trim() : null),
+            Number(item.unitPrice || item.price) || 0,
+            Number(item.quantity) || 1,
+            Number(item.discount) || 0,
+            Number(item.subtotal || item.total || item.unitPrice || item.price) || 0,
+          ]
+        );
       }
 
       // 4. Mark PhoneStock as sold & update accessory stock
       for (const item of body.items) {
         if (item.imei) {
-          await tx.phoneStock.updateMany({
-            where: { imei: item.imei },
-            data: {
-              status: 'sold',
-              soldAt: now,
-              soldInvoiceId: invoiceCode,
-              soldToCustomerName: customerName,
-              soldToCustomerPhone: customerPhone,
-            },
-          });
+          await conn.execute(
+            `UPDATE phonestock SET 
+               status = 'sold', soldAt = ?, soldInvoiceId = ?, soldToCustomerName = ?, soldToCustomerPhone = ?, updatedAt = NOW()
+             WHERE imei = ?`,
+            [now, invoiceCode, customerName, customerPhone, item.imei]
+          );
         }
 
         // Deduct Accessory stock if item is an accessory
         const accessoryId = item.accessoryId || item.id;
         const qty = Number(item.quantity || 1);
         if (accessoryId && item.type === 'accessory') {
-          await tx.accessoryProduct.updateMany({
-            where: { id: accessoryId, stock: { gte: qty } },
-            data: { stock: { decrement: qty } },
-          });
+          await conn.execute(
+            'UPDATE accessoryproduct SET stock = GREATEST(0, stock - ?), updatedAt = NOW() WHERE id = ?',
+            [qty, accessoryId]
+          );
         }
       }
 
       // 5. If paid by cash, card, or vietqr transfer, create a cashbook entry
       if (totalAmount > 0) {
-        const cashCount = await tx.cashbookEntry.count();
+        const [cashCountRow]: any = await conn.query('SELECT COUNT(*) as cnt FROM cashbookentry');
+        const cashCount = cashCountRow[0]?.cnt || 0;
         const cashbookEntryCode = `PT-2608-${String(cashCount + 1).padStart(3, '0')}`;
-        await tx.cashbookEntry.create({
-          data: {
-            id: 'cb-' + Date.now(),
-            code: cashbookEntryCode,
-            date: now.split(' ')[0],
-            type: 'receipt',
-            category: 'sale_phone',
-            categoryLabel: 'Bán điện thoại & phụ kiện',
-            amount: totalAmount,
-            paymentMethod: paymentMethod === 'cash' ? 'cash' : 'transfer',
-            referenceCode: invoiceCode,
-            description: `Thu tiền đơn hàng ${invoiceCode} - Khách ${customerName} (${customerPhone})`,
-            creator: sanitizeString(body.cashierName || 'Thu ngân Website', 100),
-          },
-        });
+        await conn.execute(
+          `INSERT INTO cashbookentry 
+           (id, code, date, type, category, categoryLabel, amount, paymentMethod, referenceCode, description, creator, createdAt, updatedAt)
+           VALUES (?, ?, ?, 'receipt', 'sale_phone', 'Bán điện thoại & phụ kiện', ?, ?, ?, ?, ?, NOW(), NOW())`,
+          [
+            'cb-' + Date.now(),
+            cashbookEntryCode,
+            now.split(' ')[0],
+            totalAmount,
+            paymentMethod === 'cash' ? 'cash' : 'transfer',
+            invoiceCode,
+            `Thu tiền đơn hàng ${invoiceCode} - Khách ${customerName} (${customerPhone})`,
+            sanitizeString(body.cashierName || 'Thu ngân Website', 100),
+          ]
+        );
       }
 
-      return inv;
+      const [invRows]: any = await conn.query('SELECT * FROM invoice WHERE id = ?', [invId]);
+      return invRows[0];
     });
 
     // Sync in-memory fallback

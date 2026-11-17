@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { db } from '@/lib/db';
 import {
   isValidImei,
   isValidAmount,
@@ -11,15 +11,17 @@ export async function GET(request: NextRequest) {
   const status = searchParams.get('status');
 
   try {
-    const whereClause: any = {};
+    let sql = 'SELECT * FROM phonestock';
+    const params: any[] = [];
+
     if (status && status !== 'all') {
-      whereClause.status = status;
+      sql += ' WHERE status = ?';
+      params.push(status);
     }
 
-    const items = await prisma.phoneStock.findMany({
-      where: whereClause,
-      orderBy: { createdAt: 'desc' },
-    });
+    sql += ' ORDER BY createdAt DESC';
+
+    const items = await db.query(sql, params);
 
     const inStockCount = items.filter((i) => i.status === 'in_stock').length;
     const soldCount = items.filter((i) => i.status === 'sold').length;
@@ -81,9 +83,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const exists = await prisma.phoneStock.findUnique({
-      where: { imei },
-    });
+    const exists = await db.queryOne('SELECT imei FROM phonestock WHERE imei = ?', [imei]);
 
     if (exists) {
       return NextResponse.json(
@@ -95,17 +95,14 @@ export async function POST(request: NextRequest) {
     // Resolve or fallback PhoneProduct to strictly satisfy Foreign Key constraint
     let resolvedPhoneId = body.phoneId ? sanitizeString(body.phoneId, 50) : null;
     if (resolvedPhoneId) {
-      const phoneProductExists = await prisma.phoneProduct.findUnique({
-        where: { id: resolvedPhoneId },
-      });
+      const phoneProductExists = await db.queryOne('SELECT id FROM phoneproduct WHERE id = ?', [resolvedPhoneId]);
       if (!phoneProductExists) {
         resolvedPhoneId = null;
       }
     }
 
     if (!resolvedPhoneId) {
-      // Pick first available phone product or 'p-1'
-      const firstPhone = await prisma.phoneProduct.findFirst({ select: { id: true } });
+      const firstPhone = await db.queryOne('SELECT id FROM phoneproduct LIMIT 1');
       resolvedPhoneId = firstPhone ? firstPhone.id : 'p-1';
     }
 
@@ -114,10 +111,7 @@ export async function POST(request: NextRequest) {
     let resolvedSupplierName = body.supplierName ? sanitizeString(body.supplierName, 150) : null;
 
     if (resolvedSupplierId) {
-      const supplierExists = await prisma.supplier.findUnique({
-        where: { id: resolvedSupplierId },
-        select: { id: true, name: true },
-      });
+      const supplierExists = await db.queryOne('SELECT id, name FROM supplier WHERE id = ?', [resolvedSupplierId]);
       if (supplierExists) {
         resolvedSupplierName = supplierExists.name;
       } else {
@@ -126,29 +120,35 @@ export async function POST(request: NextRequest) {
     }
 
     if (!resolvedSupplierId) {
-      const firstSupplier = await prisma.supplier.findFirst({ select: { id: true, name: true } });
+      const firstSupplier = await db.queryOne('SELECT id, name FROM supplier LIMIT 1');
       resolvedSupplierId = firstSupplier ? firstSupplier.id : 'sup-1';
       resolvedSupplierName = firstSupplier ? firstSupplier.name : 'Apple Authorized Distributor VN';
     }
 
     const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    const importDate = body.importDate ? sanitizeString(body.importDate, 50) : now.split(' ')[0];
+    const warrantyMonths = Math.max(0, Number(body.warrantyMonths || 12));
 
-    const newItem = await prisma.phoneStock.create({
-      data: {
+    await db.execute(
+      `INSERT INTO phonestock 
+       (imei, phoneId, phoneName, color, capacity, costPrice, sellingPrice, supplierId, supplierName, importDate, status, warrantyMonths, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'in_stock', ?, NOW(), NOW())`,
+      [
         imei,
-        phoneId: resolvedPhoneId,
+        resolvedPhoneId,
         phoneName,
         color,
         capacity,
         costPrice,
         sellingPrice,
-        supplierId: resolvedSupplierId,
-        supplierName: resolvedSupplierName || 'Nhà Phân Phối Chính Hãng',
-        importDate: body.importDate ? sanitizeString(body.importDate, 50) : now.split(' ')[0],
-        status: 'in_stock',
-        warrantyMonths: Math.max(0, Number(body.warrantyMonths || 12)),
-      },
-    });
+        resolvedSupplierId,
+        resolvedSupplierName || 'Nhà Phân Phối Chính Hãng',
+        importDate,
+        warrantyMonths,
+      ]
+    );
+
+    const newItem = await db.queryOne('SELECT * FROM phonestock WHERE imei = ?', [imei]);
 
     return NextResponse.json(
       {

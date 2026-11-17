@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { db } from '@/lib/db';
 import { sanitizeString } from '@/lib/validation';
 
 export async function GET(request: NextRequest) {
@@ -8,22 +8,31 @@ export async function GET(request: NextRequest) {
     const brand = searchParams.get('brand');
     const category = searchParams.get('category');
 
-    const where: any = { isActive: true };
+    let sql = 'SELECT * FROM repairservice WHERE isActive = 1';
+    const params: any[] = [];
+
     if (brand && brand !== 'all') {
-      where.deviceBrand = brand;
+      sql += ' AND deviceBrand = ?';
+      params.push(brand);
     }
     if (category && category !== 'all') {
-      where.category = category;
+      sql += ' AND category = ?';
+      params.push(category);
     }
 
-    const services = await prisma.repairService.findMany({
-      where,
-      orderBy: [{ isFeatured: 'desc' }, { createdAt: 'desc' }],
-    });
+    sql += ' ORDER BY isFeatured DESC, createdAt DESC';
+
+    const services = await db.query(sql, params);
+
+    const mapped = services.map((s) => ({
+      ...s,
+      isFeatured: Boolean(s.isFeatured),
+      isActive: Boolean(s.isActive),
+    }));
 
     return NextResponse.json({
       success: true,
-      data: services,
+      data: mapped,
     });
   } catch (error: any) {
     console.error('Repair services GET error:', error);
@@ -59,40 +68,58 @@ export async function POST(request: NextRequest) {
     }
 
     const cleanName = sanitizeString(name, 191);
-    const service = await prisma.repairService.upsert({
-      where: { id: id || `srv-${Date.now()}` },
-      update: {
-        name: cleanName,
-        category: category || 'other',
-        deviceBrand: deviceBrand || 'Apple',
-        deviceModels: deviceModels || '',
-        price: Number(price),
-        originalPrice: originalPrice ? Number(originalPrice) : null,
-        warrantyPeriod: warrantyPeriod || '12 Tháng',
-        estimatedMinutes: Number(estimatedMinutes) || 30,
-        description: description || null,
-        isFeatured: Boolean(isFeatured),
-      },
-      create: {
-        id: id || `srv-${Date.now()}`,
-        name: cleanName,
-        category: category || 'other',
-        deviceBrand: deviceBrand || 'Apple',
-        deviceModels: deviceModels || '',
-        price: Number(price),
-        originalPrice: originalPrice ? Number(originalPrice) : null,
-        warrantyPeriod: warrantyPeriod || '12 Tháng',
-        estimatedMinutes: Number(estimatedMinutes) || 30,
-        description: description || null,
-        isFeatured: Boolean(isFeatured),
-        isActive: true,
-      },
-    });
+    const srvId = id || `srv-${Date.now()}`;
+    const existing = await db.queryOne('SELECT id FROM repairservice WHERE id = ?', [srvId]);
+
+    const boolFeatured = isFeatured ? 1 : 0;
+
+    if (existing) {
+      await db.execute(
+        `UPDATE repairservice SET 
+           name = ?, category = ?, deviceBrand = ?, deviceModels = ?, price = ?, originalPrice = ?, 
+           warrantyPeriod = ?, estimatedMinutes = ?, description = ?, isFeatured = ?, updatedAt = NOW()
+         WHERE id = ?`,
+        [
+          cleanName,
+          category || 'other',
+          deviceBrand || 'Apple',
+          deviceModels || '',
+          Number(price),
+          originalPrice ? Number(originalPrice) : null,
+          warrantyPeriod || '12 Tháng',
+          Number(estimatedMinutes) || 30,
+          description || null,
+          boolFeatured,
+          srvId,
+        ]
+      );
+    } else {
+      await db.execute(
+        `INSERT INTO repairservice 
+         (id, name, category, deviceBrand, deviceModels, price, originalPrice, warrantyPeriod, estimatedMinutes, description, isFeatured, isActive, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW(), NOW())`,
+        [
+          srvId,
+          cleanName,
+          category || 'other',
+          deviceBrand || 'Apple',
+          deviceModels || '',
+          Number(price),
+          originalPrice ? Number(originalPrice) : null,
+          warrantyPeriod || '12 Tháng',
+          Number(estimatedMinutes) || 30,
+          description || null,
+          boolFeatured,
+        ]
+      );
+    }
+
+    const service = await db.queryOne('SELECT * FROM repairservice WHERE id = ?', [srvId]);
 
     return NextResponse.json({
       success: true,
       message: 'Đã lưu dịch vụ sửa chữa thành công',
-      data: service,
+      data: service ? { ...service, isFeatured: Boolean(service.isFeatured), isActive: Boolean(service.isActive) } : null,
     });
   } catch (error: any) {
     console.error('Repair services POST error:', error);
@@ -111,9 +138,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Thiếu ID dịch vụ' }, { status: 400 });
     }
 
-    await prisma.repairService.delete({
-      where: { id },
-    });
+    await db.execute('DELETE FROM repairservice WHERE id = ?', [id]);
 
     return NextResponse.json({
       success: true,
@@ -127,4 +152,3 @@ export async function DELETE(request: NextRequest) {
     );
   }
 }
-

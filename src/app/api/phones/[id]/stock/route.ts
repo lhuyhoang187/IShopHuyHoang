@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { sanitizeString } from '@/lib/validation';
+import { db } from '@/lib/db';
 
 export async function GET(
   request: NextRequest,
@@ -8,14 +7,10 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const phone = await prisma.phoneProduct.findFirst({
-      where: {
-        OR: [{ id }, { slug: id }],
-      },
-      include: {
-        phoneStocks: true,
-      },
-    });
+    const phone = await db.queryOne(
+      'SELECT * FROM phoneproduct WHERE id = ? OR slug = ?',
+      [id, id]
+    );
 
     if (!phone) {
       return NextResponse.json(
@@ -28,15 +23,18 @@ export async function GET(
     const capacities = phone.capacities ? JSON.parse(phone.capacities) : [];
 
     // Calculate actual IMEI stock per color and per capacity
-    const inStockItems = phone.phoneStocks.filter((s) => s.status === 'in_stock');
+    const inStockItems = await db.query(
+      'SELECT color, capacity FROM phonestock WHERE phoneId = ? AND status = "in_stock"',
+      [phone.id]
+    );
 
     const colorStockCounts: Record<string, number> = {};
     const capacityStockCounts: Record<string, number> = {};
     const variantStockCounts: Record<string, number> = {};
 
     for (const item of inStockItems) {
-      const c = item.color.trim();
-      const cap = item.capacity.trim();
+      const c = (item.color || '').trim();
+      const cap = (item.capacity || '').trim();
       colorStockCounts[c] = (colorStockCounts[c] || 0) + 1;
       capacityStockCounts[cap] = (capacityStockCounts[cap] || 0) + 1;
       const key = `${c}_${cap}`;
@@ -75,14 +73,10 @@ export async function POST(
     const body = await request.json();
     const { colors, capacities, variantStocks } = body;
 
-    const phone = await prisma.phoneProduct.findFirst({
-      where: {
-        OR: [{ id }, { slug: id }],
-      },
-      include: {
-        phoneStocks: true,
-      },
-    });
+    const phone = await db.queryOne(
+      'SELECT * FROM phoneproduct WHERE id = ? OR slug = ?',
+      [id, id]
+    );
 
     if (!phone) {
       return NextResponse.json(
@@ -91,20 +85,26 @@ export async function POST(
       );
     }
 
-    const updateData: any = {};
+    const setClauses: string[] = ['updatedAt = NOW()'];
+    const sqlParams: any[] = [];
+
     if (colors && Array.isArray(colors)) {
-      updateData.colors = JSON.stringify(colors);
+      setClauses.push('colors = ?');
+      sqlParams.push(JSON.stringify(colors));
     }
     if (capacities && Array.isArray(capacities)) {
-      updateData.capacities = JSON.stringify(capacities);
+      setClauses.push('capacities = ?');
+      sqlParams.push(JSON.stringify(capacities));
     }
 
+    sqlParams.push(phone.id);
+
     // Atomic transaction: Update PhoneProduct + sync PhoneStock in MySQL
-    const result = await prisma.$transaction(async (tx) => {
-      const updatedPhone = await tx.phoneProduct.update({
-        where: { id: phone.id },
-        data: updateData,
-      });
+    await db.transaction(async (conn) => {
+      await conn.execute(
+        `UPDATE phoneproduct SET ${setClauses.join(', ')} WHERE id = ?`,
+        sqlParams
+      );
 
       // Synchronize PhoneStock items if variantStocks or capacities/colors are specified
       if (variantStocks && typeof variantStocks === 'object') {
@@ -112,22 +112,19 @@ export async function POST(
           const [colorName, capSize] = key.split('_');
           if (!colorName || !capSize) continue;
 
-          const currentStock = await tx.phoneStock.findMany({
-            where: {
-              phoneId: phone.id,
-              status: 'in_stock',
-              color: { contains: colorName },
-              capacity: { contains: capSize },
-            },
-          });
+          const [currentStock]: any = await conn.query(
+            `SELECT imei FROM phonestock 
+             WHERE phoneId = ? AND status = 'in_stock' AND color LIKE ? AND capacity LIKE ?`,
+            [phone.id, `%${colorName}%`, `%${capSize}%`]
+          );
 
           if (conf.isOutOfStock) {
             // Mark existing in_stock as reserved / out of stock
             for (const item of currentStock) {
-              await tx.phoneStock.update({
-                where: { imei: item.imei },
-                data: { status: 'reserved' },
-              });
+              await conn.execute(
+                'UPDATE phonestock SET status = "reserved", updatedAt = NOW() WHERE imei = ?',
+                [item.imei]
+              );
             }
           } else if (typeof conf.stock === 'number') {
             const diff = conf.stock - currentStock.length;
@@ -139,49 +136,39 @@ export async function POST(
 
               for (let i = 0; i < diff; i++) {
                 const imei = `35${Math.floor(1000000000000 + Math.random() * 9000000000000)}`;
-                await tx.phoneStock.create({
-                  data: {
-                    imei,
-                    phoneId: phone.id,
-                    phoneName: phone.name,
-                    color: colorName,
-                    capacity: capSize,
-                    costPrice,
-                    sellingPrice: sellPrice,
-                    supplierId: 'sup-1',
-                    supplierName: 'Apple Authorized Distributor VN',
-                    importDate: new Date().toISOString().split('T')[0],
-                    status: 'in_stock',
-                    warrantyMonths: 12,
-                  },
-                });
+                await conn.execute(
+                  `INSERT INTO phonestock 
+                   (imei, phoneId, phoneName, color, capacity, costPrice, sellingPrice, supplierId, supplierName, importDate, status, warrantyMonths, createdAt, updatedAt)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, 'sup-1', 'Apple Authorized Distributor VN', CURDATE(), 'in_stock', 12, NOW(), NOW())`,
+                  [imei, phone.id, phone.name, colorName, capSize, costPrice, sellPrice]
+                );
               }
             } else if (diff < 0) {
               // Mark excess items as reserved
               const toReserve = currentStock.slice(0, Math.abs(diff));
               for (const item of toReserve) {
-                await tx.phoneStock.update({
-                  where: { imei: item.imei },
-                  data: { status: 'reserved' },
-                });
+                await conn.execute(
+                  'UPDATE phonestock SET status = "reserved", updatedAt = NOW() WHERE imei = ?',
+                  [item.imei]
+                );
               }
             }
           }
         }
       }
-
-      return updatedPhone;
     });
+
+    const updated = await db.queryOne('SELECT * FROM phoneproduct WHERE id = ?', [phone.id]);
 
     return NextResponse.json({
       success: true,
       message: 'Cập nhật tồn kho và trạng thái biến thể thành công!',
       data: {
-        id: result.id,
-        name: result.name,
-        slug: result.slug,
-        colors: colors || JSON.parse(result.colors),
-        capacities: capacities || JSON.parse(result.capacities),
+        id: updated.id,
+        name: updated.name,
+        slug: updated.slug,
+        colors: colors || JSON.parse(updated.colors),
+        capacities: capacities || JSON.parse(updated.capacities),
       },
     });
   } catch (error: any) {
@@ -192,4 +179,3 @@ export async function POST(
     );
   }
 }
-

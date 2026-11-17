@@ -1,38 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { db } from '@/lib/db';
 import { VALID_STAFF_ROLES, ValidStaffRole } from '@/lib/validation';
 
 export async function GET(request: NextRequest) {
   try {
-    const users = await prisma.user.findMany({
-      select: {
-        id: true,
-        username: true,
-        name: true,
-        role: true,
-        avatar: true,
-        isActive: true,
-        phone: true,
-        email: true,
-        createdAt: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    const users = await db.query(
+      `SELECT id, username, name, role, avatar, isActive, phone, email, createdAt 
+       FROM user 
+       ORDER BY createdAt DESC`
+    );
 
-    const pendingCount = users.filter((u) => u.role === 'pending').length;
-    const adminCount = users.filter((u) => u.role === 'admin').length;
-    const cashierCount = users.filter((u) => u.role === 'cashier').length;
-    const techCount = users.filter((u) => u.role === 'technician').length;
+    const mapped = users.map((u) => ({
+      ...u,
+      isActive: Boolean(u.isActive),
+    }));
+
+    const pendingCount = mapped.filter((u) => u.role === 'pending').length;
+    const adminCount = mapped.filter((u) => u.role === 'admin').length;
+    const cashierCount = mapped.filter((u) => u.role === 'cashier').length;
+    const techCount = mapped.filter((u) => u.role === 'technician').length;
 
     return NextResponse.json({
       success: true,
       source: 'mysql_database',
-      total: users.length,
+      total: mapped.length,
       pendingCount,
       adminCount,
       cashierCount,
       techCount,
-      data: users,
+      data: mapped,
     });
   } catch (error: any) {
     console.error('Staff GET error:', error);
@@ -55,7 +51,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const targetUser = await prisma.user.findUnique({ where: { id } });
+    const targetUser = await db.queryOne('SELECT * FROM user WHERE id = ?', [id]);
     if (!targetUser) {
       return NextResponse.json(
         { error: 'Không tìm thấy tài khoản nhân viên' },
@@ -63,7 +59,8 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const updateData: any = {};
+    const setClauses: string[] = [];
+    const params: any[] = [];
 
     if (role !== undefined) {
       if (!VALID_STAFF_ROLES.includes(role as ValidStaffRole)) {
@@ -75,10 +72,10 @@ export async function PUT(request: NextRequest) {
 
       // Business Constraint: Prevent removing the last active Admin
       if (targetUser.role === 'admin' && role !== 'admin') {
-        const adminCount = await prisma.user.count({
-          where: { role: 'admin', isActive: true },
-        });
-        if (adminCount <= 1) {
+        const adminCheck = await db.queryOne(
+          'SELECT COUNT(*) as cnt FROM user WHERE role = "admin" AND isActive = 1'
+        );
+        if ((adminCheck?.cnt || 0) <= 1) {
           return NextResponse.json(
             { error: 'Không thể hạ quyền Quản trị viên cuối cùng của hệ thống!' },
             { status: 403 }
@@ -86,48 +83,52 @@ export async function PUT(request: NextRequest) {
         }
       }
 
-      updateData.role = role;
+      setClauses.push('role = ?');
+      params.push(role);
     }
 
     if (isActive !== undefined) {
       const boolActive = Boolean(isActive);
       if (targetUser.role === 'admin' && !boolActive) {
-        const activeAdmins = await prisma.user.count({
-          where: { role: 'admin', isActive: true },
-        });
-        if (activeAdmins <= 1) {
+        const adminCheck = await db.queryOne(
+          'SELECT COUNT(*) as cnt FROM user WHERE role = "admin" AND isActive = 1'
+        );
+        if ((adminCheck?.cnt || 0) <= 1) {
           return NextResponse.json(
             { error: 'Không thể khóa tài khoản Quản trị viên duy nhất đang hoạt động!' },
             { status: 403 }
           );
         }
       }
-      updateData.isActive = boolActive;
+
+      setClauses.push('isActive = ?');
+      params.push(boolActive ? 1 : 0);
     }
 
-    const updated = await prisma.user.update({
-      where: { id },
-      data: updateData,
-      select: {
-        id: true,
-        username: true,
-        name: true,
-        role: true,
-        avatar: true,
-        isActive: true,
-      },
-    });
+    if (setClauses.length > 0) {
+      setClauses.push('updatedAt = NOW()');
+      params.push(id);
+      await db.execute(
+        `UPDATE user SET ${setClauses.join(', ')} WHERE id = ?`,
+        params
+      );
+    }
+
+    const updated = await db.queryOne(
+      `SELECT id, username, name, role, avatar, isActive, phone, email, createdAt, updatedAt 
+       FROM user WHERE id = ?`,
+      [id]
+    );
 
     return NextResponse.json({
       success: true,
-      source: 'mysql_database',
-      message: `Đã cập nhật tài khoản nhân viên ${updated.name}`,
-      data: updated,
+      message: 'Cập nhật thông tin nhân viên thành công',
+      data: updated ? { ...updated, isActive: Boolean(updated.isActive) } : null,
     });
   } catch (error: any) {
     console.error('Staff PUT error:', error);
     return NextResponse.json(
-      { error: 'Lỗi cập nhật quyền nhân viên: ' + (error?.message || '') },
+      { error: 'Lỗi cập nhật nhân viên: ' + (error?.message || '') },
       { status: 500 }
     );
   }
@@ -145,37 +146,28 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const target = await prisma.user.findUnique({ where: { id } });
-    if (!target) {
+    const user = await db.queryOne('SELECT * FROM user WHERE id = ?', [id]);
+    if (!user) {
       return NextResponse.json(
-        { error: 'Không tìm thấy tài khoản nhân viên cần xóa' },
+        { error: 'Không tìm thấy tài khoản nhân viên' },
         { status: 404 }
       );
     }
 
-    if (target.username === 'admin') {
+    // Constraint: Prevent deleting admin
+    if (user.role === 'admin') {
       return NextResponse.json(
-        { error: 'Không thể xóa tài khoản Quản trị viên tối cao (Super Admin)!' },
+        { error: 'Không thể xóa tài khoản Quản trị viên hệ thống!' },
         { status: 403 }
       );
     }
 
-    // Business Constraint: Do not delete if last admin
-    if (target.role === 'admin') {
-      const adminCount = await prisma.user.count({ where: { role: 'admin' } });
-      if (adminCount <= 1) {
-        return NextResponse.json(
-          { error: 'Không thể xóa Quản trị viên cuối cùng!' },
-          { status: 403 }
-        );
-      }
-    }
-
-    await prisma.user.delete({ where: { id } });
+    await db.execute('DELETE FROM user WHERE id = ?', [id]);
 
     return NextResponse.json({
       success: true,
-      message: `Đã xóa tài khoản nhân viên ${target.name} thành công`,
+      message: `Đã xóa tài khoản nhân viên ${user.name} (${user.username})`,
+      deletedId: id,
     });
   } catch (error: any) {
     console.error('Staff DELETE error:', error);

@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { isValidAmount, sanitizeString, normalizePhone, isValidPhone } from '@/lib/validation';
+import { db } from '@/lib/db';
+import { isValidAmount, sanitizeString, normalizePhone } from '@/lib/validation';
 
 export async function GET(request: NextRequest) {
   try {
-    const suppliers = await prisma.supplier.findMany({
-      orderBy: { createdAt: 'desc' },
-    });
+    const suppliers = await db.query('SELECT * FROM supplier ORDER BY createdAt DESC');
 
     return NextResponse.json({
       success: true,
@@ -28,7 +26,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
 
     // 1. Create Supplier Action
-    if (body.action === 'create' || body.name) {
+    if (body.action === 'create' || (body.name && !body.supplierId)) {
       const name = sanitizeString(body.name, 150);
       const phone = normalizePhone(body.phone || '');
       const email = body.email ? sanitizeString(body.email, 100).toLowerCase() : 'ncc@ishophuyhoang.vn';
@@ -44,18 +42,14 @@ export async function POST(request: NextRequest) {
       }
 
       const id = body.id || 'sup-' + Date.now();
-      const created = await prisma.supplier.create({
-        data: {
-          id,
-          name,
-          phone: phone || '0900000000',
-          email,
-          address,
-          contactPerson,
-          totalPurchased: Number(body.totalPurchased || 0),
-          currentDebt: Math.max(0, currentDebt),
-        },
-      });
+      await db.execute(
+        `INSERT INTO supplier 
+         (id, name, phone, email, address, contactPerson, totalPurchased, currentDebt, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+        [id, name, phone || '0900000000', email, address, contactPerson, Number(body.totalPurchased || 0), Math.max(0, currentDebt)]
+      );
+
+      const created = await db.queryOne('SELECT * FROM supplier WHERE id = ?', [id]);
 
       return NextResponse.json({
         success: true,
@@ -82,9 +76,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supplier = await prisma.supplier.findUnique({
-      where: { id: supplierId },
-    });
+    const supplier = await db.queryOne('SELECT * FROM supplier WHERE id = ?', [supplierId]);
 
     if (!supplier) {
       return NextResponse.json(
@@ -94,36 +86,37 @@ export async function POST(request: NextRequest) {
     }
 
     // Atomic transaction: Deduct debt + create cashbook payment entry
-    const result = await prisma.$transaction(async (tx) => {
-      const updatedSupplier = await tx.supplier.update({
-        where: { id: supplierId },
-        data: {
-          currentDebt: Math.max(0, supplier.currentDebt - payAmount),
-        },
-      });
+    const result = await db.transaction(async (conn) => {
+      const newDebt = Math.max(0, Number(supplier.currentDebt || 0) - payAmount);
+      await conn.execute('UPDATE supplier SET currentDebt = ?, updatedAt = NOW() WHERE id = ?', [newDebt, supplierId]);
 
       const now = new Date();
       const dateStr = now.toISOString().split('T')[0];
-      const cashCount = await tx.cashbookEntry.count();
+      const [countRows]: any = await conn.query('SELECT COUNT(*) as cnt FROM cashbookentry');
+      const cashCount = countRows[0]?.cnt || 0;
       const code = `PC-NCC-${dateStr.replace(/-/g, '').slice(2)}-${String(cashCount + 1).padStart(3, '0')}`;
+      const cashId = 'cb-' + Date.now();
 
-      const cashEntry = await tx.cashbookEntry.create({
-        data: {
-          id: 'cb-' + Date.now(),
+      await conn.execute(
+        `INSERT INTO cashbookentry 
+         (id, code, date, type, category, categoryLabel, amount, paymentMethod, referenceCode, description, creator, createdAt, updatedAt)
+         VALUES (?, ?, ?, 'payment', 'supplier_restock', 'Thanh toán nợ NCC', ?, ?, ?, ?, ?, NOW(), NOW())`,
+        [
+          cashId,
           code,
-          date: dateStr,
-          type: 'payment',
-          category: 'supplier_restock',
-          categoryLabel: 'Thanh toán nợ NCC',
-          amount: payAmount,
-          paymentMethod: paymentMethod === 'cash' ? 'cash' : 'transfer',
-          referenceCode: supplier.id,
-          description: `Trả nợ nhà cung cấp ${supplier.name} - ${notes || 'Chuyển khoản/tiền mặt thanh toán công nợ'}`,
-          creator: sanitizeString(creator || 'Quản lý cửa hàng', 100),
-        },
-      });
+          dateStr,
+          payAmount,
+          paymentMethod === 'cash' ? 'cash' : 'transfer',
+          supplier.id,
+          `Trả nợ nhà cung cấp ${supplier.name} - ${notes || 'Chuyển khoản/tiền mặt thanh toán công nợ'}`,
+          sanitizeString(creator || 'Quản lý cửa hàng', 100),
+        ]
+      );
 
-      return { supplier: updatedSupplier, cashbook: cashEntry };
+      const [updatedSup]: any = await conn.query('SELECT * FROM supplier WHERE id = ?', [supplierId]);
+      const [cashEntry]: any = await conn.query('SELECT * FROM cashbookentry WHERE id = ?', [cashId]);
+
+      return { supplier: updatedSup[0], cashbook: cashEntry[0] };
     });
 
     return NextResponse.json({
@@ -149,17 +142,41 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Vui lòng cung cấp ID nhà cung cấp' }, { status: 400 });
     }
 
-    const updated = await prisma.supplier.update({
-      where: { id },
-      data: {
-        ...(name ? { name: sanitizeString(name, 150) } : {}),
-        ...(phone ? { phone: normalizePhone(phone) } : {}),
-        ...(email ? { email: sanitizeString(email, 100).toLowerCase() } : {}),
-        ...(address ? { address: sanitizeString(address, 191) } : {}),
-        ...(contactPerson ? { contactPerson: sanitizeString(contactPerson, 100) } : {}),
-        ...(currentDebt !== undefined ? { currentDebt: Math.max(0, Number(currentDebt)) } : {}),
-      },
-    });
+    const setClauses: string[] = [];
+    const params: any[] = [];
+
+    if (name) {
+      setClauses.push('name = ?');
+      params.push(sanitizeString(name, 150));
+    }
+    if (phone) {
+      setClauses.push('phone = ?');
+      params.push(normalizePhone(phone));
+    }
+    if (email) {
+      setClauses.push('email = ?');
+      params.push(sanitizeString(email, 100).toLowerCase());
+    }
+    if (address) {
+      setClauses.push('address = ?');
+      params.push(sanitizeString(address, 191));
+    }
+    if (contactPerson) {
+      setClauses.push('contactPerson = ?');
+      params.push(sanitizeString(contactPerson, 100));
+    }
+    if (currentDebt !== undefined) {
+      setClauses.push('currentDebt = ?');
+      params.push(Math.max(0, Number(currentDebt)));
+    }
+
+    if (setClauses.length > 0) {
+      setClauses.push('updatedAt = NOW()');
+      params.push(id);
+      await db.execute(`UPDATE supplier SET ${setClauses.join(', ')} WHERE id = ?`, params);
+    }
+
+    const updated = await db.queryOne('SELECT * FROM supplier WHERE id = ?', [id]);
 
     return NextResponse.json({
       success: true,
@@ -184,27 +201,25 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Vui lòng cung cấp ID nhà cung cấp cần xóa' }, { status: 400 });
     }
 
-    const existing = await prisma.supplier.findUnique({
-      where: { id },
-      include: {
-        _count: {
-          select: { phoneStocks: true, orders: true },
-        },
-      },
-    });
+    const existing = await db.queryOne('SELECT * FROM supplier WHERE id = ?', [id]);
 
     if (!existing) {
       return NextResponse.json({ error: 'Không tìm thấy nhà cung cấp' }, { status: 404 });
     }
 
-    if (existing._count.phoneStocks > 0 || existing._count.orders > 0) {
+    const phoneCountRow = await db.queryOne('SELECT COUNT(*) as cnt FROM phonestock WHERE supplierId = ?', [id]);
+    const orderCountRow = await db.queryOne('SELECT COUNT(*) as cnt FROM supplierorder WHERE supplierId = ?', [id]);
+    const phoneCount = phoneCountRow?.cnt || 0;
+    const orderCount = orderCountRow?.cnt || 0;
+
+    if (phoneCount > 0 || orderCount > 0) {
       return NextResponse.json(
-        { error: `Không thể xóa nhà cung cấp đã có ${existing._count.phoneStocks} máy trong kho hoặc ${existing._count.orders} đơn nhập` },
+        { error: `Không thể xóa nhà cung cấp đã có ${phoneCount} máy trong kho hoặc ${orderCount} đơn nhập` },
         { status: 400 }
       );
     }
 
-    await prisma.supplier.delete({ where: { id } });
+    await db.execute('DELETE FROM supplier WHERE id = ?', [id]);
 
     return NextResponse.json({
       success: true,
