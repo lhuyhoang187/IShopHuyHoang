@@ -45,8 +45,8 @@ export default function PhonesPage() {
       return p.capacities.some((c) => c.size.includes(selectedStorage));
     })
     .sort((a, b) => {
-      if (priceSort === 'asc') return a.capacities[0].price - b.capacities[0].price;
-      if (priceSort === 'desc') return b.capacities[0].price - a.capacities[0].price;
+      if (priceSort === 'asc') return (a.capacities?.[0]?.price || 0) - (b.capacities?.[0]?.price || 0);
+      if (priceSort === 'desc') return (b.capacities?.[0]?.price || 0) - (a.capacities?.[0]?.price || 0);
       return 0;
     });
 
@@ -149,13 +149,13 @@ export default function PhonesPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {filteredPhones.map((phone) => {
           const isComparing = compareIds.includes(phone.id);
-          const lowestCapacity = phone.capacities[0];
+          const lowestCapacity = phone.capacities?.[0] || { size: '256GB', price: 25990000, originalPrice: 27990000 };
           const qty = phoneQuantities[phone.id] || 1;
           const pointsEarned = Math.floor(((lowestCapacity.price || 0) * qty) / 10000);
           const availableStock = IShopStore.getProductAvailableStock({
             productId: phone.id,
             type: 'phone',
-            color: phone.colors[0]?.name,
+            color: phone.colors?.[0]?.name,
             capacity: lowestCapacity.size,
           });
           const isOutOfStock = availableStock <= 0;
@@ -229,8 +229,8 @@ export default function PhonesPage() {
                 </Link>
 
                 <div className="text-[11px] text-slate-600 space-y-1 bg-slate-50 p-2 rounded-xl border border-slate-200">
-                  <div className="truncate">Chip: {phone.specs.chip.split('(')[0]}</div>
-                  <div className="truncate">Màn: {phone.specs.screen.split(',')[0]}</div>
+                  <div className="truncate">Chip: {(phone.specs?.chip || 'Snapdragon 8 Gen 3').split('(')[0]}</div>
+                  <div className="truncate">Màn: {(phone.specs?.screen || '6.7 inch OLED 120Hz').split(',')[0]}</div>
                 </div>
 
                 <div className="pt-1 flex items-baseline justify-between">

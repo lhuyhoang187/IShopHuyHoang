@@ -2,6 +2,94 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { sanitizeString } from '@/lib/validation';
 
+const DEFAULT_PHONE_IMAGE = 'https://images.unsplash.com/photo-1580910051074-3eb694886505?w=800&auto=format&fit=crop&q=80';
+
+function normalizeSpecs(rawSpecs: any, brand = 'Apple', capacities: any[] = []) {
+  const s = typeof rawSpecs === 'object' && rawSpecs !== null ? rawSpecs : {};
+  const isApple = String(brand).toLowerCase() === 'apple';
+  const capLabel =
+    Array.isArray(capacities) && capacities.length > 0
+      ? capacities.map((c: any) => c.size).join(' / ')
+      : '256GB / 512GB';
+
+  return {
+    screen: s.screen || '6.7 inch OLED Super Retina, 120Hz',
+    chip: s.chip || (isApple ? 'Apple A20 Pro 6 nhân (2nm)' : 'Snapdragon 8 Gen 3 (4nm)'),
+    ram: s.ram || '12 GB LPDDR5X',
+    storage: s.storage || capLabel,
+    rearCamera: s.rearCamera || 'Chính 48MP + Siêu rộng 48MP + Tele 5x',
+    frontCamera: s.frontCamera || '12MP Auto-Focus',
+    battery: s.battery || '5.000 mAh',
+    charging: s.charging || 'Sạc nhanh 45W, Không dây 25W',
+    os: s.os || (isApple ? 'iOS 20 Apple Intelligence' : 'Android 15'),
+    sim: s.sim || '1 Nano SIM + 1 eSIM',
+    waterResistant: s.waterResistant || 'IP68',
+    weight: s.weight || '215 g',
+  };
+}
+
+function normalizeColors(rawColors: any, variants: any[] = []) {
+  const arr = Array.isArray(rawColors) ? rawColors : [];
+  if (arr.length > 0) {
+    return arr.map((c: any, idx: number) => ({
+      id: c.id || `c-${idx + 1}`,
+      name: c.name || 'Đen Titan',
+      hex: c.hex || '#2B2B2B',
+      imageUrl: c.imageUrl || DEFAULT_PHONE_IMAGE,
+      stock: c.stock,
+      isOutOfStock: c.isOutOfStock,
+    }));
+  }
+  if (Array.isArray(variants) && variants.length > 0) {
+    const seen = new Set<string>();
+    const fromVar: any[] = [];
+    variants.forEach((v: any, idx: number) => {
+      const cName = v.colorName || 'Đen Titan';
+      if (!seen.has(cName)) {
+        seen.add(cName);
+        fromVar.push({
+          id: `c-${idx + 1}`,
+          name: cName,
+          hex: v.colorHex || '#2B2B2B',
+          imageUrl: v.imageUrl || DEFAULT_PHONE_IMAGE,
+        });
+      }
+    });
+    if (fromVar.length > 0) return fromVar;
+  }
+  return [
+    {
+      id: 'c-default',
+      name: 'Đen Titan',
+      hex: '#2B2B2B',
+      imageUrl: DEFAULT_PHONE_IMAGE,
+    },
+  ];
+}
+
+function normalizeCapacities(rawCaps: any) {
+  const arr = Array.isArray(rawCaps) ? rawCaps : [];
+  if (arr.length > 0) {
+    return arr.map((c: any) => {
+      const price = Number(c.price) || 25990000;
+      return {
+        size: c.size || '256GB',
+        price,
+        originalPrice: Number(c.originalPrice) || Math.round(price * 1.08),
+        stock: c.stock,
+        isOutOfStock: c.isOutOfStock,
+      };
+    });
+  }
+  return [
+    {
+      size: '256GB',
+      price: 25990000,
+      originalPrice: 27990000,
+    },
+  ];
+}
+
 export async function GET(request: NextRequest) {
   try {
     const phones = await db.query('SELECT * FROM phoneproduct ORDER BY createdAt DESC');
@@ -24,38 +112,42 @@ export async function GET(request: NextRequest) {
     }
 
     const parsed = phones.map((p) => {
-      let colors = [];
-      let capacities = [];
-      let specs = {};
+      let rawColors = [];
+      let rawCapacities = [];
+      let rawSpecs = {};
 
       try {
-        colors = typeof p.colors === 'string' ? JSON.parse(p.colors) : p.colors || [];
+        rawColors = typeof p.colors === 'string' ? JSON.parse(p.colors) : p.colors || [];
       } catch (e) {
-        colors = [];
+        rawColors = [];
       }
 
       try {
-        capacities = typeof p.capacities === 'string' ? JSON.parse(p.capacities) : p.capacities || [];
+        rawCapacities = typeof p.capacities === 'string' ? JSON.parse(p.capacities) : p.capacities || [];
       } catch (e) {
-        capacities = [];
+        rawCapacities = [];
       }
 
       try {
-        specs = typeof p.specs === 'string' ? JSON.parse(p.specs) : p.specs || {};
+        rawSpecs = typeof p.specs === 'string' ? JSON.parse(p.specs) : p.specs || {};
       } catch (e) {
-        specs = {};
+        rawSpecs = {};
       }
 
       const pStock = stockByPhone[p.id] || [];
       const inStockCount = pStock.filter((s) => s.status === 'in_stock').length;
       const variants = variantsByPhone[p.id] || [];
 
+      const capacities = normalizeCapacities(rawCapacities);
+      const colors = normalizeColors(rawColors, variants);
+      const specs = normalizeSpecs(rawSpecs, p.brand, capacities);
+
       return {
         id: p.id,
         name: p.name,
         slug: p.slug,
         brand: p.brand,
-        description: p.description,
+        description: p.description || `Sản phẩm chính hãng ${p.brand}`,
         rating: Number(p.rating || 5.0),
         reviewCount: Number(p.reviewCount || 0),
         isHot: Boolean(p.isHot),
@@ -64,7 +156,7 @@ export async function GET(request: NextRequest) {
         capacities,
         variants,
         specs,
-        warrantyInfo: p.warrantyInfo,
+        warrantyInfo: p.warrantyInfo || 'Bảo hành 12 tháng chính hãng.',
         inStockCount,
         totalStock: pStock.length,
       };
@@ -124,9 +216,17 @@ export async function POST(request: NextRequest) {
     );
 
     const phoneId = id ? sanitizeString(id, 50) : `p-${Date.now()}`;
-    const colorsStr = typeof colors === 'string' ? colors : JSON.stringify(colors || []);
-    const capacitiesStr = typeof capacities === 'string' ? capacities : JSON.stringify(capacities || []);
-    const specsStr = typeof specs === 'string' ? specs : JSON.stringify(specs || {});
+    const parsedColorsInput = typeof colors === 'string' ? JSON.parse(colors) : colors;
+    const parsedCapsInput = typeof capacities === 'string' ? JSON.parse(capacities) : capacities;
+    const parsedSpecsInput = typeof specs === 'string' ? JSON.parse(specs) : specs;
+
+    const normalizedCaps = normalizeCapacities(parsedCapsInput);
+    const normalizedColors = normalizeColors(parsedColorsInput);
+    const normalizedSpecs = normalizeSpecs(parsedSpecsInput, cleanBrand, normalizedCaps);
+
+    const colorsStr = JSON.stringify(normalizedColors);
+    const capacitiesStr = JSON.stringify(normalizedCaps);
+    const specsStr = JSON.stringify(normalizedSpecs);
 
     // Ensure PhoneBrand exists in database
     const brandSlug = cleanBrand
@@ -194,13 +294,10 @@ export async function POST(request: NextRequest) {
 
     // Upsert 3NF PhoneVariants
     try {
-      const parsedColors = typeof colors === 'string' ? JSON.parse(colors) : colors || [{ name: 'Mặc định', hex: '#333333' }];
-      const parsedCaps = typeof capacities === 'string' ? JSON.parse(capacities) : capacities || [{ size: '128GB', price: 20000000 }];
-
-      for (const cap of parsedCaps) {
-        for (const col of parsedColors) {
-          const colorName = col.name || 'Mặc định';
-          const capacitySize = cap.size || '128GB';
+      for (const cap of normalizedCaps) {
+        for (const col of normalizedColors) {
+          const colorName = col.name || 'Đen Titan';
+          const capacitySize = cap.size || '256GB';
           const existingVariant = await db.queryOne(
             'SELECT id FROM phonevariant WHERE phoneId = ? AND colorName = ? AND capacity = ?',
             [targetId, colorName, capacitySize]
@@ -214,8 +311,8 @@ export async function POST(request: NextRequest) {
               [
                 Number(cap.price) || 20000000,
                 cap.originalPrice ? Number(cap.originalPrice) : null,
-                col.hex || '#333333',
-                col.imageUrl || null,
+                col.hex || '#2B2B2B',
+                col.imageUrl || DEFAULT_PHONE_IMAGE,
                 existingVariant.id,
               ]
             );
@@ -229,8 +326,8 @@ export async function POST(request: NextRequest) {
                 varId,
                 targetId,
                 colorName,
-                col.hex || '#333333',
-                col.imageUrl || null,
+                col.hex || '#2B2B2B',
+                col.imageUrl || DEFAULT_PHONE_IMAGE,
                 capacitySize,
                 Number(cap.price) || 20000000,
                 cap.originalPrice ? Number(cap.originalPrice) : null,

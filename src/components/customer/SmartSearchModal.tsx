@@ -43,7 +43,7 @@ export default function SmartSearchModal({ isOpen, onClose }: Props) {
       (p) =>
         p.name.toLowerCase().includes(q) ||
         p.brand.toLowerCase().includes(q) ||
-        p.specs.chip.toLowerCase().includes(q)
+        (p.specs?.chip || '').toLowerCase().includes(q)
     );
 
     const matchedAccessories = accessories.filter(
@@ -156,7 +156,7 @@ export default function SmartSearchModal({ isOpen, onClose }: Props) {
                             <h4 className="text-sm font-bold text-slate-900 group-hover:text-amber-600 transition-colors">
                               {phone.name}
                             </h4>
-                            <p className="text-xs text-slate-500">{phone.specs.chip} • {phone.specs.screen.split(',')[0]}</p>
+                            <p className="text-xs text-slate-500">{phone.specs?.chip || 'Flagship Chip'} • {(phone.specs?.screen || 'OLED 120Hz').split(',')[0]}</p>
                           </div>
                         </div>
                         <div className="text-right">
