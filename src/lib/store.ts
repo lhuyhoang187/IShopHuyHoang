@@ -334,8 +334,19 @@ export const IShopStore = {
       if (repRes?.success && Array.isArray(repRes.data)) {
         changed = setStorage('repairs', repRes.data, true) || changed;
       }
-      if (repCfgRes?.success && Array.isArray(repCfgRes.data?.services) && repCfgRes.data.services.length > 0) {
-        changed = setStorage('repair_service_catalog', repCfgRes.data.services, true) || changed;
+      if (repCfgRes?.success && repCfgRes.data) {
+        if (Array.isArray(repCfgRes.data.devices) && repCfgRes.data.devices.length > 0) {
+          changed = setStorage('repair_device_options', repCfgRes.data.devices, true) || changed;
+        }
+        if (Array.isArray(repCfgRes.data.services) && repCfgRes.data.services.length > 0) {
+          changed = setStorage('repair_service_catalog', repCfgRes.data.services, true) || changed;
+        }
+        if (Array.isArray(repCfgRes.data.symptoms) && repCfgRes.data.symptoms.length > 0) {
+          changed = setStorage('repair_symptom_options', repCfgRes.data.symptoms, true) || changed;
+        }
+        if (Array.isArray(repCfgRes.data.timeSlots) && repCfgRes.data.timeSlots.length > 0) {
+          changed = setStorage('repair_time_slot_options', repCfgRes.data.timeSlots, true) || changed;
+        }
       }
       if (cashRes?.success && Array.isArray(cashRes.data)) {
         changed = setStorage('cashbook', cashRes.data, true) || changed;

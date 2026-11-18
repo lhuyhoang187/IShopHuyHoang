@@ -7,6 +7,43 @@ import {
   initialRepairTimeSlots,
 } from '@/lib/store';
 
+export const dynamic = 'force-dynamic';
+
+async function ensureConfigTable() {
+  await db.execute(
+    `CREATE TABLE IF NOT EXISTS repairbookingconfig (
+       configKey VARCHAR(100) NOT NULL PRIMARY KEY,
+       configData LONGTEXT NOT NULL,
+       updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`
+  );
+}
+
+async function getConfigList<T>(key: string, defaultList: T[]): Promise<T[]> {
+  try {
+    await ensureConfigTable();
+    const row = await db.queryOne('SELECT configData FROM repairbookingconfig WHERE configKey = ?', [key]);
+    if (row && row.configData) {
+      const parsed = JSON.parse(row.configData);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (e) {
+    console.warn(`Read repairbookingconfig [${key}] notice:`, e);
+  }
+  return defaultList;
+}
+
+async function saveConfigList<T>(key: string, list: T[]): Promise<void> {
+  await ensureConfigTable();
+  const jsonStr = JSON.stringify(list);
+  await db.execute(
+    `INSERT INTO repairbookingconfig (configKey, configData, updatedAt)
+     VALUES (?, ?, NOW())
+     ON DUPLICATE KEY UPDATE configData = VALUES(configData), updatedAt = NOW()`,
+    [key, jsonStr]
+  );
+}
+
 export async function GET(request: NextRequest) {
   try {
     let dbServices: any[] = [];
@@ -18,25 +55,35 @@ export async function GET(request: NextRequest) {
       console.warn('DB read notice for repair services:', e);
     }
 
-    const services = dbServices.length > 0 ? dbServices.map((s) => ({
-      id: s.id,
-      name: s.name,
-      category: s.category,
-      deviceBrand: s.deviceBrand,
-      price: Number(s.price || 0),
-      warranty: s.warrantyPeriod || '12 Tháng',
-      estimatedMinutes: s.estimatedMinutes || 30,
-      description: s.description || '',
-      isActive: Boolean(s.isActive),
-    })) : initialRepairServiceCatalog;
+    const services =
+      dbServices.length > 0
+        ? dbServices.map((s) => ({
+            id: s.id,
+            name: s.name,
+            category: s.category || 'other',
+            deviceBrand: s.deviceBrand || 'Apple',
+            deviceModels: s.deviceModels || 'Tất cả dòng máy',
+            price: Number(s.price || 0),
+            warranty: s.warrantyPeriod || '12 Tháng',
+            estimatedMinutes: Number(s.estimatedMinutes || 30),
+            description: s.description || '',
+            isActive: Boolean(s.isActive),
+          }))
+        : initialRepairServiceCatalog;
+
+    const [devices, symptoms, timeSlots] = await Promise.all([
+      getConfigList('devices', initialRepairDeviceOptions),
+      getConfigList('symptoms', initialRepairSymptoms),
+      getConfigList('timeSlots', initialRepairTimeSlots),
+    ]);
 
     return NextResponse.json({
       success: true,
       data: {
-        devices: initialRepairDeviceOptions,
+        devices,
         services,
-        symptoms: initialRepairSymptoms,
-        timeSlots: initialRepairTimeSlots,
+        symptoms,
+        timeSlots,
       },
     });
   } catch (error: any) {
@@ -59,9 +106,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { action, type, item } = body;
+    const { action, type, item, id } = body;
 
-    // Save service to database if action is related to repair service
+    // 1. Save service to repairservice table in MySQL
     if (type === 'service') {
       if ((action === 'add' || action === 'update') && item) {
         try {
@@ -109,18 +156,40 @@ export async function POST(request: NextRequest) {
         } catch (dbErr) {
           console.warn('DB upsert notice for repair service:', dbErr);
         }
-      } else if (action === 'delete' && body.id) {
+      } else if (action === 'delete' && id) {
         try {
-          await db.execute('DELETE FROM repairservice WHERE id = ?', [body.id]);
+          await db.execute('DELETE FROM repairservice WHERE id = ?', [id]);
         } catch (dbErr) {
           console.warn('DB delete notice for repair service:', dbErr);
         }
       }
     }
 
+    // 2. Save devices, symptoms, or timeSlots to repairbookingconfig table in MySQL
+    if (type === 'device' || type === 'symptom' || type === 'timeSlot') {
+      const keyMap: Record<string, { key: string; defaults: any[] }> = {
+        device: { key: 'devices', defaults: initialRepairDeviceOptions },
+        symptom: { key: 'symptoms', defaults: initialRepairSymptoms },
+        timeSlot: { key: 'timeSlots', defaults: initialRepairTimeSlots },
+      };
+      const cfg = keyMap[type];
+      const currentList = await getConfigList<any>(cfg.key, cfg.defaults);
+
+      if ((action === 'add' || action === 'update') && item) {
+        const exists = currentList.some((x: any) => x.id === item.id);
+        const nextList = exists
+          ? currentList.map((x: any) => (x.id === item.id ? { ...x, ...item } : x))
+          : [...currentList, item];
+        await saveConfigList(cfg.key, nextList);
+      } else if (action === 'delete' && id) {
+        const nextList = currentList.filter((x: any) => x.id !== id);
+        await saveConfigList(cfg.key, nextList);
+      }
+    }
+
     return NextResponse.json({
       success: true,
-      message: 'Cập nhật cấu hình bàn sửa chữa thành công',
+      message: 'Cập nhật cấu hình bàn sửa chữa vào CSDL thành công',
     });
   } catch (error: any) {
     console.error('Repair config POST error:', error);

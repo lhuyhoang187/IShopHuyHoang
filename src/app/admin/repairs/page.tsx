@@ -96,6 +96,17 @@ export default function AdminRepairsPage() {
   const [newTimeSlotLabel, setNewTimeSlotLabel] = useState('09:00 - Sáng (Mở cửa)');
   const [newTimeSlotPeriod, setNewTimeSlotPeriod] = useState<'morning' | 'afternoon' | 'evening'>('morning');
 
+  // Smart Filter States inside Config Modal (Lọc danh sách trực tiếp trong modal Cấu Hình Danh Mục)
+  const [configDeviceBrandFilter, setConfigDeviceBrandFilter] = useState<string>('all');
+  const [configDeviceSearch, setConfigDeviceSearch] = useState<string>('');
+  const [configServiceBrandFilter, setConfigServiceBrandFilter] = useState<string>('all');
+  const [configServiceCategoryFilter, setConfigServiceCategoryFilter] = useState<string>('all');
+  const [configServiceSearch, setConfigServiceSearch] = useState<string>('');
+  const [configSymptomIconFilter, setConfigSymptomIconFilter] = useState<string>('all');
+  const [configSymptomSearch, setConfigSymptomSearch] = useState<string>('');
+  const [configTimeSlotPeriodFilter, setConfigTimeSlotPeriodFilter] = useState<string>('all');
+  const [partCategoryFilter, setPartCategoryFilter] = useState<string>('all');
+
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
@@ -898,17 +909,62 @@ export default function AdminRepairsPage() {
       });
   }, [repairs, filterStatus, searchQuery, currentTime]);
 
-  // Spare parts filtered by search
+  // Spare parts filtered by category & search
   const filteredSpareParts = useMemo(() => {
-    if (!partSearchQuery.trim()) return spareParts;
-    const q = partSearchQuery.toLowerCase().trim();
-    return spareParts.filter(
-      (p) =>
-        p.name.toLowerCase().includes(q) ||
-        p.categoryName?.toLowerCase().includes(q) ||
-        p.barcode?.toLowerCase().includes(q)
+    return spareParts
+      .filter((p) => (partCategoryFilter === 'all' ? true : p.category === partCategoryFilter))
+      .filter((p) => {
+        if (!partSearchQuery.trim()) return true;
+        const q = partSearchQuery.toLowerCase().trim();
+        return (
+          p.name.toLowerCase().includes(q) ||
+          p.categoryName?.toLowerCase().includes(q) ||
+          p.barcode?.toLowerCase().includes(q)
+        );
+      });
+  }, [spareParts, partSearchQuery, partCategoryFilter]);
+
+  // Filtered lists inside Config Modal
+  const filteredConfigDevices = useMemo(() => {
+    return deviceList
+      .filter((d) => (configDeviceBrandFilter === 'all' ? true : (d.brand || 'Khác') === configDeviceBrandFilter))
+      .filter((d) => {
+        const q = configDeviceSearch.trim().toLowerCase();
+        if (!q) return true;
+        return d.name.toLowerCase().includes(q) || (d.brand && d.brand.toLowerCase().includes(q));
+      });
+  }, [deviceList, configDeviceBrandFilter, configDeviceSearch]);
+
+  const filteredConfigServices = useMemo(() => {
+    return serviceCatalog
+      .filter((s) => (configServiceBrandFilter === 'all' ? true : (s.deviceBrand || 'Chung') === configServiceBrandFilter))
+      .filter((s) => (configServiceCategoryFilter === 'all' ? true : (s.category || 'other') === configServiceCategoryFilter))
+      .filter((s) => {
+        const q = configServiceSearch.trim().toLowerCase();
+        if (!q) return true;
+        return (
+          s.name.toLowerCase().includes(q) ||
+          (s.deviceModels && s.deviceModels.toLowerCase().includes(q)) ||
+          (s.deviceBrand && s.deviceBrand.toLowerCase().includes(q))
+        );
+      });
+  }, [serviceCatalog, configServiceBrandFilter, configServiceCategoryFilter, configServiceSearch]);
+
+  const filteredConfigSymptoms = useMemo(() => {
+    return symptomList
+      .filter((sym) => (configSymptomIconFilter === 'all' ? true : (sym.icon || '📱') === configSymptomIconFilter))
+      .filter((sym) => {
+        const q = configSymptomSearch.trim().toLowerCase();
+        if (!q) return true;
+        return sym.title.toLowerCase().includes(q) || (sym.description && sym.description.toLowerCase().includes(q));
+      });
+  }, [symptomList, configSymptomIconFilter, configSymptomSearch]);
+
+  const filteredConfigTimeSlots = useMemo(() => {
+    return timeSlots.filter((ts) =>
+      configTimeSlotPeriodFilter === 'all' ? true : ts.period === configTimeSlotPeriodFilter
     );
-  }, [spareParts, partSearchQuery]);
+  }, [timeSlots, configTimeSlotPeriodFilter]);
 
   const statusBadge: Record<RepairStatus, { label: string; color: string; dot: string }> = {
     received: { label: '1. Tiếp nhận', color: 'bg-sky-50 text-sky-700 border-sky-200', dot: 'bg-sky-500' },
@@ -2255,13 +2311,37 @@ export default function AdminRepairsPage() {
                 <span className="text-[11px] text-slate-500">Tồn kho tự trừ và tính vào tổng chi phí</span>
               </div>
 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <input
+                  type="text"
+                  value={partSearchQuery}
+                  onChange={(e) => setPartSearchQuery(e.target.value)}
+                  placeholder="🔍 Gõ tìm nhanh linh kiện (Màn hình, Pin, Kính)..."
+                  className="p-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-blue-500"
+                />
+                <select
+                  value={partCategoryFilter}
+                  onChange={(e) => setPartCategoryFilter(e.target.value)}
+                  className="p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-blue-500 cursor-pointer"
+                >
+                  <option value="all">📁 Tất cả nhóm linh kiện ({spareParts.length})</option>
+                  {Array.from(new Map(spareParts.map((p) => [p.category, p.categoryName || p.category])).entries()).map(
+                    ([code, name]) => (
+                      <option key={code} value={code}>
+                        {name} ({spareParts.filter((sp) => sp.category === code).length})
+                      </option>
+                    )
+                  )}
+                </select>
+              </div>
+
               <div className="flex items-center gap-2">
                 <select
                   value={selectedPartId}
                   onChange={(e) => setSelectedPartId(e.target.value)}
                   className="flex-1 p-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 font-medium focus:outline-none focus:border-blue-500"
                 >
-                  <option value="">-- Chọn linh kiện từ kho ({spareParts.length} mục) --</option>
+                  <option value="">-- Chọn linh kiện từ kho ({filteredSpareParts.length} mục) --</option>
                   {filteredSpareParts.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.name} (Tồn: {p.stock} {p.unit} - Giá {formatVND(p.retailRepairPrice)})
@@ -2593,7 +2673,11 @@ export default function AdminRepairsPage() {
                     <div>
                       <select
                         value={newDeviceBrand}
-                        onChange={(e) => setNewDeviceBrand(e.target.value)}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setNewDeviceBrand(val);
+                          setConfigDeviceBrandFilter(val);
+                        }}
                         className="w-full p-2.5 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs font-bold focus:outline-none focus:border-amber-500 cursor-pointer"
                       >
                         <option value="Apple">Hãng: Apple (iPhone/iPad)</option>
@@ -2614,19 +2698,69 @@ export default function AdminRepairsPage() {
                   </div>
                 </form>
 
+                {/* Smart Filter Bar for Device List */}
+                <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-1.5 flex-wrap text-xs">
+                    <span className="text-slate-500 font-bold mr-1">Lọc theo hãng:</span>
+                    {[
+                      { key: 'all', label: `Tất cả (${deviceList.length})` },
+                      { key: 'Apple', label: `Apple (${deviceList.filter((d) => d.brand === 'Apple').length})` },
+                      { key: 'Samsung', label: `Samsung (${deviceList.filter((d) => d.brand === 'Samsung').length})` },
+                      { key: 'Xiaomi', label: `Xiaomi (${deviceList.filter((d) => d.brand === 'Xiaomi').length})` },
+                      { key: 'Khác', label: `Khác (${deviceList.filter((d) => !d.brand || d.brand === 'Khác').length})` },
+                    ].map((b) => (
+                      <button
+                        key={b.key}
+                        type="button"
+                        onClick={() => {
+                          setConfigDeviceBrandFilter(b.key);
+                          if (b.key !== 'all') setNewDeviceBrand(b.key);
+                        }}
+                        className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer ${
+                          configDeviceBrandFilter === b.key
+                            ? 'bg-amber-500 text-slate-950 font-black shadow-2xs'
+                            : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                        }`}
+                      >
+                        {b.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="relative w-full sm:w-64">
+                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      value={configDeviceSearch}
+                      onChange={(e) => setConfigDeviceSearch(e.target.value)}
+                      placeholder="Tìm dòng máy trong danh sách..."
+                      className="w-full pl-8 pr-7 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-amber-500 focus:bg-white"
+                    />
+                    {configDeviceSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setConfigDeviceSearch('')}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
                 {/* Device List Table */}
                 <div className="border border-slate-200 rounded-2xl overflow-hidden">
                   <table className="w-full text-left text-xs">
                     <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200 text-[11px] uppercase">
                       <tr>
                         <th className="p-3">Hãng</th>
-                        <th className="p-3">Tên Dòng Máy</th>
+                        <th className="p-3">Tên Dòng Máy ({filteredConfigDevices.length})</th>
                         <th className="p-3 text-center">Trạng Thái</th>
                         <th className="p-3 text-right">Xóa</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {deviceList.map((dev) => (
+                      {filteredConfigDevices.map((dev) => (
                         <tr key={dev.id} className="hover:bg-slate-50 transition-colors">
                           <td className="p-3">
                             <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${
@@ -2656,6 +2790,13 @@ export default function AdminRepairsPage() {
                           </td>
                         </tr>
                       ))}
+                      {filteredConfigDevices.length === 0 && (
+                        <tr>
+                          <td colSpan={4} className="p-8 text-center text-slate-500 text-xs">
+                            Không có dòng máy nào thuộc hãng <strong>{configDeviceBrandFilter}</strong> khớp bộ lọc.
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -2710,7 +2851,11 @@ export default function AdminRepairsPage() {
                       <label className="text-[11px] font-bold text-slate-700 mb-1 block">Hãng thiết bị:</label>
                       <select
                         value={newServiceBrand}
-                        onChange={(e) => setNewServiceBrand(e.target.value)}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setNewServiceBrand(val);
+                          if (!editingService) setConfigServiceBrandFilter(val);
+                        }}
                         className="w-full p-2.5 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs font-bold focus:outline-none focus:border-amber-500 cursor-pointer"
                       >
                         <option value="Apple">Apple iPhone / iPad</option>
@@ -2816,12 +2961,63 @@ export default function AdminRepairsPage() {
                   </div>
                 </form>
 
+                {/* Smart Filter Bar for Service List */}
+                <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-1.5 flex-wrap text-xs">
+                    <span className="text-slate-500 font-bold mr-1">Lọc hãng:</span>
+                    {[
+                      { key: 'all', label: `Tất cả (${serviceCatalog.length})` },
+                      { key: 'Apple', label: `Apple (${serviceCatalog.filter((s) => s.deviceBrand === 'Apple').length})` },
+                      { key: 'Samsung', label: `Samsung (${serviceCatalog.filter((s) => s.deviceBrand === 'Samsung').length})` },
+                      { key: 'Chung', label: `Chung (${serviceCatalog.filter((s) => !s.deviceBrand || s.deviceBrand === 'Chung').length})` },
+                    ].map((b) => (
+                      <button
+                        key={b.key}
+                        type="button"
+                        onClick={() => setConfigServiceBrandFilter(b.key)}
+                        className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer ${
+                          configServiceBrandFilter === b.key
+                            ? 'bg-amber-500 text-slate-950 font-black shadow-2xs'
+                            : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                        }`}
+                      >
+                        {b.label}
+                      </button>
+                    ))}
+
+                    <select
+                      value={configServiceCategoryFilter}
+                      onChange={(e) => setConfigServiceCategoryFilter(e.target.value)}
+                      className="px-2.5 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 focus:outline-none focus:border-amber-500 cursor-pointer ml-1"
+                    >
+                      <option value="all">Tất cả nhóm kỹ thuật</option>
+                      <option value="battery">🔋 Pin &amp; Nguồn</option>
+                      <option value="screen">📱 Màn hình hiển thị</option>
+                      <option value="glass">✨ Ép kính chân không</option>
+                      <option value="charge_port">⚡ Cụm sạc &amp; Bo cáp</option>
+                      <option value="camera">📷 Camera &amp; Ống kính</option>
+                      <option value="other">🛠️ Kiểm tra &amp; Khác</option>
+                    </select>
+                  </div>
+
+                  <div className="relative w-full sm:w-56">
+                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      value={configServiceSearch}
+                      onChange={(e) => setConfigServiceSearch(e.target.value)}
+                      placeholder="Tìm dịch vụ hoặc dòng máy..."
+                      className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-amber-500 focus:bg-white"
+                    />
+                  </div>
+                </div>
+
                 {/* Service List Table with Edit and Delete options */}
                 <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
                   <table className="w-full text-left text-xs">
                     <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200 text-[11px] uppercase">
                       <tr>
-                        <th className="p-3">Tên Dịch Vụ</th>
+                        <th className="p-3">Tên Dịch Vụ ({filteredConfigServices.length})</th>
                         <th className="p-3">Dòng Máy Áp Dụng</th>
                         <th className="p-3">Hãng</th>
                         <th className="p-3 text-center">Thời Gian Dự Kiến</th>
@@ -2831,7 +3027,7 @@ export default function AdminRepairsPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {serviceCatalog.map((srv) => (
+                      {filteredConfigServices.map((srv) => (
                         <tr
                           key={srv.id}
                           className={`hover:bg-slate-50 transition-colors ${
@@ -2915,7 +3111,10 @@ export default function AdminRepairsPage() {
                       <label className="text-[11px] font-bold text-slate-700 mb-1 block">Icon đại diện:</label>
                       <select
                         value={newSymptomIcon}
-                        onChange={(e) => setNewSymptomIcon(e.target.value)}
+                        onChange={(e) => {
+                          setNewSymptomIcon(e.target.value);
+                          setConfigSymptomIconFilter(e.target.value);
+                        }}
                         className="w-full p-2.5 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs font-bold focus:outline-none focus:border-amber-500 cursor-pointer"
                       >
                         <option value="📱">📱 Màn hình / Cảm ứng</option>
@@ -2965,9 +3164,52 @@ export default function AdminRepairsPage() {
                   </div>
                 </form>
 
+                {/* Smart Filter Bar for Symptoms */}
+                <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-1.5 flex-wrap text-xs">
+                    <span className="text-slate-500 font-bold mr-1">Lọc nhóm lỗi:</span>
+                    <button
+                      type="button"
+                      onClick={() => setConfigSymptomIconFilter('all')}
+                      className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer ${
+                        configSymptomIconFilter === 'all'
+                          ? 'bg-amber-500 text-slate-950 font-black shadow-2xs'
+                          : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                      }`}
+                    >
+                      Tất cả ({symptomList.length})
+                    </button>
+                    {Array.from(new Set(symptomList.map((s) => s.icon || '📱'))).map((ic) => (
+                      <button
+                        key={ic}
+                        type="button"
+                        onClick={() => setConfigSymptomIconFilter(ic)}
+                        className={`px-2.5 py-1.5 rounded-xl font-bold transition-all cursor-pointer ${
+                          configSymptomIconFilter === ic
+                            ? 'bg-amber-500 text-slate-950 font-black shadow-2xs'
+                            : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                        }`}
+                      >
+                        {ic}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="relative w-full sm:w-64">
+                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      value={configSymptomSearch}
+                      onChange={(e) => setConfigSymptomSearch(e.target.value)}
+                      placeholder="Tìm triệu chứng lỗi..."
+                      className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-amber-500 focus:bg-white"
+                    />
+                  </div>
+                </div>
+
                 {/* Symptom Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {symptomList.map((sym) => (
+                  {filteredConfigSymptoms.map((sym) => (
                     <div
                       key={sym.id}
                       className="p-3 rounded-2xl bg-white border border-slate-200 flex items-start justify-between gap-3 hover:border-amber-300 transition-colors shadow-xs"
@@ -3036,6 +3278,7 @@ export default function AdminRepairsPage() {
                         onChange={(e) => {
                           const p = e.target.value as any;
                           setNewTimeSlotPeriod(p);
+                          setConfigTimeSlotPeriodFilter(p);
                           setNewTimeSlotLabel(`${newTimeSlotTime} - ${p === 'morning' ? 'Sáng' : p === 'afternoon' ? 'Chiều' : 'Tối'}`);
                         }}
                         className="w-full p-2.5 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs font-bold focus:outline-none focus:border-amber-500 cursor-pointer"
@@ -3070,9 +3313,33 @@ export default function AdminRepairsPage() {
                   </div>
                 </form>
 
+                {/* Smart Filter Bar for Time Slots */}
+                <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-2xs flex items-center gap-1.5 flex-wrap text-xs">
+                  <span className="text-slate-500 font-bold mr-1">Lọc theo buổi:</span>
+                  {[
+                    { key: 'all', label: `Tất cả (${timeSlots.length})` },
+                    { key: 'morning', label: `🌅 Buổi Sáng (${timeSlots.filter((t) => t.period === 'morning').length})` },
+                    { key: 'afternoon', label: `☀️ Buổi Chiều (${timeSlots.filter((t) => t.period === 'afternoon').length})` },
+                    { key: 'evening', label: `🌙 Buổi Tối (${timeSlots.filter((t) => t.period === 'evening').length})` },
+                  ].map((p) => (
+                    <button
+                      key={p.key}
+                      type="button"
+                      onClick={() => setConfigTimeSlotPeriodFilter(p.key)}
+                      className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer ${
+                        configTimeSlotPeriodFilter === p.key
+                          ? 'bg-amber-500 text-slate-950 font-black shadow-2xs'
+                          : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+
                 {/* Time Slots List */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                  {timeSlots.map((ts) => (
+                  {filteredConfigTimeSlots.map((ts) => (
                     <div
                       key={ts.id}
                       className="p-3 rounded-2xl bg-white border border-slate-200 flex items-center justify-between gap-2 shadow-xs"
