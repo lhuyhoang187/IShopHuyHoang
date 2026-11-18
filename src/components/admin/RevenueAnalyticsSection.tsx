@@ -8,12 +8,11 @@ import {
   PieChart,
   Activity,
   ArrowUpRight,
-  ArrowDownRight,
-  Smartphone,
-  Headphones,
-  Wrench,
-  Sparkles,
-  Info,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Receipt,
+  CheckCircle2,
 } from 'lucide-react';
 import { Invoice, RepairTicket } from '@/lib/types';
 import { formatVND } from '@/lib/vietqr';
@@ -27,7 +26,7 @@ interface RevenueAnalyticsSectionProps {
   grandTotalRevenue: number;
 }
 
-type Timeframe = 'week' | 'month' | 'quarter' | 'year';
+type Timeframe = 'day' | 'week' | 'month' | 'quarter' | 'year';
 
 interface ChartPoint {
   label: string;
@@ -55,15 +54,59 @@ interface HoveredBarData {
   revenue: number; // Doanh thu biến thiên theo độ cao chuột
   profit: number; // Lãi gộp tương ứng
   orders: number; // Số đơn tương ứng
-  stageName: string; // Tên giai đoạn (ví dụ: Ca Sáng, Tháng 7 (Đầu Quý), v.v.)
+  stageName: string; // Tên giai đoạn
   stageDesc: string; // Mô tả giai đoạn
   cutPercent: number; // % so với chiều cao thanh bar (5% - 100%)
   pixelYFromBottom: number;
 }
 
+function toDateInputString(d: Date): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function formatDateVN(dateStr: string): string {
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return dateStr;
+  return `${parts[2]}/${parts[1]}/${parts[0]}`;
+}
+
+function extractDatePart(raw?: string): string {
+  if (!raw) return '';
+  if (/^\d{4}-\d{2}-\d{2}/.test(raw)) {
+    return raw.slice(0, 10);
+  }
+  const d = new Date(raw);
+  if (!isNaN(d.getTime())) {
+    return toDateInputString(d);
+  }
+  return '';
+}
+
 // Hàm xác định các giai đoạn cụ thể của từng cột theo từng timeframe
 function getBarStageInfo(timeframe: Timeframe, item: ChartPoint, ratio: number) {
   const r = Math.max(0.05, Math.min(1.0, ratio));
+
+  if (timeframe === 'day') {
+    if (r <= 0.35) {
+      return {
+        stageName: '20 Phút Đầu Khung Giờ',
+        stageDesc: `Đón khách & Tư vấn trải nghiệm (${item.label})`,
+      };
+    } else if (r <= 0.70) {
+      return {
+        stageName: '20 Phút Giữa Khung Giờ',
+        stageDesc: `Chốt đơn POS & Tiếp nhận kỹ thuật (${item.label})`,
+      };
+    } else {
+      return {
+        stageName: '20 Phút Cuối Khung Giờ',
+        stageDesc: `Thanh toán VietQR & Xuất hóa đơn (${item.label})`,
+      };
+    }
+  }
 
   if (timeframe === 'week') {
     if (r <= 0.35) {
@@ -151,16 +194,132 @@ export default function RevenueAnalyticsSection({
   repairRevenue,
   grandTotalRevenue,
 }: RevenueAnalyticsSectionProps) {
-  const [timeframe, setTimeframe] = useState<Timeframe>('week');
+  const todayStr = useMemo(() => toDateInputString(new Date()), []);
+  const yesterdayStr = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return toDateInputString(d);
+  }, []);
+
+  const [timeframe, setTimeframe] = useState<Timeframe>('day');
+  const [selectedDate, setSelectedDate] = useState<string>(todayStr);
+
   // TÁCH BIỆT TRẠNG THÁI HOVER CHO TỪNG BIỂU ĐỒ (Hoạt động độc lập 100%)
   const [hoveredBarData, setHoveredBarData] = useState<HoveredBarData | null>(null);
   const [hoveredDonutSegment, setHoveredDonutSegment] = useState<'phone' | 'accessory' | 'repair' | null>(null);
   const [hoveredCurve, setHoveredCurve] = useState<HoveredCurveState | null>(null);
 
+  // Danh sách các ngày có phát sinh hóa đơn thực tế trong CSDL để chọn nhanh 1 chạm
+  const activeInvoiceDates = useMemo(() => {
+    const set = new Set<string>();
+    invoices.forEach((inv) => {
+      const dStr = extractDatePart(inv.createdAt);
+      if (dStr) set.add(dStr);
+    });
+    return Array.from(set).sort((a, b) => b.localeCompare(a)).slice(0, 4);
+  }, [invoices]);
+
+  // Chuyển ngày trước / ngày sau
+  const shiftSelectedDate = (deltaDays: number) => {
+    const d = new Date(selectedDate + 'T00:00:00');
+    if (isNaN(d.getTime())) return;
+    d.setDate(d.getDate() + deltaDays);
+    setSelectedDate(toDateInputString(d));
+    setHoveredBarData(null);
+    setHoveredCurve(null);
+  };
+
+  // Dữ liệu thực tế của ngày được chọn (từ hóa đơn & phiếu sửa chữa)
+  const dailyRealBreakdown = useMemo(() => {
+    const dayInvoices = invoices.filter((inv) => extractDatePart(inv.createdAt) === selectedDate);
+    const dayRepairs = repairs.filter(
+      (rep) => rep.status !== 'cancelled' && extractDatePart(rep.receivedAt || rep.deliveredAt) === selectedDate
+    );
+
+    let realPhone = 0;
+    let realAcc = 0;
+    let realRepair = 0;
+
+    dayInvoices.forEach((inv) => {
+      if (Array.isArray(inv.items) && inv.items.length > 0) {
+        inv.items.forEach((it) => {
+          const itemTotal = Number(it.total) || Number(it.unitPrice || 0) * Number(it.quantity || 1);
+          if (it.type === 'accessory') realAcc += itemTotal;
+          else if (it.type === 'repair') realRepair += itemTotal;
+          else realPhone += itemTotal;
+        });
+      } else {
+        realPhone += Number(inv.totalAmount) || 0;
+      }
+    });
+
+    dayRepairs.forEach((rep) => {
+      realRepair += Number(rep.totalAmount) || 0;
+    });
+
+    const totalReal = realPhone + realAcc + realRepair;
+
+    return {
+      dayInvoices,
+      dayRepairs,
+      realPhone,
+      realAcc,
+      realRepair,
+      totalReal,
+      hasRealTransactions: dayInvoices.length > 0 || dayRepairs.length > 0,
+    };
+  }, [invoices, repairs, selectedDate]);
+
   // Generate dynamic data based on selected timeframe & live store figures
   const chartData: ChartPoint[] = useMemo(() => {
-    // Base scaling factor calculated from actual grandTotalRevenue
     const base = Math.max(grandTotalRevenue, 120000000);
+
+    if (timeframe === 'day') {
+      // 7 khung giờ mở cửa trong ngày (08:00 - 22:00)
+      const timeSlots = [
+        { label: '08h - 10h', sub: `Mở cửa ca sáng (${formatDateVN(selectedDate)})` },
+        { label: '10h - 12h', sub: `Cao điểm sáng (${formatDateVN(selectedDate)})` },
+        { label: '12h - 14h', sub: `Khung giờ trưa (${formatDateVN(selectedDate)})` },
+        { label: '14h - 16h', sub: `Đầu ca chiều (${formatDateVN(selectedDate)})` },
+        { label: '16h - 18h', sub: `Cao điểm chiều (${formatDateVN(selectedDate)})` },
+        { label: '18h - 20h', sub: `Cao điểm tối (${formatDateVN(selectedDate)})` },
+        { label: '20h - 22h', sub: `Chốt ca tối (${formatDateVN(selectedDate)})` },
+      ];
+
+      // Tạo trọng số biến thiên theo ngày được chọn để mỗi ngày có biểu đồ riêng biệt
+      const seed = selectedDate.split('-').reduce((acc, part) => acc + parseInt(part, 10), 0);
+      const baseHourlyWeights = [0.10, 0.16, 0.09, 0.14, 0.18, 0.21, 0.12];
+      const shiftedWeights = baseHourlyWeights.map((w, idx) => {
+        const variance = (((seed + idx * 7) % 9) - 4) * 0.008;
+        return Math.max(0.06, w + variance);
+      });
+      const weightSum = shiftedWeights.reduce((a, b) => a + b, 0) || 1;
+      const normalizedWeights = shiftedWeights.map((w) => w / weightSum);
+
+      // Nếu ngày chọn có giao dịch thực tế trong DB thì dùng tổng thực tế, ngược lại nội suy theo chuẩn doanh thu ngày (~1/7 tuần)
+      const dayTargetTotal =
+        dailyRealBreakdown.totalReal > 0
+          ? dailyRealBreakdown.totalReal
+          : Math.round((base * (0.14 + ((seed % 5) * 0.015))) / 500000) * 500000;
+
+      return timeSlots.map((slot, i) => {
+        const rev = Math.max(500000, Math.round((dayTargetTotal * normalizedWeights[i]) / 100000) * 100000);
+        const prof = Math.round(rev * 0.16);
+        const prevRev =
+          i > 0
+            ? Math.max(500000, Math.round((dayTargetTotal * normalizedWeights[i - 1]) / 100000) * 100000)
+            : Math.round(rev * 0.88);
+        const growth = Math.round(((rev - prevRev) / (prevRev || 1)) * 100);
+        return {
+          label: slot.label,
+          subLabel: slot.sub,
+          revenue: rev,
+          profit: prof,
+          orders: Math.max(1, Math.round(rev / 8500000)),
+          growth,
+        };
+      });
+    }
 
     if (timeframe === 'week') {
       // 7 days of current week
@@ -261,21 +420,24 @@ export default function RevenueAnalyticsSection({
         growth,
       };
     });
-  }, [timeframe, grandTotalRevenue]);
+  }, [timeframe, grandTotalRevenue, selectedDate, dailyRealBreakdown.totalReal]);
 
   // Max value for bar scaling
   const maxRevenue = useMemo(() => {
     const maxVal = Math.max(...chartData.map((d) => d.revenue));
-    return maxVal > 0 ? maxVal : 100000000;
+    return maxVal > 0 ? maxVal : 10000000;
   }, [chartData]);
 
   // Total period revenue
   const totalPeriodRevenue = useMemo(() => {
+    if (timeframe === 'day' && dailyRealBreakdown.totalReal > 0) {
+      return dailyRealBreakdown.totalReal;
+    }
     return chartData.reduce((sum, d) => sum + d.revenue, 0);
-  }, [chartData]);
+  }, [chartData, timeframe, dailyRealBreakdown.totalReal]);
 
   // =========================================================================
-  // 1. REVENUE STREAMS & DONUT CHART RATIOS (Sửa triệt để lỗi số âm & sai lệch)
+  // 1. REVENUE STREAMS & DONUT CHART RATIOS
   // =========================================================================
   const {
     streamPhoneRevenue,
@@ -288,30 +450,58 @@ export default function RevenueAnalyticsSection({
     streamAccProfit,
     streamRepairProfit,
   } = useMemo(() => {
-    // 1. Lấy dữ liệu doanh thu thực tế từ store & hóa đơn
+    // Nếu đang ở chế độ Theo Ngày và ngày đó có giao dịch thực tế
+    if (timeframe === 'day' && dailyRealBreakdown.totalReal > 0) {
+      const pRev = dailyRealBreakdown.realPhone;
+      const aRev = dailyRealBreakdown.realAcc;
+      const rRev = dailyRealBreakdown.realRepair;
+      const totalRaw = pRev + aRev + rRev || 1;
+
+      let pPct = Math.round((pRev / totalRaw) * 100);
+      let aPct = Math.round((aRev / totalRaw) * 100);
+      let rPct = 100 - pPct - aPct;
+      if (rPct < 0) {
+        rPct = 0;
+        pPct = 100 - aPct;
+      }
+
+      return {
+        streamPhoneRevenue: pRev,
+        streamAccRevenue: aRev,
+        streamRepairRevenue: rRev,
+        phonePercent: pPct,
+        accPercent: aPct,
+        repairPercent: rPct,
+        streamPhoneProfit: Math.round(pRev * 0.12),
+        streamAccProfit: Math.round(aRev * 0.45),
+        streamRepairProfit: Math.round(rRev * 0.60),
+      };
+    }
+
     const actualPhone = phoneRevenue > 0 ? phoneRevenue : Math.round(totalPeriodRevenue * 0.78);
     const actualAcc = accRevenue > 0 ? accRevenue : Math.round(totalPeriodRevenue * 0.14);
-    
-    // Nếu chưa có đơn giao máy sửa chữa xong, lấy tổng giá trị các phiếu sửa đang tiếp nhận / xử lý
+
     const nonCancelledRepairs = repairs
       .filter((r) => r.status !== 'cancelled')
       .reduce((sum, r) => sum + r.totalAmount, 0);
-    const actualRepair = repairRevenue > 0 ? repairRevenue : nonCancelledRepairs > 0 ? nonCancelledRepairs : Math.round(totalPeriodRevenue * 0.08);
+    const actualRepair =
+      repairRevenue > 0
+        ? repairRevenue
+        : nonCancelledRepairs > 0
+        ? nonCancelledRepairs
+        : Math.round(totalPeriodRevenue * 0.08);
 
     const totalRaw = actualPhone + actualAcc + actualRepair || 1;
 
-    // Tính tỷ lệ chuẩn xác và làm tròn sao cho tổng đúng 100%
     let pPct = Math.round((actualPhone / totalRaw) * 100);
     let aPct = Math.round((actualAcc / totalRaw) * 100);
     let rPct = 100 - pPct - aPct;
 
-    // Phòng ngừa trường hợp rPct < 0 do làm tròn
     if (rPct < 0) {
       rPct = 0;
       pPct = 100 - aPct;
     }
 
-    // Doanh thu tương ứng với kỳ báo cáo đang chọn
     const pRev = Math.round((pPct / 100) * totalPeriodRevenue);
     const aRev = Math.round((aPct / 100) * totalPeriodRevenue);
     const rRev = totalPeriodRevenue - pRev - aRev;
@@ -323,11 +513,19 @@ export default function RevenueAnalyticsSection({
       phonePercent: pPct,
       accPercent: aPct,
       repairPercent: rPct,
-      streamPhoneProfit: Math.round(pRev * 0.12), // Tỷ suất lãi máy mới ~12%
-      streamAccProfit: Math.round(aRev * 0.45),   // Tỷ suất lãi phụ kiện ~45%
-      streamRepairProfit: Math.round(rRev * 0.60), // Tỷ suất lãi dịch vụ sửa ~60%
+      streamPhoneProfit: Math.round(pRev * 0.12),
+      streamAccProfit: Math.round(aRev * 0.45),
+      streamRepairProfit: Math.round(rRev * 0.60),
     };
-  }, [phoneRevenue, accRevenue, repairRevenue, repairs, totalPeriodRevenue]);
+  }, [
+    timeframe,
+    dailyRealBreakdown,
+    phoneRevenue,
+    accRevenue,
+    repairRevenue,
+    repairs,
+    totalPeriodRevenue,
+  ]);
 
   // Donut SVG circumference calculation (Radius = 50 -> Circumference = 314.16)
   const circumference = 2 * Math.PI * 50;
@@ -374,7 +572,6 @@ export default function RevenueAnalyticsSection({
       return { path: `M ${coords[0].x} ${coords[0].y}`, area: '', points: coords };
     }
 
-    // Construct smooth cubic bezier curve
     let dStr = `M ${coords[0].x.toFixed(1)} ${coords[0].y.toFixed(1)}`;
     for (let i = 1; i < coords.length; i++) {
       const prev = coords[i - 1];
@@ -398,8 +595,19 @@ export default function RevenueAnalyticsSection({
       ? Math.round(((lastPoint.revenue - firstPoint.revenue) / firstPoint.revenue) * 100)
       : 12;
 
+  const periodTitleLabel =
+    timeframe === 'day'
+      ? `ngày ${formatDateVN(selectedDate)}`
+      : timeframe === 'week'
+      ? 'tuần này'
+      : timeframe === 'month'
+      ? 'tháng này'
+      : timeframe === 'quarter'
+      ? 'quý này'
+      : 'năm 2026';
+
   return (
-    <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-sm space-y-6">
+    <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-sm space-y-5">
       {/* Top Header & Timeframe Switcher */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
         <div>
@@ -417,8 +625,20 @@ export default function RevenueAnalyticsSection({
           </h2>
         </div>
 
-        {/* Timeframe Filter Buttons: Tuần / Tháng / Quý / Năm */}
-        <div className="flex items-center gap-1 p-1 bg-slate-100/90 rounded-2xl text-xs font-bold self-start sm:self-auto border border-slate-200">
+        {/* Timeframe Filter Buttons: Ngày / Tuần / Tháng / Quý / Năm */}
+        <div className="flex items-center gap-1 p-1 bg-slate-100/90 rounded-2xl text-xs font-bold self-start sm:self-auto border border-slate-200 flex-wrap">
+          <button
+            type="button"
+            onClick={() => setTimeframe('day')}
+            className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
+              timeframe === 'day'
+                ? 'bg-white text-emerald-800 shadow-sm font-black border border-emerald-200'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Calendar className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Theo Ngày</span>
+          </button>
           <button
             type="button"
             onClick={() => setTimeframe('week')}
@@ -466,6 +686,111 @@ export default function RevenueAnalyticsSection({
         </div>
       </div>
 
+      {/* THANH CÔNG CỤ TRA CỨU DOANH THU THEO NGÀY (Hiển thị khi chọn tab "Theo Ngày") */}
+      {timeframe === 'day' && (
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-emerald-50/80 via-cyan-50/50 to-slate-50 border border-emerald-200/80 flex flex-col lg:flex-row lg:items-center justify-between gap-3 shadow-2xs animate-in fade-in duration-200">
+          {/* Cụm chọn lịch ngày & Điều hướng Ngày trước / Ngày sau */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5 mr-1">
+              <Calendar className="w-4 h-4 text-emerald-600" />
+              <span>Chọn ngày xem doanh thu:</span>
+            </span>
+
+            <div className="inline-flex items-center bg-white rounded-xl border border-slate-300 p-0.5 shadow-2xs">
+              <button
+                type="button"
+                onClick={() => shiftSelectedDate(-1)}
+                className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
+                title="Xem ngày hôm trước"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => {
+                  if (e.target.value) setSelectedDate(e.target.value);
+                }}
+                className="px-2.5 py-1 text-xs font-mono font-bold text-slate-900 bg-transparent focus:outline-none cursor-pointer"
+              />
+              <button
+                type="button"
+                onClick={() => shiftSelectedDate(1)}
+                className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
+                title="Xem ngày tiếp theo"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Nút chọn nhanh Hôm nay / Hôm qua */}
+            <button
+              type="button"
+              onClick={() => setSelectedDate(todayStr)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                selectedDate === todayStr
+                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+              }`}
+            >
+              Hôm nay ({formatDateVN(todayStr).slice(0, 5)})
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedDate(yesterdayStr)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                selectedDate === yesterdayStr
+                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+              }`}
+            >
+              Hôm qua ({formatDateVN(yesterdayStr).slice(0, 5)})
+            </button>
+
+            {/* Các mốc ngày có đơn hàng thực tế trong CSDL */}
+            {activeInvoiceDates
+              .filter((d) => d !== todayStr && d !== yesterdayStr)
+              .slice(0, 3)
+              .map((dStr) => (
+                <button
+                  key={dStr}
+                  type="button"
+                  onClick={() => setSelectedDate(dStr)}
+                  className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold border transition-all cursor-pointer flex items-center gap-1 ${
+                    selectedDate === dStr
+                      ? 'bg-amber-500 text-slate-950 border-amber-500 shadow-xs font-black'
+                      : 'bg-white text-amber-800 border-amber-200 hover:bg-amber-50'
+                  }`}
+                  title={`Ngày ${formatDateVN(dStr)} có phát sinh hóa đơn trong CSDL`}
+                >
+                  <Receipt className="w-3 h-3" />
+                  <span>{formatDateVN(dStr)}</span>
+                </button>
+              ))}
+          </div>
+
+          {/* Tóm tắt nhanh số liệu của ngày đang chọn */}
+          <div className="flex items-center gap-3 text-xs flex-wrap">
+            <div className="px-3 py-1.5 rounded-xl bg-white border border-emerald-200 flex items-center gap-2 shadow-2xs">
+              <Clock className="w-3.5 h-3.5 text-emerald-600" />
+              <span className="text-slate-600 font-medium">Tổng thu ngày {formatDateVN(selectedDate)}:</span>
+              <strong className="font-mono font-black text-emerald-700 text-sm">
+                {formatVND(totalPeriodRevenue)}
+              </strong>
+            </div>
+
+            {dailyRealBreakdown.hasRealTransactions && (
+              <span className="px-2.5 py-1 rounded-xl bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold text-[11px] inline-flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                <span>
+                  {dailyRealBreakdown.dayInvoices.length} hóa đơn &bull; {dailyRealBreakdown.dayRepairs.length} phiếu sửa
+                </span>
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ======================================================== */}
       {/* 2-COLUMN SIDE-BY-SIDE ANALYTICS INTERFACE                */}
       {/* ======================================================== */}
@@ -474,7 +799,7 @@ export default function RevenueAnalyticsSection({
         {/* BÊN 1 (CỘT TRÁI - 7 spans): BIỂU ĐỒ CỘT VỚI HOVER ĐỌC SỐ LIỆU TỪNG GIAI ĐOẠN */}
         {/* ======================================================== */}
         <div className="lg:col-span-7 bg-slate-50/70 rounded-3xl p-5 sm:p-6 border border-slate-200/90 flex flex-col justify-between space-y-4">
-          {/* Header of Left Bar Chart - Cập nhật số liệu lớn theo thời gian thực khi rê chuột lên/xuống cột */}
+          {/* Header of Left Bar Chart */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2">
             <div>
               {hoveredBarData !== null && chartData[hoveredBarData.index] ? (
@@ -482,7 +807,9 @@ export default function RevenueAnalyticsSection({
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                      <span>{chartData[hoveredBarData.index].label} • {hoveredBarData.stageName}</span>
+                      <span>
+                        {chartData[hoveredBarData.index].label} • {hoveredBarData.stageName}
+                      </span>
                     </span>
                     <span className="text-slate-300">•</span>
                     <span className="text-xs text-slate-500 font-medium">{hoveredBarData.stageDesc}</span>
@@ -505,7 +832,7 @@ export default function RevenueAnalyticsSection({
               ) : (
                 <>
                   <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
-                    Doanh thu {timeframe === 'week' ? 'tuần này' : timeframe === 'month' ? 'tháng này' : timeframe === 'quarter' ? 'quý này' : 'năm 2026'}
+                    Doanh thu {periodTitleLabel}
                   </span>
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className="text-2xl font-black text-slate-900 font-mono tracking-tight tabular-nums">
@@ -528,13 +855,15 @@ export default function RevenueAnalyticsSection({
                 </span>
               ) : (
                 <span className="text-[11px] text-slate-500 font-medium">
-                  Rê chuột lên/xuống cột để đọc số liệu từng giai đoạn
+                  {timeframe === 'day'
+                    ? 'Biểu đồ doanh thu theo 7 khung giờ mở cửa (08:00 - 22:00)'
+                    : 'Rê chuột lên/xuống cột để đọc số liệu từng giai đoạn'}
                 </span>
               )}
             </div>
           </div>
 
-          {/* Interactive Bar Chart Canvas - Hỗ trợ rê chuột lên/xuống dọc theo cột */}
+          {/* Interactive Bar Chart Canvas */}
           <div
             className="relative pt-8 pb-2 select-none cursor-crosshair"
             onMouseMove={(e) => {
@@ -577,13 +906,13 @@ export default function RevenueAnalyticsSection({
             {/* Background Horizontal Scale Gridlines */}
             <div className="absolute inset-x-2 top-8 bottom-9 pointer-events-none flex flex-col justify-between opacity-35">
               <div className="border-b border-dashed border-slate-300 w-full flex justify-end text-[9px] text-slate-400 font-mono -mt-2">
-                <span>{Math.round(maxRevenue / 1000000)}M</span>
+                <span>{(maxRevenue / 1000000).toFixed(maxRevenue < 10000000 ? 1 : 0)}M</span>
               </div>
               <div className="border-b border-dashed border-slate-300 w-full flex justify-end text-[9px] text-slate-400 font-mono -mt-2">
-                <span>{Math.round((maxRevenue * 0.66) / 1000000)}M</span>
+                <span>{((maxRevenue * 0.66) / 1000000).toFixed(maxRevenue < 10000000 ? 1 : 0)}M</span>
               </div>
               <div className="border-b border-dashed border-slate-300 w-full flex justify-end text-[9px] text-slate-400 font-mono -mt-2">
-                <span>{Math.round((maxRevenue * 0.33) / 1000000)}M</span>
+                <span>{((maxRevenue * 0.33) / 1000000).toFixed(maxRevenue < 10000000 ? 1 : 0)}M</span>
               </div>
             </div>
 
@@ -593,13 +922,17 @@ export default function RevenueAnalyticsSection({
                 const heightPercent = Math.max(12, Math.round((item.revenue / maxRevenue) * 100));
                 const isHovered = hoveredBarData?.index === idx;
                 const activeCutPercent = isHovered ? hoveredBarData.cutPercent : 100;
+                const valTr =
+                  item.revenue >= 10000000
+                    ? `${Math.round(item.revenue / 1000000)}tr`
+                    : `${(item.revenue / 1000000).toFixed(1)}tr`;
 
                 return (
                   <div
                     key={idx}
                     className="relative flex-1 flex flex-col items-center h-full justify-end group cursor-crosshair"
                   >
-                    {/* Hover Column Light Pillar (Vùng sáng phản hồi khi rê chuột vào cột) */}
+                    {/* Hover Column Light Pillar */}
                     {isHovered && (
                       <div className="absolute inset-y-0 inset-x-0.5 sm:inset-x-1 bg-emerald-100/50 rounded-2xl border border-emerald-300/80 -z-10 pointer-events-none transition-all duration-150 animate-in fade-in" />
                     )}
@@ -679,11 +1012,12 @@ export default function RevenueAnalyticsSection({
                     <div className="mb-1 text-center w-full z-10">
                       {isHovered ? (
                         <span className="inline-block px-1.5 py-0.5 bg-emerald-600 text-white font-mono font-black text-[10px] rounded-md shadow-md whitespace-nowrap animate-in fade-in tabular-nums">
-                          {Math.round(hoveredBarData.revenue / 1000000)}tr ({Math.round(hoveredBarData.ratio * 100)}%)
+                          {(hoveredBarData.revenue / 1000000).toFixed(hoveredBarData.revenue < 10000000 ? 1 : 0)}tr (
+                          {Math.round(hoveredBarData.ratio * 100)}%)
                         </span>
                       ) : (
                         <span className="text-[10px] text-slate-400 font-mono font-medium hidden sm:block truncate max-w-full">
-                          {Math.round(item.revenue / 1000000)}tr
+                          {valTr}
                         </span>
                       )}
                     </div>
@@ -696,7 +1030,7 @@ export default function RevenueAnalyticsSection({
                       {/* Base Background Bar */}
                       <div className="absolute inset-0 bg-slate-200/90" />
 
-                      {/* Active Fill Level (Tăng giảm từ đáy lên theo chuột) */}
+                      {/* Active Fill Level */}
                       <div
                         className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-cyan-600 via-teal-500 to-emerald-400 shadow-xl transition-[height] duration-75"
                         style={{ height: `${activeCutPercent}%` }}
@@ -753,7 +1087,8 @@ export default function RevenueAnalyticsSection({
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
                 <span>
                   {chartData[hoveredBarData.index].label} ({hoveredBarData.stageName}):{' '}
-                  <strong className="text-emerald-800 font-mono">{formatVND(hoveredBarData.revenue)}</strong> / {formatVND(chartData[hoveredBarData.index].revenue)} (Rê chuột lên/xuống để xem từng giai đoạn)
+                  <strong className="text-emerald-800 font-mono">{formatVND(hoveredBarData.revenue)}</strong> /{' '}
+                  {formatVND(chartData[hoveredBarData.index].revenue)}
                 </span>
               </span>
             ) : (
@@ -767,9 +1102,7 @@ export default function RevenueAnalyticsSection({
         {/* BÊN 2 (CỘT PHẢI - 5 spans): BIỂU ĐỒ TRÒN & ĐƯỜNG CONG TƯƠNG TÁC THỜI GIAN THỰC */}
         {/* ========================================================================= */}
         <div className="lg:col-span-5 space-y-5 flex flex-col justify-between">
-          {/* ----------------------------------------------------------------------- */}
           {/* PHẦN 1: BIỂU ĐỒ HÌNH TRÒN TỔNG THỂ (DONUT CHART VỚI TOOLTIP THỜI GIAN THỰC) */}
-          {/* ----------------------------------------------------------------------- */}
           <div className="bg-slate-50/70 rounded-3xl p-5 border border-slate-200/90 space-y-3 relative">
             <div className="flex items-center justify-between">
               <span className="text-xs font-black text-slate-800 uppercase tracking-wide flex items-center gap-1.5">
@@ -847,7 +1180,7 @@ export default function RevenueAnalyticsSection({
                   )}
                 </svg>
 
-                {/* Center text (Hiển thị thay đổi theo thời gian thực khi rê chuột) */}
+                {/* Center text */}
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none transition-all">
                   <span className="text-[9px] font-black uppercase tracking-wider text-slate-500">
                     {hoveredDonutSegment === 'phone'
@@ -879,7 +1212,7 @@ export default function RevenueAnalyticsSection({
                 </div>
               </div>
 
-              {/* Legend & Breakdown - Hoverable rows */}
+              {/* Legend & Breakdown */}
               <div className="space-y-2 flex-1 text-xs">
                 {/* 1. Máy Mới */}
                 <div
@@ -955,7 +1288,7 @@ export default function RevenueAnalyticsSection({
               </div>
             </div>
 
-            {/* DONUT FLOATING TOOLTIP KHI RÊ CHUỘT (Giống biểu đồ bên trái) */}
+            {/* DONUT FLOATING TOOLTIP KHI RÊ CHUỘT */}
             {hoveredDonutSegment && (
               <div className="absolute top-12 left-1/2 -translate-x-1/2 z-30 pointer-events-none animate-in fade-in zoom-in-95 duration-150 min-w-[210px]">
                 <div className="bg-slate-900 text-white rounded-2xl p-3 shadow-2xl border border-slate-700 text-xs space-y-1.5">
@@ -1002,15 +1335,12 @@ export default function RevenueAnalyticsSection({
                     </span>
                   </div>
                 </div>
-                {/* Tail pointer */}
                 <div className="w-0 h-0 border-x-6 border-x-transparent border-t-6 border-t-slate-900 mx-auto -mt-0.5" />
               </div>
             )}
           </div>
 
-          {/* ----------------------------------------------------------------------- */}
-          {/* PHẦN 2: BIỂU ĐỒ ĐƯỜNG CONG XU HƯỚNG TĂNG GIẢM (VỚI HOVER THỜI GIAN THỰC) */}
-          {/* ----------------------------------------------------------------------- */}
+          {/* PHẦN 2: BIỂU ĐỒ ĐƯỜNG CONG XU HƯỚNG TĂNG GIẢM */}
           <div className="bg-slate-50/70 rounded-3xl p-5 border border-slate-200/90 space-y-3 flex-1 flex flex-col justify-between relative">
             <div className="flex items-center justify-between">
               <span className="text-xs font-black text-slate-800 uppercase tracking-wide flex items-center gap-1.5">
@@ -1028,7 +1358,7 @@ export default function RevenueAnalyticsSection({
               </span>
             </div>
 
-            {/* SVG Spline Curve Area with Real-Time Continuous Hover Tooltip */}
+            {/* SVG Spline Curve Area */}
             <div
               className="relative w-full h-28 py-1 select-none cursor-crosshair"
               onMouseLeave={() => setHoveredCurve(null)}
@@ -1048,7 +1378,6 @@ export default function RevenueAnalyticsSection({
                   const lastPt = points[points.length - 1];
                   const clampedX = Math.max(firstPt.x, Math.min(lastPt.x, rawX));
 
-                  // Xác định đoạn cong [prev, curr] mà con trỏ đang di chuyển qua
                   let segIdx = 0;
                   for (let i = 0; i < points.length - 1; i++) {
                     if (clampedX >= points[i].x && clampedX <= points[i + 1].x) {
@@ -1077,10 +1406,8 @@ export default function RevenueAnalyticsSection({
                     return;
                   }
 
-                  // Tỷ lệ vị trí tương đối trên đoạn x [0, 1]
                   const targetRelX = (clampedX - prev.x) / (curr.x - prev.x || 1);
 
-                  // Giải nghiệm tham số t cho đường cong Bezier bậc 3 chuẩn xác
                   let t = targetRelX;
                   for (let iter = 0; iter < 4; iter++) {
                     const f = 1.5 * t - 1.5 * t * t + t * t * t - targetRelX;
@@ -1088,20 +1415,15 @@ export default function RevenueAnalyticsSection({
                     t = Math.max(0, Math.min(1, t - f / fPrime));
                   }
 
-                  // Trọng số uốn lượn Smoothstep Cubic (trùng khớp 100% với hàm Bezier SVG)
                   const s = t * t * (3 - 2 * t);
-
-                  // Tọa độ y chuẩn xác bám sát trên đường cong
                   const interpY = (1 - s) * prev.y + s * curr.y;
 
-                  // Doanh thu nội suy biến thiên liên tục tăng/giảm theo độ cao đường cong
                   const rawRev = (1 - s) * prev.val + s * curr.val;
                   const interpRevenue = Math.round(rawRev / 100000) * 100000;
                   const interpProfit = Math.round(interpRevenue * 0.16);
                   const interpOrders = Math.max(1, Math.round((1 - s) * prev.orders + s * curr.orders));
                   const interpGrowth = Math.round((1 - s) * prev.growth + s * curr.growth);
 
-                  // Nhãn hiển thị linh hoạt theo mức độ di chuyển
                   let label = '';
                   let subLabel = '';
                   if (t < 0.25) {
@@ -1140,10 +1462,8 @@ export default function RevenueAnalyticsSection({
                   </linearGradient>
                 </defs>
 
-                {/* Shaded Area Under Curve */}
                 {splineData.area && <path d={splineData.area} fill="url(#splineGradient)" />}
 
-                {/* Spline Curve Stroke */}
                 {splineData.path && (
                   <path
                     d={splineData.path}
@@ -1155,7 +1475,6 @@ export default function RevenueAnalyticsSection({
                   />
                 )}
 
-                {/* Vertical Guide Line on Hover - Chạy mượt theo con trỏ chuột */}
                 {hoveredCurve && (
                   <line
                     x1={hoveredCurve.x}
@@ -1169,7 +1488,6 @@ export default function RevenueAnalyticsSection({
                   />
                 )}
 
-                {/* Fixed Milestone points on curve */}
                 {splineData.points.map((pt, idx) => (
                   <circle
                     key={idx}
@@ -1180,7 +1498,6 @@ export default function RevenueAnalyticsSection({
                   />
                 ))}
 
-                {/* Gliding Target Indicator Dot on Curve (Điểm sáng trượt theo đường cong) */}
                 {hoveredCurve && (
                   <g className="pointer-events-none">
                     <circle
@@ -1222,9 +1539,7 @@ export default function RevenueAnalyticsSection({
                 >
                   <div className="bg-slate-900/95 backdrop-blur-md text-white rounded-2xl p-3 shadow-2xl border border-slate-700/80 text-xs space-y-1">
                     <div className="flex items-center justify-between pb-1 border-b border-slate-700 text-[11px] text-slate-400">
-                      <span className="font-bold text-slate-200">
-                        {hoveredCurve.label}
-                      </span>
+                      <span className="font-bold text-slate-200">{hoveredCurve.label}</span>
                       <span className="text-[10px] text-slate-400">{hoveredCurve.subLabel}</span>
                     </div>
 
@@ -1256,7 +1571,6 @@ export default function RevenueAnalyticsSection({
                     </div>
                   </div>
 
-                  {/* Tooltip triangle tail */}
                   <div
                     className="w-0 h-0 border-x-6 border-x-transparent border-t-6 border-t-slate-900 mx-auto -mt-0.5"
                     style={{
@@ -1279,7 +1593,7 @@ export default function RevenueAnalyticsSection({
                 <span>Rê chuột dọc đường cong để theo dõi biến thiên thời gian thực</span>
               </span>
               <span className="font-bold text-slate-800 font-mono tabular-nums">
-                Đỉnh: {Math.round(maxRevenue / 1000000)}M
+                Đỉnh: {(maxRevenue / 1000000).toFixed(maxRevenue < 10000000 ? 1 : 0)}M
               </span>
             </div>
           </div>

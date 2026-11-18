@@ -29,8 +29,5 @@ export function generateVietQRUrl(
 }
 
 export function formatVND(amount: number): string {
-  return new Intl.NumberFormat('vi-VN', {
-    style: 'currency',
-    currency: 'VND',
-  }).format(amount);
+  return `${new Intl.NumberFormat('vi-VN').format(Math.round(Number(amount) || 0))} đ`;
 }
