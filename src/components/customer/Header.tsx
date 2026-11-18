@@ -148,7 +148,7 @@ export default function Header() {
                   <div className="flex items-center gap-2.5 truncate">
                     <Search className="w-4 h-4 text-amber-500 group-hover:scale-110 transition-transform shrink-0" />
                     <span className="group-hover:text-slate-900 transition-colors truncate">
-                      Tìm iPhone 16, GaN 65W, ép kính...
+                      Tìm iPhone 18 Pro Max, iPhone Duo, GaN 65W...
                     </span>
                   </div>
                   <kbd className="hidden sm:inline-flex items-center px-2 py-0.5 text-[10px] font-mono text-amber-800 bg-amber-100 border border-amber-300/80 rounded-lg font-bold shrink-0">

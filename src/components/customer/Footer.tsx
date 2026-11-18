@@ -114,7 +114,7 @@ export default function Footer() {
             <ul className="space-y-2.5 text-xs">
               <li>
                 <Link href="/phones" className="text-slate-600 hover:text-amber-700 hover:font-bold font-medium transition-colors block py-0.5">
-                  iPhone 16 Pro Max Titan Sa Mạc
+                  iPhone 18 Pro Max &amp; iPhone Duo Mới
                 </Link>
               </li>
               <li>

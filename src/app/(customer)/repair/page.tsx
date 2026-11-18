@@ -159,7 +159,7 @@ export default function RepairPriceListPage() {
   // Hot devices for quick 1-click selection (Gợi ý máy phổ biến)
   const hotDevicesForBrand = useMemo(() => {
     if (selectedBrand === 'Apple') {
-      return ['iPhone 16 Pro Max', 'iPhone 15 Pro Max', 'iPhone 14 Pro Max', 'iPhone 13 Pro Max', 'iPhone 15 Pro'];
+      return ['iPhone 18 Pro Max', 'iPhone Duo', 'iPhone 18 Pro', 'iPhone 17 Pro Max', 'iPhone 16 Pro Max'];
     }
     if (selectedBrand === 'Samsung') {
       return ['Samsung Galaxy S24 Ultra', 'Samsung Galaxy S23 Ultra', 'Samsung Galaxy Z Fold / Z Flip'];

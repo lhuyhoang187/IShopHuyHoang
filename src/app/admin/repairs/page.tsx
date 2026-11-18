@@ -2586,7 +2586,7 @@ export default function AdminRepairsPage() {
                         required
                         value={newDeviceName}
                         onChange={(e) => setNewDeviceName(e.target.value)}
-                        placeholder="VD: iPhone 16 Pro Max, Samsung Galaxy S25 Ultra, Xiaomi 15..."
+                        placeholder="VD: iPhone 18 Pro Max, iPhone Duo, Samsung Galaxy S25 Ultra..."
                         className="w-full p-2.5 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs font-bold focus:outline-none focus:border-amber-500"
                       />
                     </div>

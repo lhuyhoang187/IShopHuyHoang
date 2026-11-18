@@ -49,7 +49,7 @@ import {
   initialInvoices,
 } from './initialData';
 
-const STORAGE_PREFIX = 'ishop_huyhoang_v4_mysql_';
+const STORAGE_PREFIX = 'ishop_huyhoang_v5_mysql_';
 
 function getStorage<T>(key: string, defaultValue: T): T {
   if (typeof window === 'undefined') return defaultValue;
@@ -186,6 +186,11 @@ export const defaultPermissions: PermissionItem[] = [
 ];
 
 export const initialRepairDeviceOptions: RepairDeviceOption[] = [
+  { id: 'rd-0a', name: 'iPhone 18 Pro Max', brand: 'Apple', isActive: true },
+  { id: 'rd-0b', name: 'iPhone Duo (Fold)', brand: 'Apple', isActive: true },
+  { id: 'rd-0c', name: 'iPhone 18 Pro', brand: 'Apple', isActive: true },
+  { id: 'rd-0d', name: 'iPhone 18', brand: 'Apple', isActive: true },
+  { id: 'rd-0e', name: 'iPhone 17 Pro Max / 17 Pro', brand: 'Apple', isActive: true },
   { id: 'rd-1', name: 'iPhone 16 Pro Max', brand: 'Apple', isActive: true },
   { id: 'rd-2', name: 'iPhone 16 Pro', brand: 'Apple', isActive: true },
   { id: 'rd-3', name: 'iPhone 16 Plus', brand: 'Apple', isActive: true },
@@ -1967,7 +1972,7 @@ export const IShopStore = {
 
   // Compare List (Customer Portal)
   getComparisonList(): string[] {
-    return getStorage<string[]>('comparison_ids', ['p-1', 'p-3']); // Default compare iPhone 16 Pro Max vs S24 Ultra!
+    return getStorage<string[]>('comparison_ids', ['p-1', 'p-6']); // Default compare iPhone 18 Pro Max vs iPhone Duo!
   },
   toggleComparison(phoneId: string) {
     const list = this.getComparisonList();
@@ -1996,7 +2001,7 @@ export const IShopStore = {
       {
         id: 'dev-init-1',
         imei: '359144208391001',
-        productName: 'iPhone 16 Pro 128GB - Titan Sa Mạc',
+        productName: 'iPhone 18 Pro 128GB - Titan Sa Mạc',
         phoneId: 'p-2',
         color: 'Titan Sa Mạc',
         capacity: '128GB',
@@ -2219,7 +2224,7 @@ export const IShopStore = {
       {
         id: 'camp-1',
         title: '⚡ Siêu Flash Sale Giờ Vàng 2026',
-        description: 'Giảm giá trực tiếp lên đến 15% cho tất cả dòng máy iPhone 16 Series & phụ kiện chính hãng khi mua tại cửa hàng hoặc online.',
+        description: 'Giảm giá trực tiếp lên đến 15% cho tất cả dòng máy iPhone 18 Series, iPhone Duo & phụ kiện chính hãng khi mua tại cửa hàng hoặc online.',
         badgeText: 'FLASH SALE',
         discountType: 'percentage',
         discountValue: 15,

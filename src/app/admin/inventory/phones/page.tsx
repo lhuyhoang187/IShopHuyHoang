@@ -313,7 +313,7 @@ export default function InventoryPhonesPage() {
                   type="text"
                   value={phoneSearch}
                   onChange={(e) => setPhoneSearch(e.target.value)}
-                  placeholder="Tìm theo tên máy (iPhone 16, S24 Ultra, Xiaomi...)"
+                  placeholder="Tìm theo tên máy (iPhone 18, iPhone Duo, S24 Ultra...)"
                   className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-amber-500 focus:bg-white transition-colors font-medium"
                 />
                 {phoneSearch && (

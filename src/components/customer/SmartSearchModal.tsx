@@ -81,7 +81,7 @@ export default function SmartSearchModal({ isOpen, onClose }: Props) {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Tìm điện thoại (iPhone 16 Pro Max...), phụ kiện sạc, dịch vụ sửa chữa..."
+            placeholder="Tìm điện thoại (iPhone 18 Pro Max, iPhone Duo...), phụ kiện sạc, dịch vụ sửa chữa..."
             className="w-full bg-transparent text-slate-900 placeholder-slate-400 focus:outline-none text-base sm:text-lg font-medium"
             autoFocus
           />
@@ -110,7 +110,8 @@ export default function SmartSearchModal({ isOpen, onClose }: Props) {
               </p>
               <div className="flex flex-wrap gap-2">
                 {[
-                  'iPhone 16 Pro Max',
+                  'iPhone 18 Pro Max',
+                  'iPhone Duo',
                   'Samsung S24 Ultra',
                   'Củ sạc 65W GaN',
                   'Pin Pisen iPhone',

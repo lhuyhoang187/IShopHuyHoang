@@ -627,7 +627,7 @@ export default function POSPage() {
                   type="text"
                   value={phoneSearch}
                   onChange={(e) => setPhoneSearch(e.target.value)}
-                  placeholder="Quét hoặc nhập 15 số IMEI, tên máy (VD: 358921104829104, iPhone 16...)"
+                  placeholder="Quét hoặc nhập 15 số IMEI, tên máy (VD: 358921104829104, iPhone 18, iPhone Duo...)"
                   className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-amber-500 focus:bg-white font-mono transition-colors"
                   autoFocus
                 />
@@ -1930,7 +1930,7 @@ export default function POSPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
                   <div className="p-2.5 rounded-xl bg-white border border-slate-200 shadow-sm space-y-1">
                     <span className="font-bold text-amber-800 block">📱 Máy Flagship (≥ 25 triệu):</span>
-                    <p className="text-slate-600">iPhone 16 Pro Max, S24 Ultra... → <strong className="text-emerald-700 font-mono">+500 điểm</strong>/máy</p>
+                    <p className="text-slate-600">iPhone 18 Pro Max, iPhone Duo... → <strong className="text-emerald-700 font-mono">+500 điểm</strong>/máy</p>
                   </div>
                   <div className="p-2.5 rounded-xl bg-white border border-slate-200 shadow-sm space-y-1">
                     <span className="font-bold text-amber-800 block">📱 Cận Cao Cấp (15tr - 24.99tr):</span>

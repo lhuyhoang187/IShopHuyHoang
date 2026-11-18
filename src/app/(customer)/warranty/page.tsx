@@ -154,7 +154,7 @@ function WarrantyContent() {
   }, [initialQuery]);
 
   const sampleQueries = [
-    { type: 'imei', query: '358921104999888', label: 'IMEI: 358921104999888', desc: 'iPhone 16 Pro Max' },
+    { type: 'imei', query: '358921104999888', label: 'IMEI: 358921104999888', desc: 'iPhone 18 Pro Max' },
     { type: 'imei', query: '358921104829104', label: 'IMEI: 358921104829104', desc: 'Máy mới nguyên seal' },
     { type: 'phone', query: '0986898197', label: 'SĐT: 0986.898.197', desc: 'Khách hàng 2 máy' },
     { type: 'phone', query: '0912345678', label: 'SĐT: 0912.345.678', desc: 'Phiếu sửa chữa' },

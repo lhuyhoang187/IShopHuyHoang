@@ -275,7 +275,7 @@ export default function CustomerHomePage() {
       ? phones
       : phones.filter((p) => p.brand === selectedBrand);
 
-  const heroPhone = phones.find((p) => p.slug === 'iphone-16-pro-max') || phones[0];
+  const heroPhone = phones.find((p) => p.slug === 'iphone-18-pro-max' || p.slug === 'iphone-duo') || phones[0];
   const activeHeroColor = heroPhone?.colors[heroColorIdx] || heroPhone?.colors[0];
 
   return (
@@ -384,7 +384,7 @@ export default function CustomerHomePage() {
           {/* Secondary Text */}
           <FadeInUp delay={400}>
             <p className="text-[17px] text-slate-100 max-w-2xl text-center leading-relaxed mb-10 mx-auto drop-shadow-md font-medium">
-              Hệ thống bán lẻ iPhone 16 Pro Max 100% nguyên seal chưa active, bảo hành 1 đổi 1 trong 30 ngày và dịch vụ sửa chữa iCare 30 phút lấy liền minh bạch số 1 TP.HCM.
+              Hệ thống bán lẻ iPhone 18 Series &amp; siêu phẩm màn hình gập iPhone Duo 100% nguyên seal chưa active, bảo hành 1 đổi 1 trong 30 ngày và dịch vụ sửa chữa iCare 30 phút lấy liền minh bạch số 1 TP.HCM.
             </p>
           </FadeInUp>
 
@@ -395,7 +395,7 @@ export default function CustomerHomePage() {
                 href="/phones"
                 className="bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white text-sm font-extrabold px-8 py-3.5 rounded-full shadow-[0_0_30px_rgba(245,158,11,0.4)] hover:scale-105 transition-all"
               >
-                Khám Phá iPhone 16
+                Khám Phá iPhone 18 &amp; Duo
               </Link>
               <Link
                 href="/about"
@@ -419,14 +419,14 @@ export default function CustomerHomePage() {
           {/* 4 Feature Chips - Di chuyển vào mềm mại */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 mt-12 w-full max-w-4xl opacity-95">
             <Link
-              href="/phones/iphone-16-pro-max"
+              href="/phones/iphone-18-pro-max"
               className="p-4 rounded-2xl bg-slate-950/60 hover:bg-slate-900/80 border border-white/20 hover:border-amber-400/80 backdrop-blur-md text-left transition-all group shadow-xl"
             >
               <div className="flex items-center gap-2 text-amber-400 mb-1.5">
                 <Smartphone className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                <span className="text-sm sm:text-base font-extrabold text-white">iPhone 16 Pro Max</span>
+                <span className="text-sm sm:text-base font-extrabold text-white">iPhone 18 &amp; Duo</span>
               </div>
-              <p className="text-xs sm:text-sm text-slate-200 font-medium">Titan Sa Mạc, 100% Seal</p>
+              <p className="text-xs sm:text-sm text-slate-200 font-medium">Chip A20 Pro 2nm, 100% Seal</p>
             </Link>
 
             <Link
@@ -567,7 +567,7 @@ export default function CustomerHomePage() {
             </h2>
 
             <p className="text-slate-600 text-base leading-relaxed">
-              Trợ lý thông minh giúp bạn lựa chọn phiên bản iPhone 16 Pro Max Titan Sa Mạc phù hợp nhất, so sánh dung lượng 256GB - 1TB, tính toán giá thu cũ đổi mới và kiểm tra tình trạng kho máy nguyên seal theo thời gian thực.
+              Trợ lý thông minh giúp bạn lựa chọn phiên bản iPhone 18 Pro Max &amp; siêu phẩm màn hình gập iPhone Duo phù hợp nhất, so sánh dung lượng 256GB - 1TB, tính toán giá thu cũ đổi mới và kiểm tra tình trạng kho máy nguyên seal theo thời gian thực.
             </p>
 
             <div>
@@ -630,7 +630,7 @@ export default function CustomerHomePage() {
                       </span>
                     </div>
                     <p className="text-[11px] text-slate-500 font-medium">
-                      Bù chênh lệch từ 15.990.000₫ khi đổi từ iPhone 15 Pro Max
+                      Bù chênh lệch từ 15.990.000₫ khi lên đời từ iPhone 16 / 17 Pro Max
                     </p>
                   </div>
 
@@ -788,17 +788,17 @@ export default function CustomerHomePage() {
             </div>
 
             <h2 className="text-3xl sm:text-5xl lg:text-6xl font-black text-slate-900 leading-tight tracking-tight">
-              iPhone 16 Pro Max <br />
+              iPhone 18 Series &amp; Duo <br />
               <span className="text-gradient-gold">Titan Sa Mạc Luxury 2026</span>
             </h2>
 
             <p className="text-base sm:text-lg text-slate-600 font-normal leading-relaxed">
-              Thiết kế viền mỏng nhất lịch sử Apple, màn hình Super Retina XDR 6.9 inch cùng hệ thống camera Fusion 48MP zoom quang học 5x. Bạn có thể bấm chọn màu vỏ máy bên dưới để chiêm ngưỡng ánh sáng phản chiếu trực tiếp!
+              Thiết kế viền mỏng nhất lịch sử Apple, Face ID ẩn dưới màn hình Super Retina XDR 6.9 inch &amp; tuyệt tác màn hình gập kép iPhone Duo 7.9 inch cùng chip Apple A20 Pro 2nm và hệ thống 3 camera 48MP zoom quang học 10x. Bạn có thể bấm chọn màu vỏ máy bên dưới để chiêm ngưỡng ánh sáng phản chiếu trực tiếp!
             </p>
 
             <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 pt-3">
               <Link
-                href="/phones/iphone-16-pro-max"
+                href="/phones/iphone-18-pro-max"
                 className="btn-gold px-8 py-4 rounded-2xl text-sm sm:text-base flex items-center gap-2.5 font-black shadow-xl hover:scale-105 transition-all text-white"
               >
                 <span className="text-white">Xem Cấu Hình & Mua Ngay</span>
@@ -1415,7 +1415,7 @@ export default function CustomerHomePage() {
             </h2>
 
             <p className="text-[17px] text-slate-100 max-w-2xl text-center leading-relaxed mb-10 mx-auto drop-shadow-md font-medium">
-              Hệ thống bán lẻ iPhone 16 Pro Max 100% nguyên seal chưa active, bảo hành 1 đổi 1 trong 30 ngày và dịch vụ sửa chữa iCare 30 phút lấy liền minh bạch số 1 TP.HCM.
+              Hệ thống bán lẻ iPhone 18 Series &amp; siêu phẩm màn hình gập iPhone Duo 100% nguyên seal chưa active, bảo hành 1 đổi 1 trong 30 ngày và dịch vụ sửa chữa iCare 30 phút lấy liền minh bạch số 1 TP.HCM.
             </p>
 
             <div className="flex flex-wrap items-center justify-center gap-4">

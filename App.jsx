@@ -329,7 +329,7 @@ export default function App() {
               href="/"
               className="bg-[#1F1F22] hover:bg-[#2A2A2D] text-white text-sm font-medium px-5 py-2.5 rounded-full border border-white/10 transition-all hover:scale-105 active:scale-95"
             >
-              Mua iPhone 16
+              Mua iPhone 18 & Duo
             </a>
           </div>
 
@@ -390,7 +390,7 @@ export default function App() {
                 href="/"
                 className="block w-full bg-[#1F1F22] hover:bg-[#2A2A2D] text-white text-sm font-medium py-3 rounded-full border border-white/10 text-center"
               >
-                Mua iPhone 16 Pro Max
+                Mua iPhone 18 Pro Max & Duo
               </a>
             </div>
           </div>
@@ -450,7 +450,7 @@ export default function App() {
           {/* Chú thích: Buộc cỡ chữ chính xác là text-[16px] text-gray-400 max-w-2xl */}
           <FadeInUp delay={400}>
             <p className="text-[16px] text-gray-400 max-w-2xl text-center leading-relaxed mb-10">
-              Hệ thống bán lẻ iPhone 16 Pro Max 100% nguyên seal chưa active, bảo hành 1 đổi 1 trong 30 ngày và dịch vụ sửa chữa iCare 30 phút lấy liền minh bạch số 1 TP.HCM.
+              Hệ thống bán lẻ iPhone 18 Series & siêu phẩm màn hình gập iPhone Duo 100% nguyên seal chưa active, bảo hành 1 đổi 1 trong 30 ngày và dịch vụ sửa chữa iCare 30 phút lấy liền minh bạch số 1 TP.HCM.
             </p>
           </FadeInUp>
 
@@ -461,7 +461,7 @@ export default function App() {
                 href="/"
                 className="bg-white text-black text-sm font-medium px-8 py-3.5 rounded-full hover:bg-gray-200 transition-colors shadow-[0_0_30px_rgba(255,255,255,0.3)]"
               >
-                Khám Phá iPhone 16
+                Khám Phá iPhone 18 & Duo
               </a>
               <a
                 href="/repair"
@@ -514,7 +514,7 @@ export default function App() {
             </h2>
 
             <p className="text-gray-400 text-base leading-relaxed">
-              Trợ lý thông minh giúp bạn lựa chọn phiên bản iPhone 16 Pro Max Titan Sa Mạc phù hợp nhất, so sánh dung lượng 256GB - 1TB, tính toán giá thu cũ đổi mới và kiểm tra tình trạng kho máy nguyên seal theo thời gian thực.
+              Trợ lý thông minh giúp bạn lựa chọn phiên bản iPhone 18 Pro Max & iPhone Duo phù hợp nhất, so sánh dung lượng 256GB - 1TB, tính toán giá thu cũ đổi mới và kiểm tra tình trạng kho máy nguyên seal theo thời gian thực.
             </p>
 
             <div>
@@ -559,7 +559,7 @@ export default function App() {
 
                 {/* Ô nhập liệu ở dưới */}
                 <div className="flex items-center justify-between p-3 rounded-xl bg-black/40 border border-white/10 text-sm">
-                  <span className="text-gray-400">Hỏi tư vấn về iPhone 16 Pro Max & thu cũ đổi mới...</span>
+                  <span className="text-gray-400">Hỏi tư vấn về iPhone 18 Pro Max, iPhone Duo & thu cũ đổi mới...</span>
                   <div className="flex items-center gap-2 text-gray-400">
                     <div className="flex items-center gap-0.5">
                       <span className="w-1 h-3 bg-amber-400 rounded-full animate-pulse" />
@@ -776,7 +776,7 @@ export default function App() {
             <div className="text-sm font-semibold text-white">Sản Phẩm Apple</div>
             <ul className="space-y-2">
               {[
-                { name: 'iPhone 16 Pro Max', href: '/phones/iphone-16-pro-max' },
+                { name: 'iPhone 18 Pro Max & Duo', href: '/phones/iphone-18-pro-max' },
                 { name: 'iPhone 15 Pro Series', href: '/phones' },
                 { name: 'Phụ Kiện Sạc GaN Anker', href: '/accessories' },
                 { name: 'Cáp Sạc & Kính Cường Lực', href: '/accessories' },

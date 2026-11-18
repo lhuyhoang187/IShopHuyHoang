@@ -45,11 +45,11 @@ const TESTIMONIALS: TestimonialSlide[] = [
   {
     id: 1,
     image: 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?auto=format&fit=crop&w=1400&q=85',
-    tag: '✦ APPLE FLAGSHIP 100% SEAL',
+    tag: '✦ SIÊU PHẨM iPHONE 18 SERIES & iPHONE DUO',
     quote:
-      'Đập hộp iPhone 16 Pro Max Titan Sa Mạc tại iShop Huy Hoàng là trải nghiệm đẳng cấp nhất. Máy mới 100% nguyên seal chưa active, chính sách bảo hành 1 đổi 1 và hỗ trợ kích hoạt Apple Care tận tâm.',
+      'Đập hộp iPhone 18 Pro Max Titan Sa Mạc & siêu phẩm gập iPhone Duo tại iShop Huy Hoàng là trải nghiệm đẳng cấp nhất. Máy mới 100% nguyên seal chưa active, chính sách bảo hành 1 đổi 1 và hỗ trợ kích hoạt Apple Care tận tâm.',
     author: 'Trần Minh Quân',
-    role: 'Sở hữu iPhone 16 Pro Max Desert Titanium 512GB',
+    role: 'Sở hữu iPhone 18 Pro Max & iPhone Duo 512GB',
     rating: 5,
   },
   {
