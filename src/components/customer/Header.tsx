@@ -92,7 +92,7 @@ export default function Header() {
       href: '/repair',
       icon: Wrench,
       badge: '30 Phút',
-      badgeColor: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40',
+      badgeColor: 'bg-emerald-100 text-emerald-800 border border-emerald-300',
     },
     {
       name: 'Tiến Độ Sửa (QR)',

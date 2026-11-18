@@ -665,9 +665,9 @@ export default function InventorySparePartsPage() {
 
                     {/* Thời hạn bảo hành */}
                     <td className="p-4 text-center whitespace-nowrap">
-                      <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200 inline-flex items-center gap-1">
-                        <ShieldCheck className="w-3.5 h-3.5" />
-                        {part.warrantyMonths} Tháng
+                      <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200 inline-flex items-center gap-1 whitespace-nowrap">
+                        <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
+                        <span>{part.warrantyMonths} Tháng</span>
                       </span>
                     </td>
 

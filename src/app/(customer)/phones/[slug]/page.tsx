@@ -224,7 +224,7 @@ export default function PhoneDetailPage() {
                     className="w-6 h-6 rounded-full mx-auto mb-1.5 border border-slate-300 shadow-sm"
                   />
                   <span className={`text-[11px] font-bold block truncate ${isColOut ? 'line-through text-slate-400' : ''}`}>
-                    {c.name.split(' ')[0]}
+                    {c.name.replace(/\s*\([^)]*\)/g, '').trim()}
                   </span>
                   {isColOut && (
                     <span className="block text-[8px] font-black text-red-600 mt-0.5 leading-none">

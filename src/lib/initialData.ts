@@ -586,7 +586,7 @@ export const initialAccessories: AccessoryProduct[] = [
     originalPrice: 790000,
     stock: 28,
     minStockAlert: 8,
-    imageUrl: 'https://images.unsplash.com/photo-1622445262464-84b1456045b6?w=600&auto=format&fit=crop&q=80',
+    imageUrl: 'https://images.unsplash.com/photo-1583863788434-e58a36330cf0?w=600&auto=format&fit=crop&q=80',
     description: 'Công nghệ GaN5 tản nhiệt tốt, sạc cùng lúc MacBook, iPhone và tai nghe mà không bị quá nhiệt.',
     specs: '65W Max, Hỗ trợ PD3.0, QC4+, PPS, 2 cổng Type-C + 1 cổng USB-A',
     compatibleWith: 'Laptop, Smartphone, Tablet',

@@ -231,8 +231,6 @@ export default function App() {
     <div className="relative min-h-screen w-full bg-black text-white selection:bg-white selection:text-black font-sans scroll-smooth overflow-x-hidden">
       {/* Global CSS for Smooth Scrolling & Infinite Marquee & Luxury Serif Font */}
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&display=swap');
-
         html {
           scroll-behavior: smooth;
         }

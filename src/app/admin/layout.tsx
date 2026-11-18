@@ -195,7 +195,7 @@ export default function AdminLayout({
   };
 
   if (!isMounted) {
-    return <div className="min-h-screen bg-[#070b14] flex items-center justify-center text-gray-500 text-xs">Đang khởi tạo cổng quản trị...</div>;
+    return <div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-500 text-xs font-medium">Đang khởi tạo cổng quản trị...</div>;
   }
 
   // 1. MANDATORY AUTH GATE: If not logged in, show Staff Login Gateway
@@ -444,7 +444,7 @@ export default function AdminLayout({
     admin: { label: 'Chủ Shop (Toàn Quyền)', color: 'badge-glow-gold' },
     technician: { label: 'Kỹ Thuật Viên', color: 'badge-glow-violet' },
     cashier: { label: 'Thu Ngân (POS)', color: 'badge-glow-cyan' },
-    pending: { label: 'Chờ Duyệt', color: 'bg-gray-500/20 text-gray-300' },
+    pending: { label: 'Chờ Duyệt', color: 'bg-slate-200 text-slate-700' },
   };
 
   return (
@@ -606,8 +606,8 @@ export default function AdminLayout({
         </div>
 
         {/* Module Navigation Bar */}
-        <nav className="bg-slate-50/90 border-t border-slate-200 px-4 sm:px-6 overflow-x-auto">
-          <div className="max-w-7xl mx-auto flex items-center gap-1.5 py-1.5 text-xs font-bold">
+        <nav className="bg-slate-50/90 border-t border-slate-200 px-3 sm:px-6 overflow-x-auto no-scrollbar">
+          <div className="max-w-7xl mx-auto flex items-center gap-1 py-1.5 text-[11px] xl:text-xs font-bold">
             {navItems
               .filter((item) => {
                 if (currentRole === 'admin') return true;
@@ -627,13 +627,13 @@ export default function AdminLayout({
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold shrink-0 transition-all ${
+                    className={`flex items-center gap-1.5 px-2.5 xl:px-3 py-2 rounded-xl font-bold shrink-0 whitespace-nowrap transition-all ${
                       isActive
                         ? 'bg-white text-emerald-800 border border-emerald-300 shadow-sm'
                         : 'text-slate-600 hover:text-slate-900 hover:bg-white/70'
                     }`}
                   >
-                    <Icon className="w-4 h-4" />
+                    <Icon className="w-3.5 h-3.5 shrink-0" />
                     <span>{item.name}</span>
                   </Link>
                 );

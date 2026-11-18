@@ -14,6 +14,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="vi" className="h-full" suppressHydrationWarning>
+      <head>
+        <link rel="stylesheet" href="/fonts/fonts.css" />
+      </head>
       <body className="min-h-full flex flex-col antialiased">
         {children}
       </body>
