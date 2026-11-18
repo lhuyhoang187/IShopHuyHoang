@@ -166,8 +166,6 @@ export default function CustomerHomePage() {
   const lastScrollY = useRef<number>(0);
 
   // Video Hero Controls
-  const [isMuted, setIsMuted] = useState<boolean>(true);
-  const [isPlaying, setIsPlaying] = useState<boolean>(true);
   const [videoLoaded, setVideoLoaded] = useState<boolean>(true);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
@@ -250,24 +248,6 @@ export default function CustomerHomePage() {
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const toggleSound = () => {
-    if (videoRef.current) {
-      videoRef.current.muted = !isMuted;
-      setIsMuted(!isMuted);
-    }
-  };
-
-  const togglePlay = () => {
-    if (videoRef.current) {
-      if (isPlaying) {
-        videoRef.current.pause();
-      } else {
-        videoRef.current.play();
-      }
-      setIsPlaying(!isPlaying);
-    }
   };
 
   const filteredPhones =
@@ -462,24 +442,6 @@ export default function CustomerHomePage() {
               <p className="text-xs sm:text-sm text-slate-200 font-medium">VietQR thanh toán 0% phí</p>
             </Link>
           </div>
-        </div>
-
-        {/* Video Audio / Play Controls */}
-        <div className="absolute bottom-16 right-6 z-30 flex items-center gap-2.5 p-2 rounded-full bg-black/70 border border-white/20 backdrop-blur-xl">
-          <button
-            onClick={toggleSound}
-            className="p-2.5 rounded-full hover:bg-white/15 text-white/80 hover:text-white transition-colors"
-            title={isMuted ? 'Bật âm thanh video' : 'Tắt âm thanh'}
-          >
-            {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5 text-amber-400" />}
-          </button>
-          <button
-            onClick={togglePlay}
-            className="p-2.5 rounded-full hover:bg-white/15 text-white/80 hover:text-white transition-colors"
-            title={isPlaying ? 'Tạm dừng video' : 'Phát tiếp'}
-          >
-            {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 text-amber-400" />}
-          </button>
         </div>
 
         {/* Bottom Trust Line */}
