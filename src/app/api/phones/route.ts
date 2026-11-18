@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { sanitizeString } from '@/lib/validation';
 
+export const dynamic = 'force-dynamic';
+
 const DEFAULT_PHONE_IMAGE = 'https://images.unsplash.com/photo-1580910051074-3eb694886505?w=800&auto=format&fit=crop&q=80';
 
 function normalizeSpecs(rawSpecs: any, brand = 'Apple', capacities: any[] = []) {
@@ -52,6 +54,8 @@ function normalizeColors(rawColors: any, variants: any[] = []) {
           name: cName,
           hex: v.colorHex || '#2B2B2B',
           imageUrl: v.imageUrl || DEFAULT_PHONE_IMAGE,
+          stock: undefined as number | undefined,
+          isOutOfStock: Boolean(v.isOutOfStock),
         });
       }
     });
@@ -63,6 +67,8 @@ function normalizeColors(rawColors: any, variants: any[] = []) {
       name: 'Đen Titan',
       hex: '#2B2B2B',
       imageUrl: DEFAULT_PHONE_IMAGE,
+      stock: undefined as number | undefined,
+      isOutOfStock: false,
     },
   ];
 }
@@ -76,8 +82,8 @@ function normalizeCapacities(rawCaps: any) {
         size: c.size || '256GB',
         price,
         originalPrice: Number(c.originalPrice) || Math.round(price * 1.08),
-        stock: c.stock,
-        isOutOfStock: c.isOutOfStock,
+        stock: c.stock as number | undefined,
+        isOutOfStock: Boolean(c.isOutOfStock),
       };
     });
   }
@@ -86,6 +92,8 @@ function normalizeCapacities(rawCaps: any) {
       size: '256GB',
       price: 25990000,
       originalPrice: 27990000,
+      stock: undefined as number | undefined,
+      isOutOfStock: false,
     },
   ];
 }
@@ -93,7 +101,7 @@ function normalizeCapacities(rawCaps: any) {
 export async function GET(request: NextRequest) {
   try {
     const phones = await db.query('SELECT * FROM phoneproduct ORDER BY createdAt DESC');
-    const allStock = await db.query('SELECT imei, phoneId, status FROM phonestock');
+    const allStock = await db.query('SELECT imei, phoneId, color, capacity, sellingPrice, status FROM phonestock');
     const allVariants = await db.query('SELECT * FROM phonevariant');
 
     const stockByPhone: Record<string, any[]> = {};
@@ -135,12 +143,65 @@ export async function GET(request: NextRequest) {
       }
 
       const pStock = stockByPhone[p.id] || [];
-      const inStockCount = pStock.filter((s) => s.status === 'in_stock').length;
+      const inStockItems = pStock.filter((s) => s.status === 'in_stock');
+      const inStockCount = inStockItems.length;
       const variants = variantsByPhone[p.id] || [];
+      const pUpdatedTime = p.updatedAt ? new Date(p.updatedAt).getTime() : 0;
 
-      const capacities = normalizeCapacities(rawCapacities);
+      const capacities = normalizeCapacities(rawCapacities).map((cap) => {
+        const capNorm = String(cap.size).toLowerCase().replace(/\s+/g, '');
+        const matchingVar = variants.find(
+          (v) => String(v.capacity || '').toLowerCase().replace(/\s+/g, '') === capNorm
+        );
+        const varUpdatedTime = matchingVar?.updatedAt ? new Date(matchingVar.updatedAt).getTime() : 0;
+        const useVarPrice = matchingVar && varUpdatedTime > pUpdatedTime && Number(matchingVar.price) > 0;
+
+        return {
+          ...cap,
+          price: useVarPrice ? Number(matchingVar.price) : cap.price,
+          originalPrice:
+            useVarPrice && Number(matchingVar.originalPrice) > 0
+              ? Number(matchingVar.originalPrice)
+              : cap.originalPrice,
+        };
+      });
+
       const colors = normalizeColors(rawColors, variants);
       const specs = normalizeSpecs(rawSpecs, p.brand, capacities);
+
+      const variantStocks: Record<string, { stock: number; isOutOfStock?: boolean }> = {};
+      colors.forEach((col: any) => {
+        capacities.forEach((cap: any) => {
+          const key = `${col.name}_${cap.size}`;
+          const colNorm = String(col.name).toLowerCase().trim();
+          const capNorm = String(cap.size).toLowerCase().replace(/\s+/g, '');
+          const matchedInStock = inStockItems.filter((s) => {
+            const sc = String(s.color || '').toLowerCase().trim();
+            const scap = String(s.capacity || '').toLowerCase().replace(/\s+/g, '');
+            return (sc === colNorm || sc.includes(colNorm) || colNorm.includes(sc)) && scap === capNorm;
+          }).length;
+
+          const matchedVar = variants.find(
+            (v) =>
+              String(v.colorName || '').toLowerCase().trim() === colNorm &&
+              String(v.capacity || '').toLowerCase().replace(/\s+/g, '') === capNorm
+          );
+          const isOut = Boolean(
+            col.isOutOfStock ||
+              cap.isOutOfStock ||
+              matchedVar?.isOutOfStock ||
+              col.stock === 0 ||
+              cap.stock === 0
+          );
+
+          if (matchedInStock > 0 || isOut || matchedVar) {
+            variantStocks[key] = {
+              stock: isOut ? 0 : matchedInStock,
+              isOutOfStock: isOut,
+            };
+          }
+        });
+      });
 
       return {
         id: p.id,
@@ -155,6 +216,7 @@ export async function GET(request: NextRequest) {
         colors,
         capacities,
         variants,
+        variantStocks,
         specs,
         warrantyInfo: p.warrantyInfo || 'Bảo hành 12 tháng chính hãng.',
         inStockCount,
@@ -292,27 +354,37 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Upsert 3NF PhoneVariants
+    // Upsert 3NF PhoneVariants & sync in_stock PhoneStock sellingPrice
     try {
       for (const cap of normalizedCaps) {
+        const capacitySize = cap.size || '256GB';
+        const capPrice = Number(cap.price) || 20000000;
+        await db.execute(
+          `UPDATE phonestock SET sellingPrice = ?, updatedAt = NOW()
+           WHERE phoneId = ? AND capacity = ? AND status = 'in_stock'`,
+          [capPrice, targetId, capacitySize]
+        );
+
         for (const col of normalizedColors) {
           const colorName = col.name || 'Đen Titan';
-          const capacitySize = cap.size || '256GB';
           const existingVariant = await db.queryOne(
             'SELECT id FROM phonevariant WHERE phoneId = ? AND colorName = ? AND capacity = ?',
             [targetId, colorName, capacitySize]
           );
 
+          const isOut = col.isOutOfStock || cap.isOutOfStock || col.stock === 0 || cap.stock === 0 ? 1 : 0;
+
           if (existingVariant) {
             await db.execute(
               `UPDATE phonevariant SET 
-                 price = ?, originalPrice = ?, colorHex = ?, imageUrl = ?, updatedAt = NOW()
+                 price = ?, originalPrice = ?, colorHex = ?, imageUrl = ?, isOutOfStock = ?, updatedAt = NOW()
                WHERE id = ?`,
               [
-                Number(cap.price) || 20000000,
+                capPrice,
                 cap.originalPrice ? Number(cap.originalPrice) : null,
                 col.hex || '#2B2B2B',
                 col.imageUrl || DEFAULT_PHONE_IMAGE,
+                isOut,
                 existingVariant.id,
               ]
             );
@@ -321,7 +393,7 @@ export async function POST(request: NextRequest) {
             await db.execute(
               `INSERT INTO phonevariant 
                (id, phoneId, colorName, colorHex, imageUrl, capacity, price, originalPrice, isOutOfStock, createdAt, updatedAt)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, NOW(), NOW())`,
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
               [
                 varId,
                 targetId,
@@ -329,8 +401,9 @@ export async function POST(request: NextRequest) {
                 col.hex || '#2B2B2B',
                 col.imageUrl || DEFAULT_PHONE_IMAGE,
                 capacitySize,
-                Number(cap.price) || 20000000,
+                capPrice,
                 cap.originalPrice ? Number(cap.originalPrice) : null,
+                isOut,
               ]
             );
           }
@@ -351,6 +424,42 @@ export async function POST(request: NextRequest) {
     console.error('API /api/phones POST error:', error);
     return NextResponse.json(
       { error: 'Lỗi lưu sản phẩm: ' + (error?.message || '') },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id')?.trim();
+    const brand = searchParams.get('brand')?.trim();
+
+    if (!id && !brand) {
+      return NextResponse.json({ error: 'Vui lòng cung cấp ID hoặc Tên hãng cần xóa' }, { status: 400 });
+    }
+
+    if (id) {
+      await db.execute('DELETE FROM phonevariant WHERE phoneId = ?', [id]);
+      await db.execute('DELETE FROM phonestock WHERE phoneId = ?', [id]);
+      await db.execute('DELETE FROM phoneproduct WHERE id = ?', [id]);
+    } else if (brand) {
+      const targetPhones = await db.query('SELECT id FROM phoneproduct WHERE brand = ?', [brand]);
+      for (const p of targetPhones) {
+        await db.execute('DELETE FROM phonevariant WHERE phoneId = ?', [p.id]);
+        await db.execute('DELETE FROM phonestock WHERE phoneId = ?', [p.id]);
+      }
+      await db.execute('DELETE FROM phoneproduct WHERE brand = ?', [brand]);
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'Đã xóa sản phẩm điện thoại thành công',
+    });
+  } catch (error: any) {
+    console.error('API /api/phones DELETE error:', error);
+    return NextResponse.json(
+      { error: 'Lỗi xóa sản phẩm điện thoại: ' + (error?.message || '') },
       { status: 500 }
     );
   }

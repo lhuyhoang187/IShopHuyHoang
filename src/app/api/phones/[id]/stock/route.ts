@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -106,11 +108,52 @@ export async function POST(
         sqlParams
       );
 
-      // Synchronize PhoneStock items if variantStocks or capacities/colors are specified
+      // Synchronize PhoneVariant & PhoneStock items if variantStocks or capacities/colors are specified
+      if (Array.isArray(capacities)) {
+        for (const cap of capacities) {
+          if (cap.size && Number(cap.price) > 0) {
+            await conn.execute(
+              `UPDATE phonevariant SET price = ?, originalPrice = ?, isOutOfStock = ?, updatedAt = NOW()
+               WHERE phoneId = ? AND capacity = ?`,
+              [
+                Number(cap.price),
+                cap.originalPrice ? Number(cap.originalPrice) : null,
+                cap.isOutOfStock || cap.stock === 0 ? 1 : 0,
+                phone.id,
+                cap.size,
+              ]
+            );
+            await conn.execute(
+              `UPDATE phonestock SET sellingPrice = ?, updatedAt = NOW()
+               WHERE phoneId = ? AND capacity = ? AND status = 'in_stock'`,
+              [Number(cap.price), phone.id, cap.size]
+            );
+          }
+        }
+      }
+
+      if (Array.isArray(colors)) {
+        for (const col of colors) {
+          if (col.name && (col.isOutOfStock || col.stock === 0)) {
+            await conn.execute(
+              `UPDATE phonevariant SET isOutOfStock = 1, updatedAt = NOW()
+               WHERE phoneId = ? AND colorName = ?`,
+              [phone.id, col.name]
+            );
+          }
+        }
+      }
+
       if (variantStocks && typeof variantStocks === 'object') {
         for (const [key, conf] of Object.entries(variantStocks) as [string, any][]) {
           const [colorName, capSize] = key.split('_');
           if (!colorName || !capSize) continue;
+
+          await conn.execute(
+            `UPDATE phonevariant SET isOutOfStock = ?, updatedAt = NOW()
+             WHERE phoneId = ? AND colorName = ? AND capacity = ?`,
+            [conf.isOutOfStock || conf.stock === 0 ? 1 : 0, phone.id, colorName, capSize]
+          );
 
           const [currentStock]: any = await conn.query(
             `SELECT imei FROM phonestock 

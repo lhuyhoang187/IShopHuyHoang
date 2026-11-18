@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { sanitizeString } from '@/lib/validation';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const campaigns = await db.query('SELECT * FROM promotioncampaign ORDER BY createdAt DESC');
@@ -170,6 +172,35 @@ export async function POST(request: NextRequest) {
     console.error('Promotions API POST error:', error);
     return NextResponse.json(
       { error: 'Lỗi lưu khuyến mãi: ' + (error?.message || '') },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const type = searchParams.get('type');
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json({ error: 'Thiếu ID khuyến mãi cần xóa' }, { status: 400 });
+    }
+
+    if (type === 'qrcode') {
+      await db.execute('DELETE FROM promoqrcode WHERE id = ? OR code = ?', [id, id]);
+    } else {
+      await db.execute('DELETE FROM promotioncampaign WHERE id = ?', [id]);
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'Đã xóa khuyến mãi khỏi CSDL thành công',
+    });
+  } catch (error: any) {
+    console.error('Promotions API DELETE error:', error);
+    return NextResponse.json(
+      { error: 'Lỗi xóa khuyến mãi: ' + (error?.message || '') },
       { status: 500 }
     );
   }

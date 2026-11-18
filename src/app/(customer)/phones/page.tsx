@@ -1,14 +1,15 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { Smartphone, Scale, ArrowRight, Filter, ShoppingCart, Plus, Minus, Check, Sparkles, AlertCircle, PackageCheck, Boxes } from 'lucide-react';
+import { Smartphone, Scale, ArrowRight, Filter, ShoppingCart, Plus, Minus, Check, Sparkles, AlertCircle, PackageCheck, Boxes, Search, X } from 'lucide-react';
 import { IShopStore } from '@/lib/store';
 import { PhoneProduct } from '@/lib/types';
 import { formatVND } from '@/lib/vietqr';
 
 export default function PhonesPage() {
   const [phones, setPhones] = useState<PhoneProduct[]>([]);
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedBrand, setSelectedBrand] = useState<string>('All');
   const [selectedStorage, setSelectedStorage] = useState<string>('All');
   const [priceSort, setPriceSort] = useState<'default' | 'asc' | 'desc'>('default');
@@ -20,7 +21,7 @@ export default function PhonesPage() {
     setPhones(IShopStore.getPhones());
     setCompareIds(IShopStore.getComparisonList());
 
-    fetch('/api/phones')
+    fetch(`/api/phones?_t=${Date.now()}`, { cache: 'no-store' })
       .then((res) => res.json())
       .then((json) => {
         if (json.success && Array.isArray(json.data) && json.data.length > 0) {
@@ -32,17 +33,44 @@ export default function PhonesPage() {
 
   useEffect(() => {
     loadData();
-    const listener = () => loadData();
+    const listener = () => {
+      setPhones(IShopStore.getPhones());
+      setCompareIds(IShopStore.getComparisonList());
+    };
     window.addEventListener('ishop_data_changed', listener);
     return () => window.removeEventListener('ishop_data_changed', listener);
   }, []);
+
+  const availableBrands = useMemo(() => {
+    return Array.from(new Set(phones.map((p) => p.brand).filter(Boolean)));
+  }, [phones]);
+
+  const availableStorages = useMemo(() => {
+    const sizes = Array.from(
+      new Set(phones.flatMap((p) => (p.capacities || []).map((c) => c.size)).filter(Boolean))
+    );
+    return sizes.sort((a, b) => {
+      const toGb = (s: string) => (s.toUpperCase().includes('TB') ? (parseInt(s) || 1) * 1024 : parseInt(s) || 0);
+      return toGb(a) - toGb(b);
+    });
+  }, [phones]);
 
   // Filter & Sort
   const filteredPhones = phones
     .filter((p) => (selectedBrand === 'All' ? true : p.brand === selectedBrand))
     .filter((p) => {
       if (selectedStorage === 'All') return true;
-      return p.capacities.some((c) => c.size.includes(selectedStorage));
+      return (p.capacities || []).some((c) => c.size.includes(selectedStorage));
+    })
+    .filter((p) => {
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase().trim();
+      return (
+        p.name.toLowerCase().includes(q) ||
+        p.brand.toLowerCase().includes(q) ||
+        (p.specs?.chip && p.specs.chip.toLowerCase().includes(q)) ||
+        (p.specs?.screen && p.specs.screen.toLowerCase().includes(q))
+      );
     })
     .sort((a, b) => {
       if (priceSort === 'asc') return (a.capacities?.[0]?.price || 0) - (b.capacities?.[0]?.price || 0);
@@ -92,56 +120,122 @@ export default function PhonesPage() {
         </p>
       </div>
 
-      {/* Filter Toolbar */}
-      <div className="glass-panel rounded-2xl p-4 border border-amber-300/70 shadow-sm flex flex-wrap items-center justify-between gap-4">
-        {/* Brand filters */}
-        <div className="flex items-center gap-1.5 overflow-x-auto">
-          <span className="text-xs text-slate-600 font-bold flex items-center gap-1 mr-1">
-            <Filter className="w-3.5 h-3.5" /> Hãng:
-          </span>
-          {['All', 'Apple', 'Samsung', 'Xiaomi'].map((b) => (
+      {/* Smart Filter Toolbar (List chọn thông minh) */}
+      <div className="glass-panel rounded-2xl p-4 border border-amber-300/70 shadow-sm space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 items-center">
+          {/* Quick Search */}
+          <div className="lg:col-span-5 relative">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Tìm nhanh theo tên máy, chip (A20 Pro, Snapdragon)..."
+              className="w-full pl-9 pr-8 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-amber-500 shadow-2xs"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Smart Brand Dropdown */}
+          <div className="lg:col-span-3 flex items-center gap-2">
+            <span className="text-xs text-slate-600 font-bold shrink-0 flex items-center gap-1">
+              <Filter className="w-3.5 h-3.5" /> Hãng:
+            </span>
+            <select
+              value={selectedBrand}
+              onChange={(e) => setSelectedBrand(e.target.value)}
+              className="w-full bg-white border border-slate-300 text-slate-800 text-xs font-bold rounded-xl px-3 py-2 focus:outline-none focus:border-amber-500 shadow-2xs cursor-pointer"
+            >
+              <option value="All">Tất cả thương hiệu ({phones.length})</option>
+              {availableBrands.map((b) => (
+                <option key={b} value={b}>
+                  {b} ({phones.filter((p) => p.brand === b).length} dòng máy)
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Smart Storage Dropdown */}
+          <div className="lg:col-span-2 flex items-center gap-2">
+            <span className="text-xs text-slate-600 font-bold shrink-0">Bộ nhớ:</span>
+            <select
+              value={selectedStorage}
+              onChange={(e) => setSelectedStorage(e.target.value)}
+              className="w-full bg-white border border-slate-300 text-slate-800 text-xs font-bold rounded-xl px-3 py-2 focus:outline-none focus:border-amber-500 shadow-2xs cursor-pointer"
+            >
+              <option value="All">Tất cả bộ nhớ</option>
+              {availableStorages.map((st) => (
+                <option key={st} value={st}>
+                  {st}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Sort price */}
+          <div className="lg:col-span-2 flex items-center gap-2">
+            <span className="text-xs text-slate-600 font-bold shrink-0">Giá:</span>
+            <select
+              value={priceSort}
+              onChange={(e) => setPriceSort(e.target.value as any)}
+              className="w-full bg-white border border-slate-300 text-slate-800 text-xs font-bold rounded-xl px-3 py-2 focus:outline-none focus:border-amber-500 shadow-2xs cursor-pointer"
+            >
+              <option value="default">Mặc định</option>
+              <option value="asc">Giá tăng dần</option>
+              <option value="desc">Giá giảm dần</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Quick Brand Selection Pills */}
+        <div className="flex items-center justify-between gap-2 pt-2 border-t border-amber-200/60 flex-wrap">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
             <button
-              key={b}
-              onClick={() => setSelectedBrand(b)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${
-                selectedBrand === b
+              onClick={() => setSelectedBrand('All')}
+              className={`px-3 py-1 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+                selectedBrand === 'All'
                   ? 'btn-gold text-white font-black shadow-sm'
                   : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
               }`}
             >
-              {b === 'All' ? 'Tất cả' : b}
+              Tất cả ({phones.length})
             </button>
-          ))}
-        </div>
+            {availableBrands.map((b) => (
+              <button
+                key={b}
+                onClick={() => setSelectedBrand(b)}
+                className={`px-3 py-1 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+                  selectedBrand === b
+                    ? 'btn-gold text-white font-black shadow-sm'
+                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                {b} ({phones.filter((p) => p.brand === b).length})
+              </button>
+            ))}
+          </div>
 
-        {/* Storage filter */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-600 font-bold">Dung lượng:</span>
-          <select
-            value={selectedStorage}
-            onChange={(e) => setSelectedStorage(e.target.value)}
-            className="bg-white border border-slate-300 text-slate-800 text-xs rounded-xl px-3 py-1.5 focus:outline-none focus:border-amber-500 shadow-sm"
-          >
-            <option value="All">Tất cả bộ nhớ</option>
-            <option value="128GB">128GB</option>
-            <option value="256GB">256GB</option>
-            <option value="512GB">512GB</option>
-            <option value="1TB">1TB</option>
-          </select>
-        </div>
-
-        {/* Sort price */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-600 font-bold">Sắp xếp:</span>
-          <select
-            value={priceSort}
-            onChange={(e) => setPriceSort(e.target.value as any)}
-            className="bg-white border border-slate-300 text-slate-800 text-xs rounded-xl px-3 py-1.5 focus:outline-none focus:border-amber-500 shadow-sm"
-          >
-            <option value="default">Mặc định</option>
-            <option value="asc">Giá tăng dần</option>
-            <option value="desc">Giá giảm dần</option>
-          </select>
+          {(selectedBrand !== 'All' || selectedStorage !== 'All' || searchQuery) && (
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedBrand('All');
+                setSelectedStorage('All');
+                setSearchQuery('');
+              }}
+              className="text-xs font-bold text-rose-600 hover:underline cursor-pointer"
+            >
+              Đặt lại bộ lọc
+            </button>
+          )}
         </div>
       </div>
 

@@ -154,6 +154,10 @@ export default function CustomerHomePage() {
   const [phones, setPhones] = useState<PhoneProduct[]>([]);
   const [accessories, setAccessories] = useState<AccessoryProduct[]>([]);
   const [selectedBrand, setSelectedBrand] = useState<string>('All');
+  const [homeSearch, setHomeSearch] = useState<string>('');
+  const [homeStorage, setHomeStorage] = useState<string>('All');
+  const [homeSort, setHomeSort] = useState<'default' | 'asc' | 'desc'>('default');
+  const [showAllHomePhones, setShowAllHomePhones] = useState<boolean>(false);
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [heroColorIdx, setHeroColorIdx] = useState<number>(0);
   const [phoneQuantities, setPhoneQuantities] = useState<Record<string, number>>({});
@@ -250,10 +254,33 @@ export default function CustomerHomePage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const filteredPhones =
-    selectedBrand === 'All'
-      ? phones
-      : phones.filter((p) => p.brand === selectedBrand);
+  const availableBrands = Array.from(new Set(phones.map((p) => p.brand).filter(Boolean)));
+  const availableStorages = Array.from(
+    new Set(phones.flatMap((p) => (p.capacities || []).map((c) => c.size)).filter(Boolean))
+  );
+
+  const filteredPhones = phones
+    .filter((p) => (selectedBrand === 'All' ? true : p.brand === selectedBrand))
+    .filter((p) => {
+      if (homeStorage === 'All') return true;
+      return (p.capacities || []).some((c) => c.size.includes(homeStorage));
+    })
+    .filter((p) => {
+      if (!homeSearch.trim()) return true;
+      const q = homeSearch.toLowerCase().trim();
+      return (
+        p.name.toLowerCase().includes(q) ||
+        p.brand.toLowerCase().includes(q) ||
+        (p.specs?.chip && p.specs.chip.toLowerCase().includes(q))
+      );
+    })
+    .sort((a, b) => {
+      if (homeSort === 'asc') return (a.capacities?.[0]?.price || 0) - (b.capacities?.[0]?.price || 0);
+      if (homeSort === 'desc') return (b.capacities?.[0]?.price || 0) - (a.capacities?.[0]?.price || 0);
+      return 0;
+    });
+
+  const displayedHomePhones = showAllHomePhones ? filteredPhones : filteredPhones.slice(0, 6);
 
   const heroPhone = phones.find((p) => p.slug === 'iphone-18-pro-max' || p.slug === 'iphone-duo') || phones[0];
   const activeHeroColor = heroPhone?.colors[heroColorIdx] || heroPhone?.colors[0];
@@ -891,25 +918,93 @@ export default function CustomerHomePage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 text-sm sm:text-base">
-            {['All', 'Apple'].map((brand) => (
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Smart Brand Dropdown Selector */}
+            <select
+              value={selectedBrand}
+              onChange={(e) => setSelectedBrand(e.target.value)}
+              className="px-4 py-2.5 rounded-xl bg-white border border-amber-300 text-slate-900 text-xs sm:text-sm font-bold shadow-sm focus:outline-none focus:border-amber-500 cursor-pointer"
+            >
+              <option value="All">📱 Tất cả thương hiệu ({phones.length} model)</option>
+              {availableBrands.map((b) => {
+                const cnt = phones.filter((p) => p.brand === b).length;
+                return (
+                  <option key={b} value={b}>
+                    Hãng {b} ({cnt} máy)
+                  </option>
+                );
+              })}
+            </select>
+
+            {/* Smart Capacity Dropdown Selector */}
+            <select
+              value={homeStorage}
+              onChange={(e) => setHomeStorage(e.target.value)}
+              className="px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-800 text-xs sm:text-sm font-bold shadow-sm focus:outline-none focus:border-amber-500 cursor-pointer"
+            >
+              <option value="All">💾 Tất cả dung lượng</option>
+              {availableStorages.map((st) => (
+                <option key={st} value={st}>
+                  Bản {st}
+                </option>
+              ))}
+            </select>
+
+            {/* Smart Sort Selector */}
+            <select
+              value={homeSort}
+              onChange={(e) => setHomeSort(e.target.value as any)}
+              className="px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-800 text-xs sm:text-sm font-bold shadow-sm focus:outline-none focus:border-amber-500 cursor-pointer"
+            >
+              <option value="default">⚡ Sắp xếp mặc định</option>
+              <option value="asc">↑ Giá thấp đến cao</option>
+              <option value="desc">↓ Giá cao đến thấp</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Smart Quick Search & Brand Quick Chips Bar */}
+        <div className="glass-panel rounded-2xl p-3.5 border border-amber-200/80 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="relative w-full sm:max-w-xs">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={homeSearch}
+              onChange={(e) => setHomeSearch(e.target.value)}
+              placeholder="Tìm nhanh iPhone 18, Duo, S24 Ultra..."
+              className="w-full pl-9 pr-4 py-2 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-amber-500 font-medium"
+            />
+          </div>
+
+          <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
+            <button
+              onClick={() => setSelectedBrand('All')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer ${
+                selectedBrand === 'All'
+                  ? 'btn-gold text-white font-black shadow-sm'
+                  : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
+              }`}
+            >
+              Tất cả ({phones.length})
+            </button>
+            {availableBrands.map((brand) => (
               <button
                 key={brand}
                 onClick={() => setSelectedBrand(brand)}
-                className={`px-5 py-2.5 rounded-xl font-bold transition-all shadow-sm ${
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer ${
                   selectedBrand === brand
-                    ? 'btn-gold text-white font-black shadow-md'
-                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100 hover:text-slate-900'
+                    ? 'btn-gold text-white font-black shadow-sm'
+                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
                 }`}
               >
-                {brand === 'All' ? 'Tất cả model' : brand}
+                {brand} ({phones.filter((p) => p.brand === brand).length})
               </button>
             ))}
           </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-7">
-          {filteredPhones.map((phone, idx) => {
+          {displayedHomePhones.map((phone, idx) => {
             const isComparing = compareIds.includes(phone.id);
             const lowestCapacity = phone.capacities[0];
             const availableStock = IShopStore.getProductAvailableStock({
@@ -1130,6 +1225,23 @@ export default function CustomerHomePage() {
             );
           })}
         </div>
+
+        {filteredPhones.length > 6 && (
+          <div className="flex justify-center pt-2">
+            <button
+              type="button"
+              onClick={() => setShowAllHomePhones(!showAllHomePhones)}
+              className="px-6 py-3 rounded-2xl bg-white hover:bg-amber-50 text-slate-800 hover:text-amber-800 border border-amber-300 font-bold text-xs sm:text-sm shadow-sm transition-all flex items-center gap-2 cursor-pointer"
+            >
+              <span>
+                {showAllHomePhones
+                  ? 'Thu gọn danh sách hiển thị'
+                  : `Xem toàn bộ ${filteredPhones.length} dòng máy trong kho`}
+              </span>
+              <ArrowRight className={`w-4 h-4 transition-transform ${showAllHomePhones ? '-rotate-90' : ''}`} />
+            </button>
+          </div>
+        )}
       </section>
 
       {/* 6. DỊCH VỤ SỬA CHỮA iCARE & TRA CỨU TIẾN ĐỘ QR (Nội dung từ Trái, Phiếu từ Phải) */}

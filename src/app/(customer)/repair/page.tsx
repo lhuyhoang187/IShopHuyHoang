@@ -37,7 +37,10 @@ import {
 } from '@/lib/types';
 
 export default function RepairPriceListPage() {
-  const [activeTab, setActiveTab] = useState<'iphone' | 'samsung'>('iphone');
+  const [activeTab, setActiveTab] = useState<'all' | 'iphone' | 'samsung'>('iphone');
+  const [priceCategoryFilter, setPriceCategoryFilter] = useState<string>('all');
+  const [priceSearchQuery, setPriceSearchQuery] = useState<string>('');
+  const [showAllPrices, setShowAllPrices] = useState<boolean>(false);
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [createdTicketCode, setCreatedTicketCode] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -275,21 +278,39 @@ export default function RepairPriceListPage() {
 
   // Dynamic live prices computed directly from shop-managed service catalog
   const displayPrices = useMemo(() => {
-    const brandFilter = activeTab === 'iphone' ? 'Apple' : 'Samsung';
-    const matched = serviceCatalog.filter(
-      (s) => s.deviceBrand === brandFilter || s.deviceBrand === 'Chung' || !s.deviceBrand
-    );
-    if (matched.length > 0) {
+    const brandFilter = activeTab === 'iphone' ? 'Apple' : activeTab === 'samsung' ? 'Samsung' : 'all';
+    const matched = serviceCatalog.filter((s) => {
+      if (brandFilter !== 'all') {
+        if (s.deviceBrand && s.deviceBrand !== brandFilter && s.deviceBrand !== 'Chung') return false;
+      }
+      if (priceCategoryFilter !== 'all' && s.category !== priceCategoryFilter) return false;
+      if (priceSearchQuery.trim()) {
+        const q = priceSearchQuery.toLowerCase().trim();
+        const matchName = s.name.toLowerCase().includes(q);
+        const matchModel = (s.deviceModels || '').toLowerCase().includes(q);
+        if (!matchName && !matchModel) return false;
+      }
+      return true;
+    });
+    if (matched.length > 0 || priceCategoryFilter !== 'all' || priceSearchQuery.trim()) {
       return matched.map((s) => ({
         service: s.name,
-        models: s.deviceModels || (activeTab === 'iphone' ? 'iPhone Series' : 'Galaxy Series'),
+        category: s.category || 'other',
+        brand: s.deviceBrand || 'Apple',
+        models: s.deviceModels || (activeTab === 'samsung' ? 'Galaxy Series' : 'iPhone Series'),
         price: s.price,
         warranty: s.warranty,
         estimatedMinutes: s.estimatedMinutes || 30,
       }));
     }
-    return activeTab === 'iphone' ? defaultIphonePrices : defaultSamsungPrices;
-  }, [serviceCatalog, activeTab]);
+    return (activeTab === 'samsung' ? defaultSamsungPrices : defaultIphonePrices).map((d) => ({
+      ...d,
+      category: 'other',
+      brand: activeTab === 'samsung' ? 'Samsung' : 'Apple',
+    }));
+  }, [serviceCatalog, activeTab, priceCategoryFilter, priceSearchQuery]);
+
+  const visiblePrices = showAllPrices ? displayPrices : displayPrices.slice(0, 8);
 
   useEffect(() => {
     fetch('/api/repairs/services')
@@ -428,17 +449,32 @@ export default function RepairPriceListPage() {
         </div>
       </div>
 
-      {/* Pricing Tables */}
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-            <span>Bảng Giá Tham Khảo</span>
-          </h2>
+      {/* Pricing Tables with Smart Selection Lists */}
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+              <span>Bảng Giá Tham Khảo ({displayPrices.length} dịch vụ)</span>
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Lọc thông minh theo hãng máy, hạng mục linh kiện hoặc gõ tìm nhanh dòng máy cần sửa.
+            </p>
+          </div>
 
-          <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl border border-slate-200">
+          <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200 self-start sm:self-auto">
+            <button
+              onClick={() => setActiveTab('all')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                activeTab === 'all'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Tất cả hãng
+            </button>
             <button
               onClick={() => setActiveTab('iphone')}
-              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
                 activeTab === 'iphone'
                   ? 'bg-blue-600 text-white shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
@@ -448,7 +484,7 @@ export default function RepairPriceListPage() {
             </button>
             <button
               onClick={() => setActiveTab('samsung')}
-              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
                 activeTab === 'samsung'
                   ? 'bg-blue-600 text-white shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
@@ -456,6 +492,38 @@ export default function RepairPriceListPage() {
             >
               Samsung Galaxy
             </button>
+          </div>
+        </div>
+
+        {/* Smart Filter Bar for Repair Services */}
+        <div className="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-xs grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
+          <div className="sm:col-span-7 relative">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={priceSearchQuery}
+              onChange={(e) => setPriceSearchQuery(e.target.value)}
+              placeholder="Tìm nhanh dịch vụ hoặc dòng máy (VD: Thay pin, Ép kính, iPhone 18, S24 Ultra)..."
+              className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:bg-white"
+            />
+          </div>
+
+          <div className="sm:col-span-5 flex items-center gap-2">
+            <span className="text-xs font-bold text-slate-600 shrink-0 flex items-center gap-1">
+              <Filter className="w-3.5 h-3.5 text-blue-600" /> Hạng mục:
+            </span>
+            <select
+              value={priceCategoryFilter}
+              onChange={(e) => setPriceCategoryFilter(e.target.value)}
+              className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 focus:outline-none focus:border-blue-500 cursor-pointer"
+            >
+              <option value="all">🔧 Tất cả hạng mục sửa chữa</option>
+              <option value="battery">🔋 Thay Pin Pisen / Pin Chính Hãng</option>
+              <option value="screen">📱 Thay Màn Hình Zin OLED 120Hz</option>
+              <option value="glass">✨ Ép Kính Cảm Ứng &amp; Kính Lưng Laser</option>
+              <option value="charge_port">⚡ Thay Cụm Chân Sạc &amp; Mic Thoại</option>
+              <option value="other">🛠️ Sửa Face ID, Camera &amp; Kiểm Tra Mạch</option>
+            </select>
           </div>
         </div>
 
@@ -473,7 +541,7 @@ export default function RepairPriceListPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {displayPrices.map((item, idx) => (
+                {visiblePrices.map((item, idx) => (
                   <tr key={idx} className="hover:bg-slate-50 transition-colors">
                     <td className="p-4 font-bold text-slate-900">
                       {item.service}
@@ -505,7 +573,7 @@ export default function RepairPriceListPage() {
                             model: targetModel,
                             service: item.service,
                           });
-                          setSelectedBrand(activeTab === 'iphone' ? 'Apple' : 'Samsung');
+                          setSelectedBrand(item.brand === 'Samsung' ? 'Samsung' : 'Apple');
                           setIsDeviceDropdownOpen(false);
                           setIsServiceDropdownOpen(false);
                           const el = document.getElementById('booking-form');
@@ -521,6 +589,17 @@ export default function RepairPriceListPage() {
               </tbody>
             </table>
           </div>
+          {displayPrices.length > 8 && (
+            <div className="p-3 bg-slate-50 border-t border-slate-200 text-center">
+              <button
+                type="button"
+                onClick={() => setShowAllPrices(!showAllPrices)}
+                className="px-4 py-1.5 rounded-xl bg-white hover:bg-blue-50 text-blue-700 border border-blue-200 text-xs font-bold transition-colors cursor-pointer shadow-2xs"
+              >
+                {showAllPrices ? 'Thu gọn bảng giá' : `Xem toàn bộ ${displayPrices.length} dịch vụ sửa chữa`}
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

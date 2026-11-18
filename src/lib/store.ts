@@ -62,13 +62,25 @@ function getStorage<T>(key: string, defaultValue: T): T {
   }
 }
 
-function setStorage<T>(key: string, value: T): void {
-  if (typeof window === 'undefined') return;
+function setStorage<T>(key: string, value: T, silent = false): boolean {
+  if (typeof window === 'undefined') return false;
   try {
-    localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(value));
-    window.dispatchEvent(new Event('ishop_data_changed'));
+    const serialized = JSON.stringify(value);
+    const existing = localStorage.getItem(STORAGE_PREFIX + key);
+    if (existing === serialized) return false;
+    localStorage.setItem(STORAGE_PREFIX + key, serialized);
+    if (!silent) {
+      window.dispatchEvent(new Event('ishop_data_changed'));
+      try {
+        const bc = new BroadcastChannel('ishop_sync_channel');
+        bc.postMessage({ type: 'data_changed', key, time: Date.now() });
+        bc.close();
+      } catch {}
+    }
+    return true;
   } catch (err) {
     console.error('Error writing localStorage', err);
+    return false;
   }
 }
 
@@ -255,49 +267,91 @@ export const initialRepairTimeSlots: RepairTimeSlotOption[] = [
 
 export const IShopStore = {
   // Centralized Database Hydration: Automatically synchronizes all live tables from MySQL
-  async hydrateFromDatabase() {
+  async hydrateFromDatabase(forceNotify = false) {
     if (typeof window === 'undefined') return;
     try {
-      const [custRes, supRes, phoneRes, stockRes, accRes, partsRes, invRes, repRes, cashRes] = await Promise.all([
-        fetch('/api/customers').then((r) => r.json()).catch(() => null),
-        fetch('/api/suppliers').then((r) => r.json()).catch(() => null),
-        fetch('/api/phones').then((r) => r.json()).catch(() => null),
-        fetch('/api/inventory/phones').then((r) => r.json()).catch(() => null),
-        fetch('/api/inventory/accessories').then((r) => r.json()).catch(() => null),
-        fetch('/api/inventory/spare-parts').then((r) => r.json()).catch(() => null),
-        fetch('/api/orders').then((r) => r.json()).catch(() => null),
-        fetch('/api/repairs').then((r) => r.json()).catch(() => null),
-        fetch('/api/cashbook').then((r) => r.json()).catch(() => null),
+      const ts = Date.now();
+      const noCache: RequestInit = { cache: 'no-store' };
+      const [
+        custRes,
+        supRes,
+        phoneRes,
+        stockRes,
+        accRes,
+        accCatRes,
+        partsRes,
+        partCatRes,
+        invRes,
+        repRes,
+        repCfgRes,
+        cashRes,
+        promoRes,
+      ] = await Promise.all([
+        fetch(`/api/customers?_t=${ts}`, noCache).then((r) => r.json()).catch(() => null),
+        fetch(`/api/suppliers?_t=${ts}`, noCache).then((r) => r.json()).catch(() => null),
+        fetch(`/api/phones?_t=${ts}`, noCache).then((r) => r.json()).catch(() => null),
+        fetch(`/api/inventory/phones?_t=${ts}`, noCache).then((r) => r.json()).catch(() => null),
+        fetch(`/api/inventory/accessories?_t=${ts}`, noCache).then((r) => r.json()).catch(() => null),
+        fetch(`/api/inventory/accessories/categories?_t=${ts}`, noCache).then((r) => r.json()).catch(() => null),
+        fetch(`/api/inventory/spare-parts?_t=${ts}`, noCache).then((r) => r.json()).catch(() => null),
+        fetch(`/api/inventory/spare-parts/categories?_t=${ts}`, noCache).then((r) => r.json()).catch(() => null),
+        fetch(`/api/orders?_t=${ts}`, noCache).then((r) => r.json()).catch(() => null),
+        fetch(`/api/repairs?_t=${ts}`, noCache).then((r) => r.json()).catch(() => null),
+        fetch(`/api/repairs/config?_t=${ts}`, noCache).then((r) => r.json()).catch(() => null),
+        fetch(`/api/cashbook?_t=${ts}`, noCache).then((r) => r.json()).catch(() => null),
+        fetch(`/api/promotions?_t=${ts}`, noCache).then((r) => r.json()).catch(() => null),
       ]);
 
-      if (custRes?.success && Array.isArray(custRes.data) && custRes.data.length > 0) {
-        setStorage('customers', custRes.data);
+      let changed = false;
+
+      if (custRes?.success && Array.isArray(custRes.data)) {
+        changed = setStorage('customers', custRes.data, true) || changed;
       }
-      if (supRes?.success && Array.isArray(supRes.data) && supRes.data.length > 0) {
-        setStorage('suppliers', supRes.data);
+      if (supRes?.success && Array.isArray(supRes.data)) {
+        changed = setStorage('suppliers', supRes.data, true) || changed;
       }
-      if (phoneRes?.success && Array.isArray(phoneRes.data) && phoneRes.data.length > 0) {
-        setStorage('phones', phoneRes.data);
+      if (phoneRes?.success && Array.isArray(phoneRes.data)) {
+        changed = setStorage('phones', phoneRes.data, true) || changed;
       }
-      if (stockRes?.success && Array.isArray(stockRes.data) && stockRes.data.length > 0) {
-        setStorage('phone_stock', stockRes.data);
+      if (stockRes?.success && Array.isArray(stockRes.data)) {
+        changed = setStorage('phone_stock', stockRes.data, true) || changed;
       }
-      if (accRes?.success && Array.isArray(accRes.data) && accRes.data.length > 0) {
-        setStorage('accessories', accRes.data);
+      if (accRes?.success && Array.isArray(accRes.data)) {
+        changed = setStorage('accessories', accRes.data, true) || changed;
       }
-      if (partsRes?.success && Array.isArray(partsRes.data) && partsRes.data.length > 0) {
-        setStorage('spare_parts', partsRes.data);
+      if (accCatRes?.success && Array.isArray(accCatRes.data) && accCatRes.data.length > 0) {
+        changed = setStorage('accessory_categories', accCatRes.data, true) || changed;
       }
-      if (invRes?.success && Array.isArray(invRes.data) && invRes.data.length > 0) {
-        setStorage('invoices', invRes.data);
+      if (partsRes?.success && Array.isArray(partsRes.data)) {
+        changed = setStorage('spare_parts', partsRes.data, true) || changed;
       }
-      if (repRes?.success && Array.isArray(repRes.data) && repRes.data.length > 0) {
-        setStorage('repairs', repRes.data);
+      if (partCatRes?.success && Array.isArray(partCatRes.data) && partCatRes.data.length > 0) {
+        changed = setStorage('spare_part_categories', partCatRes.data, true) || changed;
       }
-      if (cashRes?.success && Array.isArray(cashRes.data) && cashRes.data.length > 0) {
-        setStorage('cashbook', cashRes.data);
+      if (invRes?.success && Array.isArray(invRes.data)) {
+        changed = setStorage('invoices', invRes.data, true) || changed;
       }
-      window.dispatchEvent(new Event('ishop_data_changed'));
+      if (repRes?.success && Array.isArray(repRes.data)) {
+        changed = setStorage('repairs', repRes.data, true) || changed;
+      }
+      if (repCfgRes?.success && Array.isArray(repCfgRes.data?.services) && repCfgRes.data.services.length > 0) {
+        changed = setStorage('repair_service_catalog', repCfgRes.data.services, true) || changed;
+      }
+      if (cashRes?.success && Array.isArray(cashRes.data)) {
+        changed = setStorage('cashbook', cashRes.data, true) || changed;
+      }
+      if (promoRes?.success && promoRes.data) {
+        if (Array.isArray(promoRes.data.campaigns) && promoRes.data.campaigns.length > 0) {
+          changed = setStorage('promotion_campaigns', promoRes.data.campaigns, true) || changed;
+        }
+        if (Array.isArray(promoRes.data.promoQRs) && promoRes.data.promoQRs.length > 0) {
+          changed = setStorage('promo_qr_codes', promoRes.data.promoQRs, true) || changed;
+        }
+      }
+
+      if (changed || forceNotify) {
+        window.dispatchEvent(new Event('ishop_data_changed'));
+      }
     } catch (e) {
       console.warn('Hydration notice:', e);
     }
@@ -553,15 +607,36 @@ export const IShopStore = {
     const phones = this.getPhones();
     const updated = phones.filter((p) => p.brand.toLowerCase() !== brandName.toLowerCase());
     setStorage('phones', updated);
+    if (typeof window !== 'undefined') {
+      fetch(`/api/phones?brand=${encodeURIComponent(brandName)}`, {
+        method: 'DELETE',
+      }).catch((e) => console.warn('Delete brand phones API notice:', e));
+    }
   },
   updatePhone(phoneId: string, data: Partial<PhoneProduct>): void {
     const phones = this.getPhones();
-    const updated = phones.map((p) => (p.id === phoneId ? { ...p, ...data } : p));
+    let targetPhone: PhoneProduct | undefined;
+    const updated = phones.map((p) => {
+      if (p.id === phoneId) {
+        targetPhone = { ...p, ...data };
+        return targetPhone;
+      }
+      return p;
+    });
     setStorage('phones', updated);
+
+    if (typeof window !== 'undefined' && targetPhone) {
+      fetch('/api/phones', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(targetPhone),
+      }).catch((e) => console.warn('Update phone API notice:', e));
+    }
   },
   updatePhonePrice(phoneId: string, capacitySize: string, newPrice: number, newOriginalPrice?: number): void {
     const phones = this.getPhones();
     let phoneName = '';
+    let targetPhone: PhoneProduct | undefined;
     const updatedPhones = phones.map((p) => {
       if (p.id === phoneId) {
         phoneName = p.name;
@@ -575,7 +650,8 @@ export const IShopStore = {
           }
           return cap;
         });
-        return { ...p, capacities: newCapacities };
+        targetPhone = { ...p, capacities: newCapacities };
+        return targetPhone;
       }
       return p;
     });
@@ -594,6 +670,15 @@ export const IShopStore = {
       return item;
     });
     setStorage('phone_stock', updatedStock);
+
+    // Đồng bộ tức thì vào CSDL MySQL
+    if (typeof window !== 'undefined' && targetPhone) {
+      fetch('/api/phones', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(targetPhone),
+      }).catch((e) => console.warn('Update phone price API notice:', e));
+    }
   },
 
   // Cập nhật số lượng và trạng thái Còn hàng / Hết hàng theo màu sắc hoặc dung lượng
@@ -778,8 +863,23 @@ export const IShopStore = {
   },
   updateAccessory(accessoryId: string, data: Partial<AccessoryProduct>): void {
     const accessories = this.getAccessories();
-    const updated = accessories.map((a) => (a.id === accessoryId ? { ...a, ...data } : a));
+    let targetAcc: AccessoryProduct | undefined;
+    const updated = accessories.map((a) => {
+      if (a.id === accessoryId) {
+        targetAcc = { ...a, ...data };
+        return targetAcc;
+      }
+      return a;
+    });
     setStorage('accessories', updated);
+
+    if (typeof window !== 'undefined' && targetAcc) {
+      fetch('/api/inventory/accessories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: accessoryId, ...data, action: 'update' }),
+      }).catch((e) => console.warn('Update accessory API notice:', e));
+    }
   },
   addAccessory(accessory: AccessoryProduct): void {
     const accessories = this.getAccessories();
@@ -814,6 +914,20 @@ export const IShopStore = {
       return a;
     });
     setStorage('accessories', updated);
+
+    if (typeof window !== 'undefined') {
+      fetch('/api/inventory/accessories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: accessoryId,
+          sellingPrice: newSellingPrice,
+          ...(newOriginalPrice !== undefined ? { originalPrice: newOriginalPrice } : {}),
+          ...(newCostPrice !== undefined ? { costPrice: newCostPrice } : {}),
+          action: 'update',
+        }),
+      }).catch((e) => console.warn('Update accessory price API notice:', e));
+    }
   },
 
   // Accessory Categories Management (Quản lý danh mục phụ kiện động)
@@ -1866,13 +1980,19 @@ export const IShopStore = {
         if (col && typeof col.stock === 'number' && col.stock > 0) {
           return col.stock;
         }
+        // Nếu sản phẩm mới tạo trong DB chưa có dòng phonestock nhưng chưa bị đánh dấu hết hàng
+        if ((phone as any).inStockCount > 0) {
+          return (phone as any).inStockCount;
+        }
       }
 
       return 0;
     }
 
     // Trường hợp chung dòng điện thoại
-    return inStockPhones.length;
+    if (inStockPhones.length > 0) return inStockPhones.length;
+    if (phone && (phone as any).inStockCount > 0) return (phone as any).inStockCount;
+    return 0;
   },
 
   addToCart(item: Omit<CartItem, 'id'>): { success: boolean; message: string; availableStock: number } {
@@ -2202,18 +2322,44 @@ export const IShopStore = {
       id: 'qr-promo-' + Date.now(),
     };
     setStorage('promo_qr_codes', [newPromo, ...list]);
+    if (typeof window !== 'undefined') {
+      fetch('/api/promotions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'qrcode', data: newPromo }),
+      }).catch((e) => console.warn('Sync promo QR API notice:', e));
+    }
     return newPromo;
   },
 
   updatePromoQRCode(id: string, data: Partial<PromoQRCode>): void {
     const list = this.getPromoQRCodes();
-    const updated = list.map((p) => (p.id === id ? { ...p, ...data } : p));
+    let targetQR: PromoQRCode | undefined;
+    const updated = list.map((p) => {
+      if (p.id === id) {
+        targetQR = { ...p, ...data };
+        return targetQR;
+      }
+      return p;
+    });
     setStorage('promo_qr_codes', updated);
+    if (typeof window !== 'undefined' && targetQR) {
+      fetch('/api/promotions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'qrcode', data: targetQR }),
+      }).catch((e) => console.warn('Update promo QR API notice:', e));
+    }
   },
 
   deletePromoQRCode(id: string): void {
     const list = this.getPromoQRCodes();
     setStorage('promo_qr_codes', list.filter((p) => p.id !== id));
+    if (typeof window !== 'undefined') {
+      fetch(`/api/promotions?type=qrcode&id=${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      }).catch((e) => console.warn('Delete promo QR API notice:', e));
+    }
   },
 
   // =========================================================================
@@ -2272,18 +2418,44 @@ export const IShopStore = {
       id: 'camp-' + Date.now(),
     };
     setStorage('promotion_campaigns', [newCamp, ...list]);
+    if (typeof window !== 'undefined') {
+      fetch('/api/promotions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'campaign', data: newCamp }),
+      }).catch((e) => console.warn('Sync campaign API notice:', e));
+    }
     return newCamp;
   },
 
   updatePromotionCampaign(id: string, data: Partial<PromotionCampaign>): void {
     const list = this.getPromotionCampaigns();
-    const updated = list.map((c) => (c.id === id ? { ...c, ...data } : c));
+    let targetCamp: PromotionCampaign | undefined;
+    const updated = list.map((c) => {
+      if (c.id === id) {
+        targetCamp = { ...c, ...data };
+        return targetCamp;
+      }
+      return c;
+    });
     setStorage('promotion_campaigns', updated);
+    if (typeof window !== 'undefined' && targetCamp) {
+      fetch('/api/promotions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'campaign', data: targetCamp }),
+      }).catch((e) => console.warn('Update campaign API notice:', e));
+    }
   },
 
   deletePromotionCampaign(id: string): void {
     const list = this.getPromotionCampaigns();
     setStorage('promotion_campaigns', list.filter((c) => c.id !== id));
+    if (typeof window !== 'undefined') {
+      fetch(`/api/promotions?type=campaign&id=${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      }).catch((e) => console.warn('Delete campaign API notice:', e));
+    }
   },
 
   // =========================================================================
@@ -2358,10 +2530,38 @@ export const IShopStore = {
   },
 };
 
-// Automatic one-shot background hydration from live MySQL Database on page load
+// Automatic background & cross-tab real-time synchronization with live MySQL Database
 if (typeof window !== 'undefined') {
   setTimeout(() => {
     IShopStore.hydrateFromDatabase();
-  }, 150);
+  }, 100);
+
+  // Listen to storage events across tabs
+  window.addEventListener('storage', (e) => {
+    if (e.key && e.key.startsWith(STORAGE_PREFIX)) {
+      window.dispatchEvent(new Event('ishop_data_changed'));
+    }
+  });
+
+  // Listen to BroadcastChannel across tabs
+  try {
+    const bc = new BroadcastChannel('ishop_sync_channel');
+    bc.onmessage = (ev) => {
+      if (ev.data?.type === 'data_changed') {
+        window.dispatchEvent(new Event('ishop_data_changed'));
+      }
+    };
+  } catch {}
+
+  // Automatically re-hydrate from MySQL whenever user focuses window or returns to tab
+  window.addEventListener('focus', () => {
+    IShopStore.hydrateFromDatabase();
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      IShopStore.hydrateFromDatabase();
+    }
+  });
 }
 

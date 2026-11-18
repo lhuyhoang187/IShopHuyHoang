@@ -44,9 +44,12 @@ export default function POSPage() {
   const [availablePhones, setAvailablePhones] = useState<PhoneStockItem[]>([]);
   const [accessories, setAccessories] = useState<AccessoryProduct[]>([]);
 
-  // Search queries
+  // Search queries & Smart Category Filters
   const [phoneSearch, setPhoneSearch] = useState('');
+  const [posPhoneModelFilter, setPosPhoneModelFilter] = useState('all');
+  const [posPhoneCapacityFilter, setPosPhoneCapacityFilter] = useState('all');
   const [accessorySearch, setAccessorySearch] = useState('');
+  const [posAccCategoryFilter, setPosAccCategoryFilter] = useState('all');
 
   // POS Order & Customer State (Mẫu IncomSoft: Chọn, Xóa, Thêm, Sửa)
   const [posItems, setPosItems] = useState<InvoiceItem[]>([]);
@@ -378,19 +381,31 @@ export default function POSPage() {
     return () => window.removeEventListener('ishop_data_changed', listener);
   }, []);
 
-  // Filtered lists
-  const filteredPhones = availablePhones.filter(
-    (p) =>
-      p.imei.includes(phoneSearch.trim()) ||
-      p.phoneName.toLowerCase().includes(phoneSearch.toLowerCase()) ||
-      p.color.toLowerCase().includes(phoneSearch.toLowerCase())
+  // Unique options for POS smart selectors
+  const posUniqueModels = Array.from(new Set(availablePhones.map((p) => p.phoneName).filter(Boolean)));
+  const posUniqueCapacities = Array.from(new Set(availablePhones.map((p) => p.capacity).filter(Boolean)));
+  const posUniqueAccCategories = Array.from(
+    new Map(accessories.map((a) => [a.category, a.categoryName || a.category])).entries()
   );
 
-  const filteredAccessories = accessories.filter(
-    (a) =>
-      a.barcode.includes(accessorySearch.trim()) ||
-      a.name.toLowerCase().includes(accessorySearch.toLowerCase())
-  );
+  // Filtered lists
+  const filteredPhones = availablePhones
+    .filter((p) => (posPhoneModelFilter === 'all' ? true : p.phoneName === posPhoneModelFilter))
+    .filter((p) => (posPhoneCapacityFilter === 'all' ? true : p.capacity === posPhoneCapacityFilter))
+    .filter(
+      (p) =>
+        p.imei.includes(phoneSearch.trim()) ||
+        p.phoneName.toLowerCase().includes(phoneSearch.toLowerCase()) ||
+        p.color.toLowerCase().includes(phoneSearch.toLowerCase())
+    );
+
+  const filteredAccessories = accessories
+    .filter((a) => (posAccCategoryFilter === 'all' ? true : a.category === posAccCategoryFilter))
+    .filter(
+      (a) =>
+        a.barcode.includes(accessorySearch.trim()) ||
+        a.name.toLowerCase().includes(accessorySearch.toLowerCase())
+    );
 
   // Add phone by specific IMEI
   const addPhoneToOrder = (stockItem: PhoneStockItem) => {
@@ -562,6 +577,7 @@ export default function POSPage() {
     setCustomDiscountFixed(0);
     setCashGiven(0);
     setIsDiscountOverrideUnlocked(false);
+    await IShopStore.hydrateFromDatabase(true);
     loadStock();
   };
 
@@ -621,16 +637,42 @@ export default function POSPage() {
           {/* Tab 1: Phones by IMEI */}
           {activeTab === 'phones' ? (
             <div className="bg-white rounded-3xl p-6 border border-slate-200 space-y-4 shadow-sm">
-              <div className="relative">
-                <Search className="w-4 h-4 text-amber-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  value={phoneSearch}
-                  onChange={(e) => setPhoneSearch(e.target.value)}
-                  placeholder="Quét hoặc nhập 15 số IMEI, tên máy (VD: 358921104829104, iPhone 18, iPhone Duo...)"
-                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-amber-500 focus:bg-white font-mono transition-colors"
-                  autoFocus
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+                <div className="sm:col-span-6 relative">
+                  <Search className="w-4 h-4 text-amber-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={phoneSearch}
+                    onChange={(e) => setPhoneSearch(e.target.value)}
+                    placeholder="Quét 15 số IMEI hoặc gõ tên máy..."
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-amber-500 focus:bg-white font-mono transition-colors"
+                    autoFocus
+                  />
+                </div>
+                <select
+                  value={posPhoneModelFilter}
+                  onChange={(e) => setPosPhoneModelFilter(e.target.value)}
+                  className="sm:col-span-4 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 focus:outline-none focus:border-amber-500 cursor-pointer"
+                >
+                  <option value="all">📱 Tất cả dòng máy ({availablePhones.length})</option>
+                  {posUniqueModels.map((m) => (
+                    <option key={m} value={m}>
+                      {m} ({availablePhones.filter((p) => p.phoneName === m).length})
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={posPhoneCapacityFilter}
+                  onChange={(e) => setPosPhoneCapacityFilter(e.target.value)}
+                  className="sm:col-span-2 px-2.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 focus:outline-none focus:border-amber-500 cursor-pointer"
+                >
+                  <option value="all">Bộ nhớ</option>
+                  {posUniqueCapacities.map((cap) => (
+                    <option key={cap} value={cap}>
+                      {cap}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="space-y-2.5 max-h-[550px] overflow-y-auto pr-1">
@@ -691,16 +733,30 @@ export default function POSPage() {
           ) : (
             /* Tab 2: Accessories by Barcode */
             <div className="bg-white rounded-3xl p-6 border border-slate-200 space-y-4 shadow-sm">
-              <div className="relative">
-                <Barcode className="w-4 h-4 text-emerald-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  value={accessorySearch}
-                  onChange={(e) => setAccessorySearch(e.target.value)}
-                  placeholder="Quét mã vạch Barcode máy quét hoặc gõ tên phụ kiện..."
-                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white font-mono transition-colors"
-                  autoFocus
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+                <div className="sm:col-span-7 relative">
+                  <Barcode className="w-4 h-4 text-emerald-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={accessorySearch}
+                    onChange={(e) => setAccessorySearch(e.target.value)}
+                    placeholder="Quét mã vạch Barcode hoặc gõ tên phụ kiện..."
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white font-mono transition-colors"
+                    autoFocus
+                  />
+                </div>
+                <select
+                  value={posAccCategoryFilter}
+                  onChange={(e) => setPosAccCategoryFilter(e.target.value)}
+                  className="sm:col-span-5 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-500 cursor-pointer"
+                >
+                  <option value="all">🎧 Tất cả danh mục ({accessories.length})</option>
+                  {posUniqueAccCategories.map(([code, name]) => (
+                    <option key={code} value={code}>
+                      {name} ({accessories.filter((a) => a.category === code).length})
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="space-y-2.5 max-h-[550px] overflow-y-auto pr-1">

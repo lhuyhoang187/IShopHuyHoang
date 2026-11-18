@@ -76,13 +76,23 @@ export default function AdminLayout({
   useEffect(() => {
     setIsMounted(true);
     loadAdminState();
+    IShopStore.hydrateFromDatabase();
     const listener = () => loadAdminState();
     window.addEventListener('ishop_data_changed', listener);
-    return () => window.removeEventListener('ishop_data_changed', listener);
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        IShopStore.hydrateFromDatabase();
+      }
+    }, 10000);
+    return () => {
+      window.removeEventListener('ishop_data_changed', listener);
+      clearInterval(interval);
+    };
   }, []);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
+    IShopStore.hydrateFromDatabase();
   }, [pathname]);
 
   const handleStaffLogin = async (e: React.FormEvent) => {

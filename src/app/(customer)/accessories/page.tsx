@@ -1,22 +1,27 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { Headphones, ShoppingCart, Check, Filter, Plus, Minus, Sparkles, AlertCircle, Gift } from 'lucide-react';
+import { Headphones, ShoppingCart, Check, Filter, Plus, Minus, Sparkles, AlertCircle, Gift, Search, X } from 'lucide-react';
 import { IShopStore } from '@/lib/store';
-import { AccessoryProduct } from '@/lib/types';
+import { AccessoryProduct, AccessoryCategoryItem } from '@/lib/types';
 import { formatVND } from '@/lib/vietqr';
 
 export default function AccessoriesPage() {
   const [accessories, setAccessories] = useState<AccessoryProduct[]>([]);
+  const [dbCategories, setDbCategories] = useState<AccessoryCategoryItem[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedBrand, setSelectedBrand] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [priceSort, setPriceSort] = useState<'default' | 'asc' | 'desc'>('default');
   const [accQuantities, setAccQuantities] = useState<Record<string, number>>({});
   const [toastMessage, setToastMessage] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   const loadData = () => {
     setAccessories(IShopStore.getAccessories());
+    setDbCategories(IShopStore.getAccessoryCategories());
 
-    fetch('/api/inventory/accessories')
+    fetch(`/api/inventory/accessories?_t=${Date.now()}`, { cache: 'no-store' })
       .then((res) => res.json())
       .then((json) => {
         if (json.success && Array.isArray(json.data) && json.data.length > 0) {
@@ -24,28 +29,67 @@ export default function AccessoriesPage() {
         }
       })
       .catch((err) => console.warn('Accessories live fetch notice:', err));
+
+    fetch(`/api/inventory/accessories/categories?_t=${Date.now()}`, { cache: 'no-store' })
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+          setDbCategories(json.data);
+        }
+      })
+      .catch((err) => console.warn('Accessory categories fetch notice:', err));
   };
 
   useEffect(() => {
     loadData();
-    const listener = () => loadData();
+    const listener = () => {
+      setAccessories(IShopStore.getAccessories());
+      setDbCategories(IShopStore.getAccessoryCategories());
+    };
     window.addEventListener('ishop_data_changed', listener);
     return () => window.removeEventListener('ishop_data_changed', listener);
   }, []);
 
-  const categories = [
-    { key: 'all', label: 'Tất Cả' },
-    { key: 'charger', label: 'Củ Sạc GaN' },
-    { key: 'cable', label: 'Cáp Sạc Nhanh' },
-    { key: 'powerbank', label: 'Pin MagSafe' },
-    { key: 'screen_protector', label: 'Kính Cường Lực' },
-    { key: 'audio', label: 'Tai Nghe' },
-    { key: 'case', label: 'Ốp Lưng' },
-  ];
+  const categories = useMemo(() => {
+    const map = new Map<string, string>();
+    dbCategories.forEach((c) => map.set(c.code, c.name));
+    accessories.forEach((a) => {
+      if (a.category && !map.has(a.category)) {
+        map.set(a.category, a.categoryName || a.category);
+      }
+    });
+    return [
+      { key: 'all', label: 'Tất Cả Danh Mục', count: accessories.length },
+      ...Array.from(map.entries()).map(([key, label]) => ({
+        key,
+        label,
+        count: accessories.filter((a) => a.category === key).length,
+      })),
+    ];
+  }, [dbCategories, accessories]);
 
-  const filtered = accessories.filter((item) =>
-    selectedCategory === 'all' ? true : item.category === selectedCategory
-  );
+  const availableBrands = useMemo(() => {
+    return Array.from(new Set(accessories.map((a) => a.brand).filter(Boolean)));
+  }, [accessories]);
+
+  const filtered = accessories
+    .filter((item) => (selectedCategory === 'all' ? true : item.category === selectedCategory))
+    .filter((item) => (selectedBrand === 'all' ? true : item.brand === selectedBrand))
+    .filter((item) => {
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase().trim();
+      return (
+        item.name.toLowerCase().includes(q) ||
+        item.brand.toLowerCase().includes(q) ||
+        (item.specs && item.specs.toLowerCase().includes(q)) ||
+        (item.categoryName && item.categoryName.toLowerCase().includes(q))
+      );
+    })
+    .sort((a, b) => {
+      if (priceSort === 'asc') return (a.sellingPrice || 0) - (b.sellingPrice || 0);
+      if (priceSort === 'desc') return (b.sellingPrice || 0) - (a.sellingPrice || 0);
+      return 0;
+    });
 
   const handleAddToCart = (acc: AccessoryProduct) => {
     const qty = accQuantities[acc.id] || 1;
@@ -84,21 +128,112 @@ export default function AccessoriesPage() {
         </p>
       </div>
 
-      {/* Category Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-slate-200">
-        {categories.map((c) => (
-          <button
-            key={c.key}
-            onClick={() => setSelectedCategory(c.key)}
-            className={`px-4 py-2 rounded-xl text-xs font-bold shrink-0 transition-colors ${
-              selectedCategory === c.key
-                ? 'bg-emerald-700 text-white shadow-sm'
-                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-            }`}
-          >
-            {c.label}
-          </button>
-        ))}
+      {/* Smart Category & Brand Filter Bar (List chọn thông minh) */}
+      <div className="glass-panel rounded-2xl p-4 border border-emerald-200/80 shadow-sm space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 items-center">
+          {/* Search input */}
+          <div className="lg:col-span-5 relative">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Tìm phụ kiện theo tên, hãng (Anker, Apple, Baseus)..."
+              className="w-full pl-9 pr-8 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500 shadow-2xs"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Smart Category Dropdown */}
+          <div className="lg:col-span-3 flex items-center gap-2">
+            <span className="text-xs text-slate-600 font-bold shrink-0 flex items-center gap-1">
+              <Filter className="w-3.5 h-3.5 text-emerald-600" /> Danh mục:
+            </span>
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="w-full bg-white border border-slate-300 text-slate-800 text-xs font-bold rounded-xl px-3 py-2 focus:outline-none focus:border-emerald-500 shadow-2xs cursor-pointer"
+            >
+              {categories.map((c) => (
+                <option key={c.key} value={c.key}>
+                  {c.label} ({c.count})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Smart Brand Dropdown */}
+          <div className="lg:col-span-2 flex items-center gap-2">
+            <span className="text-xs text-slate-600 font-bold shrink-0">Hãng:</span>
+            <select
+              value={selectedBrand}
+              onChange={(e) => setSelectedBrand(e.target.value)}
+              className="w-full bg-white border border-slate-300 text-slate-800 text-xs font-bold rounded-xl px-3 py-2 focus:outline-none focus:border-emerald-500 shadow-2xs cursor-pointer"
+            >
+              <option value="all">Tất cả hãng</option>
+              {availableBrands.map((b) => (
+                <option key={b} value={b}>
+                  {b}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Sort Dropdown */}
+          <div className="lg:col-span-2 flex items-center gap-2">
+            <span className="text-xs text-slate-600 font-bold shrink-0">Giá:</span>
+            <select
+              value={priceSort}
+              onChange={(e) => setPriceSort(e.target.value as any)}
+              className="w-full bg-white border border-slate-300 text-slate-800 text-xs font-bold rounded-xl px-3 py-2 focus:outline-none focus:border-emerald-500 shadow-2xs cursor-pointer"
+            >
+              <option value="default">Mặc định</option>
+              <option value="asc">Giá tăng dần</option>
+              <option value="desc">Giá giảm dần</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Quick Category Pills */}
+        <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200 flex-wrap">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+            {categories.map((c) => (
+              <button
+                key={c.key}
+                onClick={() => setSelectedCategory(c.key)}
+                className={`px-3 py-1 rounded-xl text-xs font-bold shrink-0 transition-colors cursor-pointer ${
+                  selectedCategory === c.key
+                    ? 'bg-emerald-700 text-white shadow-sm'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                {c.label} ({c.count})
+              </button>
+            ))}
+          </div>
+
+          {(selectedCategory !== 'all' || selectedBrand !== 'all' || searchQuery) && (
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedCategory('all');
+                setSelectedBrand('all');
+                setSearchQuery('');
+              }}
+              className="text-xs font-bold text-rose-600 hover:underline cursor-pointer"
+            >
+              Đặt lại bộ lọc
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Grid */}
