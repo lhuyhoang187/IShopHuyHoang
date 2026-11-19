@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Camera, Upload, Link as LinkIcon, Check, X, Trash2, Sparkles, Loader2, Image as ImageIcon } from 'lucide-react';
+import { Camera, Upload, Check, X, Trash2, Loader2 } from 'lucide-react';
 
 interface AvatarPickerModalProps {
   isOpen: boolean;
@@ -12,58 +12,6 @@ interface AvatarPickerModalProps {
   title?: string;
 }
 
-// Bộ sưu tập avatar cao cấp đa dạng dành cho cả Khách hàng và Nhân viên / Chủ Shop
-export const PRESET_AVATARS = [
-  {
-    id: 'apple_genius_1',
-    label: 'Chuyên Viên Apple Nam',
-    category: 'Pro',
-    url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80',
-  },
-  {
-    id: 'apple_genius_2',
-    label: 'Chuyên Viên Apple Nữ',
-    category: 'Pro',
-    url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&auto=format&fit=crop&q=80',
-  },
-  {
-    id: 'tech_expert_1',
-    label: 'Kỹ Thuật Viên Tech',
-    category: 'Pro',
-    url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&auto=format&fit=crop&q=80',
-  },
-  {
-    id: 'luxe_vip_1',
-    label: 'Khách Hàng VIP Hoàng Gia',
-    category: 'VIP',
-    url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&auto=format&fit=crop&q=80',
-  },
-  {
-    id: 'luxe_vip_2',
-    label: 'Nữ Doanh Nhân VIP',
-    category: 'VIP',
-    url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400&auto=format&fit=crop&q=80',
-  },
-  {
-    id: 'luxe_vip_3',
-    label: 'Chuyên Gia Tối Giản',
-    category: 'VIP',
-    url: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=400&auto=format&fit=crop&q=80',
-  },
-  {
-    id: 'robot_titanium',
-    label: 'iCare Cyber Bot',
-    category: 'Creative',
-    url: 'https://api.dicebear.com/7.x/bottts/svg?seed=HuyHoangCyber',
-  },
-  {
-    id: 'adventurer_luxe',
-    label: 'Titanium Adventurer',
-    category: 'Creative',
-    url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=IShopVIPCard',
-  },
-];
-
 export function AvatarPickerModal({
   isOpen,
   onClose,
@@ -73,8 +21,6 @@ export function AvatarPickerModal({
   title = 'Cập Nhật Ảnh Đại Diện',
 }: AvatarPickerModalProps) {
   const [selectedAvatar, setSelectedAvatar] = useState<string | null>(currentAvatar || null);
-  const [activeTab, setActiveTab] = useState<'upload' | 'preset' | 'url'>('upload');
-  const [customUrl, setCustomUrl] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [imageMeta, setImageMeta] = useState<string | null>(null);
@@ -96,7 +42,6 @@ export function AvatarPickerModal({
       return;
     }
 
-    // Cho phép ảnh gốc dung lượng đến 15MB vì sẽ được nén tối ưu ngay trên trình duyệt
     if (file.size > 15 * 1024 * 1024) {
       setErrorMsg('Tập tin ảnh gốc vượt quá 15MB. Vui lòng chọn ảnh nhỏ hơn.');
       return;
@@ -128,18 +73,15 @@ export function AvatarPickerModal({
             ctx.imageSmoothingEnabled = true;
             ctx.imageSmoothingQuality = 'high';
 
-            // Tính toán cắt vuông ở chính giữa (Center Crop) không bị méo tỉ lệ
             const minDim = Math.min(img.width, img.height);
             const sx = (img.width - minDim) / 2;
             const sy = (img.height - minDim) / 2;
 
-            // Nền trắng mềm nếu là PNG trong suốt
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, targetSize, targetSize);
 
             ctx.drawImage(img, sx, sy, minDim, minDim, 0, 0, targetSize, targetSize);
 
-            // Xuất JPEG tối ưu chất lượng cao 90% (dung lượng nhẹ ~30-45KB)
             const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.90);
             setSelectedAvatar(compressedDataUrl);
             setImageMeta(`✓ Đã nén & cắt vuông chuẩn 400x400px (${Math.round((compressedDataUrl.length * 3) / 4 / 1024)} KB)`);
@@ -174,7 +116,6 @@ export function AvatarPickerModal({
     const file = e.target.files?.[0];
     if (!file) return;
     processImageFile(file);
-    // Reset file input value to allow re-selecting the same file if needed
     e.target.value = '';
   };
 
@@ -197,27 +138,6 @@ export function AvatarPickerModal({
     }
   };
 
-  const handleApplyUrl = () => {
-    if (!customUrl.trim()) {
-      setErrorMsg('Vui lòng nhập đường link ảnh hợp lệ');
-      return;
-    }
-    setErrorMsg(null);
-    setIsUploading(true);
-
-    const testImg = new Image();
-    testImg.onload = () => {
-      setSelectedAvatar(customUrl.trim());
-      setImageMeta('✓ Đường dẫn ảnh hợp lệ');
-      setIsUploading(false);
-    };
-    testImg.onerror = () => {
-      setErrorMsg('Không thể tải ảnh từ liên kết URL đã nhập. Vui lòng kiểm tra lại');
-      setIsUploading(false);
-    };
-    testImg.src = customUrl.trim();
-  };
-
   const handleConfirm = () => {
     onSaveAvatar(selectedAvatar);
     onClose();
@@ -225,7 +145,6 @@ export function AvatarPickerModal({
 
   const handleRemove = () => {
     setSelectedAvatar(null);
-    setCustomUrl('');
     setImageMeta(null);
     setErrorMsg(null);
   };
@@ -241,7 +160,7 @@ export function AvatarPickerModal({
             </div>
             <div>
               <h3 className="text-base font-black text-slate-900">{title}</h3>
-              <p className="text-[11px] text-slate-500">Tải ảnh hoặc chọn avatar phong cách chuẩn iShop</p>
+              <p className="text-[11px] text-slate-500">Tải ảnh đại diện trực tiếp từ thiết bị của bạn</p>
             </div>
           </div>
           <button
@@ -291,7 +210,7 @@ export function AvatarPickerModal({
           <div className="space-y-1 text-xs">
             <p className="font-bold text-slate-900 text-sm">{name}</p>
             <p className="text-slate-500 text-[11px]">
-              {selectedAvatar ? 'Đang chọn ảnh tùy chỉnh' : 'Đang sử dụng ký tự viết tắt mặc định'}
+              {selectedAvatar ? 'Đang chọn ảnh đại diện' : 'Đang sử dụng ký tự viết tắt mặc định'}
             </p>
             {imageMeta ? (
               <p className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-md inline-block border border-emerald-200">
@@ -311,148 +230,44 @@ export function AvatarPickerModal({
           </div>
         )}
 
-        {/* Mode Navigation Tabs */}
-        <div className="grid grid-cols-3 p-1 rounded-xl bg-slate-100 border border-slate-200 text-xs font-bold">
-          <button
-            type="button"
-            onClick={() => setActiveTab('upload')}
-            className={`py-2 rounded-lg transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${
-              activeTab === 'upload' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
+        {/* Upload from local device */}
+        <div className="space-y-3">
+          <input
+            autoComplete="off"
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+          <div
+            onClick={() => fileInputRef.current?.click()}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all space-y-2 group ${
+              isDragging
+                ? 'border-amber-500 bg-amber-50/70 scale-[1.01]'
+                : 'border-slate-300 hover:border-amber-500 bg-slate-50 hover:bg-amber-50/40'
             }`}
           >
-            <Upload className="w-3.5 h-3.5" />
-            <span>Tải Ảnh Lên</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('preset')}
-            className={`py-2 rounded-lg transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${
-              activeTab === 'preset' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Bộ Sưu Tập</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('url')}
-            className={`py-2 rounded-lg transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${
-              activeTab === 'url' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <LinkIcon className="w-3.5 h-3.5" />
-            <span>Đường Dẫn URL</span>
-          </button>
+            <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center mx-auto group-hover:scale-110 transition-transform">
+              {isUploading ? (
+                <Loader2 className="w-6 h-6 animate-spin text-amber-600" />
+              ) : (
+                <Upload className="w-6 h-6" />
+              )}
+            </div>
+            <div>
+              <p className="text-slate-900 font-bold text-xs">
+                {isUploading ? 'Đang nén & tối ưu ảnh...' : 'Nhấn để tải ảnh lên hoặc kéo thả vào đây'}
+              </p>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Tự động cắt vuông 1:1, hỗ trợ JPG, PNG, WEBP, GIF (Tối đa 15MB)
+              </p>
+            </div>
+          </div>
         </div>
-
-        {/* Tab 1: Upload from local device */}
-        {activeTab === 'upload' && (
-          <div className="space-y-3">
-            <input autoComplete="off"
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleFileChange}
-            />
-            <div
-              onClick={() => fileInputRef.current?.click()}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all space-y-2 group ${
-                isDragging
-                  ? 'border-amber-500 bg-amber-50/70 scale-[1.01]'
-                  : 'border-slate-300 hover:border-amber-500 bg-slate-50 hover:bg-amber-50/40'
-              }`}
-            >
-              <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center mx-auto group-hover:scale-110 transition-transform">
-                {isUploading ? (
-                  <Loader2 className="w-6 h-6 animate-spin text-amber-600" />
-                ) : (
-                  <Upload className="w-6 h-6" />
-                )}
-              </div>
-              <div>
-                <p className="text-slate-900 font-bold text-xs">
-                  {isUploading ? 'Đang nén & tối ưu ảnh...' : 'Nhấn để chọn ảnh hoặc kéo thả vào đây'}
-                </p>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  Tự động cắt vuông 1:1, hỗ trợ JPG, PNG, WEBP, GIF (Tối đa 15MB)
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Tab 2: Preset Gallery */}
-        {activeTab === 'preset' && (
-          <div className="space-y-2">
-            <p className="text-xs text-slate-600 font-medium">Chọn 1 avatar chuẩn phong cách iShop Flagship:</p>
-            <div className="grid grid-cols-4 gap-2.5 max-h-52 overflow-y-auto pr-1">
-              {PRESET_AVATARS.map((preset) => {
-                const isSelected = selectedAvatar === preset.url;
-                return (
-                  <button
-                    key={preset.id}
-                    type="button"
-                    onClick={() => {
-                      setSelectedAvatar(preset.url);
-                      setImageMeta(`✓ Đã chọn mẫu: ${preset.label}`);
-                    }}
-                    className={`relative rounded-2xl p-1.5 border transition-all text-left group overflow-hidden cursor-pointer ${
-                      isSelected
-                        ? 'border-amber-500 bg-amber-50 shadow-sm ring-2 ring-amber-400/40'
-                        : 'border-slate-200 hover:border-slate-300 bg-slate-50'
-                    }`}
-                  >
-                    <div className="aspect-square rounded-xl overflow-hidden bg-slate-100">
-                      <img
-                        src={preset.url}
-                        alt={preset.label}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                      />
-                    </div>
-                    <span className="block text-[9px] font-bold text-slate-700 truncate mt-1 text-center">
-                      {preset.label}
-                    </span>
-                    {isSelected && (
-                      <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-amber-500 text-white flex items-center justify-center shadow">
-                        <Check className="w-2.5 h-2.5 stroke-[3]" />
-                      </div>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Tab 3: Custom URL */}
-        {activeTab === 'url' && (
-          <div className="space-y-3">
-            <label className="text-slate-700 font-bold text-xs block">
-              Dán đường dẫn ảnh trực tuyến (URL):
-            </label>
-            <div className="flex gap-2">
-              <input autoComplete="off"
-                type="url"
-                value={customUrl}
-                onChange={(e) => setCustomUrl(e.target.value)}
-                placeholder=""
-                className="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:bg-white focus:outline-none focus:border-amber-500 font-medium"
-              />
-              <button
-                type="button"
-                onClick={handleApplyUrl}
-                disabled={isUploading}
-                className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white font-bold text-xs border border-slate-900 shrink-0 cursor-pointer disabled:opacity-50"
-              >
-                Kiểm Tra &amp; Áp Dụng
-              </button>
-            </div>
-          </div>
-        )}
 
         {/* Footer Actions */}
         <div className="flex items-center justify-between pt-3 border-t border-slate-200">
