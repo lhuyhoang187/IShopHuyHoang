@@ -84,3 +84,17 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    if (!id) {
+      return NextResponse.json({ error: 'Thiếu ID quyền cần xóa' }, { status: 400 });
+    }
+    await db.execute('DELETE FROM rolepermission WHERE id = ?', [id]);
+    return NextResponse.json({ success: true, message: 'Đã xóa phân hệ quyền khỏi CSDL' });
+  } catch (error: any) {
+    return NextResponse.json({ error: 'Lỗi xóa phân quyền: ' + (error?.message || '') }, { status: 500 });
+  }
+}

@@ -6,25 +6,51 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    const campaigns = await db.query('SELECT * FROM promotioncampaign ORDER BY createdAt DESC');
-    const promoQRs = await db.query('SELECT * FROM promoqrcode ORDER BY createdAt DESC');
+    const rows = await db.query('SELECT * FROM promotion ORDER BY createdAt DESC');
 
-    const mappedCampaigns = campaigns.map((c) => ({
-      ...c,
-      isActive: Boolean(c.isActive),
-    }));
+    const campaigns = rows
+      .filter((r) => r.promoType === 'campaign')
+      .map((c) => ({
+        id: c.id,
+        title: c.title,
+        description: c.description || '',
+        badgeText: c.badgeText,
+        discountType: c.discountType,
+        discountValue: Number(c.discountValue || 0),
+        startDate: c.startDate,
+        endDate: c.endDate,
+        isActive: Boolean(c.isActive),
+        targetCategory: c.targetCategory || 'all',
+        bannerGradient: c.bannerStyle,
+        createdAt: c.createdAt,
+        updatedAt: c.updatedAt,
+      }));
 
-    const mappedPromoQRs = promoQRs.map((q) => ({
-      ...q,
-      isActive: Boolean(q.isActive),
-    }));
+    const promoQRs = rows
+      .filter((r) => r.promoType === 'qrcode')
+      .map((q) => ({
+        id: q.id,
+        code: q.code,
+        title: q.title,
+        description: q.description || '',
+        discountType: q.discountType,
+        discountValue: Number(q.discountValue || 0),
+        minOrderValue: Number(q.minOrderValue || 0),
+        startDate: q.startDate,
+        endDate: q.endDate,
+        isActive: Boolean(q.isActive),
+        qrPayload: q.qrPayload,
+        bannerColor: q.bannerStyle,
+        createdAt: q.createdAt,
+        updatedAt: q.updatedAt,
+      }));
 
     return NextResponse.json({
       success: true,
       source: 'mysql_database',
       data: {
-        campaigns: mappedCampaigns,
-        promoQRs: mappedPromoQRs,
+        campaigns,
+        promoQRs,
       },
     });
   } catch (error: any) {
@@ -42,23 +68,40 @@ export async function POST(request: NextRequest) {
     const { type, data } = body; // type: 'campaign' | 'qrcode'
 
     if (type === 'campaign') {
-      const { id, title, description, badgeText, discountType, discountValue, startDate, endDate, isActive, targetCategory, bannerGradient } = data;
+      const {
+        id,
+        title,
+        description,
+        badgeText,
+        discountType,
+        discountValue,
+        startDate,
+        endDate,
+        isActive,
+        targetCategory,
+        bannerGradient,
+      } = data;
+
       if (!title || !discountValue) {
         return NextResponse.json({ error: 'Tiêu đề và mức chiết khấu không được để trống' }, { status: 400 });
       }
 
       const campId = id || 'camp-' + Date.now();
-      const existing = await db.queryOne('SELECT id FROM promotioncampaign WHERE id = ?', [campId]);
+      const existing = await db.queryOne('SELECT id FROM promotion WHERE id = ?', [campId]);
 
-      const start = startDate ? new Date(startDate).toISOString().replace('T', ' ').substring(0, 19) : new Date().toISOString().replace('T', ' ').substring(0, 19);
-      const end = endDate ? new Date(endDate).toISOString().replace('T', ' ').substring(0, 19) : new Date(Date.now() + 7 * 86400000).toISOString().replace('T', ' ').substring(0, 19);
+      const start = startDate
+        ? new Date(startDate).toISOString().replace('T', ' ').substring(0, 19)
+        : new Date().toISOString().replace('T', ' ').substring(0, 19);
+      const end = endDate
+        ? new Date(endDate).toISOString().replace('T', ' ').substring(0, 19)
+        : new Date(Date.now() + 7 * 86400000).toISOString().replace('T', ' ').substring(0, 19);
       const boolActive = isActive !== undefined ? (isActive ? 1 : 0) : 1;
 
       if (existing) {
         await db.execute(
-          `UPDATE promotioncampaign SET 
-             title = ?, description = ?, badgeText = ?, discountType = ?, discountValue = ?, 
-             startDate = ?, endDate = ?, isActive = ?, targetCategory = ?, bannerGradient = ?, updatedAt = NOW()
+          `UPDATE promotion SET
+             promoType = 'campaign', title = ?, description = ?, badgeText = ?, discountType = ?, discountValue = ?,
+             startDate = ?, endDate = ?, isActive = ?, targetCategory = ?, bannerStyle = ?, updatedAt = NOW()
            WHERE id = ?`,
           [
             sanitizeString(title, 191),
@@ -76,9 +119,9 @@ export async function POST(request: NextRequest) {
         );
       } else {
         await db.execute(
-          `INSERT INTO promotioncampaign 
-           (id, title, description, badgeText, discountType, discountValue, startDate, endDate, isActive, targetCategory, bannerGradient, createdAt, updatedAt)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+          `INSERT INTO promotion
+           (id, promoType, code, title, description, badgeText, discountType, discountValue, minOrderValue, startDate, endDate, isActive, targetCategory, bannerStyle, qrPayload, createdAt, updatedAt)
+           VALUES (?, 'campaign', NULL, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, NULL, NOW(), NOW())`,
           [
             campId,
             sanitizeString(title, 191),
@@ -95,33 +138,53 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const campaign = await db.queryOne('SELECT * FROM promotioncampaign WHERE id = ?', [campId]);
+      const campaign = await db.queryOne('SELECT * FROM promotion WHERE id = ?', [campId]);
       return NextResponse.json({
         success: true,
         message: 'Đã lưu chiến dịch khuyến mãi',
-        data: campaign ? { ...campaign, isActive: Boolean(campaign.isActive) } : null,
+        data: campaign
+          ? { ...campaign, bannerGradient: campaign.bannerStyle, isActive: Boolean(campaign.isActive) }
+          : null,
       });
     }
 
     if (type === 'qrcode') {
-      const { id, code, title, description, discountType, discountValue, minOrderValue, startDate, endDate, isActive, qrPayload, bannerColor } = data;
+      const {
+        id,
+        code,
+        title,
+        description,
+        discountType,
+        discountValue,
+        minOrderValue,
+        startDate,
+        endDate,
+        isActive,
+        qrPayload,
+        bannerColor,
+      } = data;
+
       if (!code || !title || !discountValue) {
         return NextResponse.json({ error: 'Mã voucher, tiêu đề và mức giảm không được để trống' }, { status: 400 });
       }
 
       const cleanCode = sanitizeString(code, 50).toUpperCase().replace(/\s+/g, '-');
-      const existing = await db.queryOne('SELECT id FROM promoqrcode WHERE code = ?', [cleanCode]);
+      const existing = await db.queryOne('SELECT id FROM promotion WHERE code = ?', [cleanCode]);
       const qrId = existing?.id || id || 'qr-promo-' + Date.now();
 
-      const start = startDate ? new Date(startDate).toISOString().replace('T', ' ').substring(0, 19) : new Date().toISOString().replace('T', ' ').substring(0, 19);
-      const end = endDate ? new Date(endDate).toISOString().replace('T', ' ').substring(0, 19) : new Date(Date.now() + 7 * 86400000).toISOString().replace('T', ' ').substring(0, 19);
+      const start = startDate
+        ? new Date(startDate).toISOString().replace('T', ' ').substring(0, 19)
+        : new Date().toISOString().replace('T', ' ').substring(0, 19);
+      const end = endDate
+        ? new Date(endDate).toISOString().replace('T', ' ').substring(0, 19)
+        : new Date(Date.now() + 7 * 86400000).toISOString().replace('T', ' ').substring(0, 19);
       const boolActive = isActive !== undefined ? (isActive ? 1 : 0) : 1;
 
       if (existing) {
         await db.execute(
-          `UPDATE promoqrcode SET 
-             title = ?, description = ?, discountType = ?, discountValue = ?, minOrderValue = ?, 
-             startDate = ?, endDate = ?, isActive = ?, qrPayload = ?, bannerColor = ?, updatedAt = NOW()
+          `UPDATE promotion SET
+             promoType = 'qrcode', title = ?, description = ?, discountType = ?, discountValue = ?, minOrderValue = ?,
+             startDate = ?, endDate = ?, isActive = ?, qrPayload = ?, bannerStyle = ?, updatedAt = NOW()
            WHERE id = ?`,
           [
             sanitizeString(title, 191),
@@ -139,9 +202,9 @@ export async function POST(request: NextRequest) {
         );
       } else {
         await db.execute(
-          `INSERT INTO promoqrcode 
-           (id, code, title, description, discountType, discountValue, minOrderValue, startDate, endDate, isActive, qrPayload, bannerColor, createdAt, updatedAt)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+          `INSERT INTO promotion
+           (id, promoType, code, title, description, badgeText, discountType, discountValue, minOrderValue, startDate, endDate, isActive, targetCategory, bannerStyle, qrPayload, createdAt, updatedAt)
+           VALUES (?, 'qrcode', ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, 'all', ?, ?, NOW(), NOW())`,
           [
             qrId,
             cleanCode,
@@ -153,17 +216,19 @@ export async function POST(request: NextRequest) {
             start,
             end,
             boolActive,
-            qrPayload || `https://ishop.vn/promo/${cleanCode}`,
             bannerColor || null,
+            qrPayload || `https://ishop.vn/promo/${cleanCode}`,
           ]
         );
       }
 
-      const promoQR = await db.queryOne('SELECT * FROM promoqrcode WHERE id = ?', [qrId]);
+      const promoQR = await db.queryOne('SELECT * FROM promotion WHERE id = ?', [qrId]);
       return NextResponse.json({
         success: true,
         message: 'Đã lưu mã QR khuyến mãi',
-        data: promoQR ? { ...promoQR, isActive: Boolean(promoQR.isActive) } : null,
+        data: promoQR
+          ? { ...promoQR, bannerColor: promoQR.bannerStyle, isActive: Boolean(promoQR.isActive) }
+          : null,
       });
     }
 
@@ -180,18 +245,13 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const type = searchParams.get('type');
     const id = searchParams.get('id');
 
     if (!id) {
       return NextResponse.json({ error: 'Thiếu ID khuyến mãi cần xóa' }, { status: 400 });
     }
 
-    if (type === 'qrcode') {
-      await db.execute('DELETE FROM promoqrcode WHERE id = ? OR code = ?', [id, id]);
-    } else {
-      await db.execute('DELETE FROM promotioncampaign WHERE id = ?', [id]);
-    }
+    await db.execute('DELETE FROM promotion WHERE id = ? OR code = ?', [id, id]);
 
     return NextResponse.json({
       success: true,

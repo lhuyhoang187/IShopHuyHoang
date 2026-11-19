@@ -2,22 +2,43 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { sanitizeString } from '@/lib/validation';
 
+async function resolveAccessoryCategoryId(code?: string, categoryName?: string): Promise<string> {
+  const cleanCode = sanitizeString(code || 'other', 50).toLowerCase();
+  let cat = await db.queryOne('SELECT id FROM accessorycategory WHERE code = ? OR id = ?', [cleanCode, code || '']);
+  if (cat?.id) return cat.id;
+
+  const fallback = await db.queryOne('SELECT id FROM accessorycategory WHERE code = ?', ['other']);
+  if (fallback?.id) return fallback.id;
+
+  const newId = 'acc_cat_' + Date.now();
+  await db.execute(
+    `INSERT INTO accessorycategory (id, code, name, isActive, createdAt, updatedAt)
+     VALUES (?, ?, ?, 1, NOW(), NOW())`,
+    [newId, cleanCode || 'other', sanitizeString(categoryName || 'Phụ kiện khác', 100)]
+  );
+  return newId;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category');
     const search = searchParams.get('search')?.trim();
 
-    let sql = 'SELECT * FROM accessoryproduct';
+    let sql = `
+      SELECT a.*, c.code AS category, c.name AS categoryName
+      FROM accessoryproduct a
+      LEFT JOIN accessorycategory c ON a.categoryId = c.id
+    `;
     const whereClauses: string[] = [];
     const params: any[] = [];
 
     if (category && category !== 'all') {
-      whereClauses.push('category = ?');
-      params.push(category);
+      whereClauses.push('(c.code = ? OR a.categoryId = ?)');
+      params.push(category, category);
     }
     if (search) {
-      whereClauses.push('(name LIKE ? OR barcode LIKE ? OR brand LIKE ?)');
+      whereClauses.push('(a.name LIKE ? OR a.barcode LIKE ? OR a.brand LIKE ?)');
       params.push(`%${search}%`, `%${search}%`, `%${search}%`);
     }
 
@@ -25,7 +46,7 @@ export async function GET(request: NextRequest) {
       sql += ' WHERE ' + whereClauses.join(' AND ');
     }
 
-    sql += ' ORDER BY createdAt DESC';
+    sql += ' ORDER BY a.createdAt DESC';
 
     const accessories = await db.query(sql, params);
 
@@ -52,6 +73,7 @@ export async function POST(request: NextRequest) {
       name,
       slug,
       category,
+      categoryId,
       categoryName,
       barcode,
       brand,
@@ -69,7 +91,6 @@ export async function POST(request: NextRequest) {
       action,
     } = body;
 
-    // 1. Tạo phụ kiện mới
     if (action === 'create' || !id) {
       if (!name || !barcode) {
         return NextResponse.json(
@@ -88,16 +109,17 @@ export async function POST(request: NextRequest) {
           .replace(/[^a-z0-9]+/g, '-')
           .replace(/(^-|-$)+/g, '') + `-${Date.now().toString().slice(-4)}`;
 
+      const resolvedCategoryId = await resolveAccessoryCategoryId(categoryId || category, categoryName);
+
       await db.execute(
-        `INSERT INTO accessoryproduct 
-         (id, name, slug, category, categoryName, barcode, brand, costPrice, sellingPrice, originalPrice, stock, minStockAlert, imageUrl, specs, description, compatibleWith, discountWhenBoughtWithPhone, pointsToRedeem, createdAt, updatedAt)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+        `INSERT INTO accessoryproduct
+         (id, name, slug, categoryId, barcode, brand, costPrice, sellingPrice, originalPrice, stock, minStockAlert, imageUrl, specs, description, compatibleWith, discountWhenBoughtWithPhone, pointsToRedeem, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
         [
           generatedId,
           sanitizeString(name, 191),
           generatedSlug,
-          category || 'other',
-          categoryName || 'Phụ kiện khác',
+          resolvedCategoryId,
           sanitizeString(barcode, 50),
           brand || 'Khác',
           Number(costPrice) || 0,
@@ -114,7 +136,13 @@ export async function POST(request: NextRequest) {
         ]
       );
 
-      const newAccessory = await db.queryOne('SELECT * FROM accessoryproduct WHERE id = ?', [generatedId]);
+      const newAccessory = await db.queryOne(
+        `SELECT a.*, c.code AS category, c.name AS categoryName
+         FROM accessoryproduct a
+         LEFT JOIN accessorycategory c ON a.categoryId = c.id
+         WHERE a.id = ?`,
+        [generatedId]
+      );
 
       return NextResponse.json({
         success: true,
@@ -123,7 +151,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 2. Chỉnh sửa phụ kiện đã có
+    // Update existing accessory
     const setClauses: string[] = [];
     const params: any[] = [];
 
@@ -139,13 +167,10 @@ export async function POST(request: NextRequest) {
       setClauses.push('brand = ?');
       params.push(sanitizeString(brand, 100));
     }
-    if (category !== undefined) {
-      setClauses.push('category = ?');
-      params.push(category);
-    }
-    if (categoryName !== undefined) {
-      setClauses.push('categoryName = ?');
-      params.push(categoryName);
+    if (categoryId !== undefined || category !== undefined) {
+      const resolvedCatId = await resolveAccessoryCategoryId(categoryId || category, categoryName);
+      setClauses.push('categoryId = ?');
+      params.push(resolvedCatId);
     }
     if (imageUrl !== undefined) {
       setClauses.push('imageUrl = ?');
@@ -198,7 +223,13 @@ export async function POST(request: NextRequest) {
       await db.execute(`UPDATE accessoryproduct SET ${setClauses.join(', ')} WHERE id = ?`, params);
     }
 
-    const updated = await db.queryOne('SELECT * FROM accessoryproduct WHERE id = ?', [id]);
+    const updated = await db.queryOne(
+      `SELECT a.*, c.code AS category, c.name AS categoryName
+       FROM accessoryproduct a
+       LEFT JOIN accessorycategory c ON a.categoryId = c.id
+       WHERE a.id = ?`,
+      [id]
+    );
 
     return NextResponse.json({
       success: true,

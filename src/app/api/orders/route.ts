@@ -10,6 +10,30 @@ import {
   ValidPaymentMethod,
 } from '@/lib/validation';
 
+function mapInvoiceItemToUi(it: any) {
+  const variant =
+    it.color && it.capacity
+      ? `${it.color} / ${it.capacity}`
+      : it.color || it.capacity || undefined;
+  return {
+    id: it.productId || it.id,
+    itemId: it.id,
+    type: it.itemType || (it.imei ? 'phone' : 'accessory'),
+    name: it.productName,
+    variant,
+    color: it.color || undefined,
+    capacity: it.capacity || undefined,
+    imei: it.imei || undefined,
+    quantity: Number(it.quantity || 1),
+    unitPrice: Number(it.unitPrice || 0),
+    costPrice: Number(it.costPrice || 0),
+    discount: Number(it.discount || 0),
+    total: Number(it.subtotal || 0),
+    subtotal: Number(it.subtotal || 0),
+    warrantyMonths: Number(it.warrantyMonths || 12),
+  };
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code')?.trim();
@@ -20,8 +44,14 @@ export async function GET(request: NextRequest) {
       const normalizedPhone = normalizePhone(cleanCode);
 
       const invoice = await db.queryOne(
-        `SELECT * FROM invoice 
-         WHERE invoiceCode = ? OR customerPhone = ? OR customerPhone = ?
+        `SELECT i.*,
+                c.name AS customerName,
+                c.phone AS customerPhone,
+                c.email AS customerEmail,
+                c.membershipTier AS customerTier
+         FROM invoice i
+         LEFT JOIN customer c ON i.customerId = c.id
+         WHERE i.invoiceCode = ? OR c.phone = ? OR c.phone = ?
          LIMIT 1`,
         [cleanCode, cleanCode, normalizedPhone || cleanCode]
       );
@@ -33,7 +63,7 @@ export async function GET(request: NextRequest) {
           source: 'mysql_database',
           data: {
             ...invoice,
-            items: invoice.items ? JSON.parse(invoice.items) : items,
+            items: items.map(mapInvoiceItemToUi),
             invoiceItems: items,
           },
         });
@@ -49,8 +79,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: true, source: 'fallback_store', data: fallback });
     }
 
-    const invoices = await db.query('SELECT * FROM invoice ORDER BY createdAt DESC');
-    const allItems = await db.query('SELECT * FROM invoiceitem');
+    const invoices = await db.query(
+      `SELECT i.*,
+              c.name AS customerName,
+              c.phone AS customerPhone,
+              c.email AS customerEmail,
+              c.membershipTier AS customerTier
+       FROM invoice i
+       LEFT JOIN customer c ON i.customerId = c.id
+       ORDER BY i.createdAt DESC`
+    );
+    const allItems = await db.query('SELECT * FROM invoiceitem ORDER BY createdAt ASC');
 
     const itemsByInvoice: Record<string, any[]> = {};
     for (const it of allItems) {
@@ -58,11 +97,14 @@ export async function GET(request: NextRequest) {
       itemsByInvoice[it.invoiceCode].push(it);
     }
 
-    const parsed = invoices.map((inv) => ({
-      ...inv,
-      items: inv.items ? JSON.parse(inv.items) : (itemsByInvoice[inv.invoiceCode] || []),
-      invoiceItems: itemsByInvoice[inv.invoiceCode] || [],
-    }));
+    const parsed = invoices.map((inv) => {
+      const rawItems = itemsByInvoice[inv.invoiceCode] || [];
+      return {
+        ...inv,
+        items: rawItems.map(mapInvoiceItemToUi),
+        invoiceItems: rawItems,
+      };
+    });
 
     return NextResponse.json({
       success: true,
@@ -87,7 +129,6 @@ export async function POST(request: NextRequest) {
     const rawPhone = String(body.customerPhone || '');
     const customerPhone = normalizePhone(rawPhone);
 
-    // Business Constraints Validation
     if (!customerName || customerName.length < 2) {
       return NextResponse.json(
         { error: 'Họ tên khách hàng không được để trống (tối thiểu 2 ký tự)' },
@@ -139,51 +180,57 @@ export async function POST(request: NextRequest) {
     const earnedPoints =
       typeof body.earnedPoints === 'number' && body.earnedPoints >= 0
         ? Number(body.earnedPoints)
-        : Math.floor(totalAmount / 10000); // 10.000đ = 1 điểm
+        : Math.floor(totalAmount / 10000);
 
     const invId = 'inv-' + Date.now();
 
-    // Atomic SQL Transaction
     const newInvoice = await db.transaction(async (conn) => {
       // 1. Check IMEI availability for phones
       for (const item of body.items) {
         if (item.imei) {
-          const [stockRows]: any = await conn.query('SELECT status, phoneName FROM phonestock WHERE imei = ?', [item.imei]);
+          const [stockRows]: any = await conn.query(
+            `SELECT ps.status, p.name AS phoneName
+             FROM phonestock ps
+             LEFT JOIN phoneproduct p ON ps.phoneId = p.id
+             WHERE ps.imei = ?`,
+            [item.imei]
+          );
           const stockItem = stockRows[0];
           if (stockItem && stockItem.status === 'sold') {
-            throw new Error(`Điện thoại IMEI ${item.imei} (${stockItem.phoneName}) đã được bán trước đó!`);
+            throw new Error(`Điện thoại IMEI ${item.imei} (${stockItem.phoneName || 'Máy'}) đã được bán trước đó!`);
           }
         }
       }
 
-      // 2. Ensure Customer exists and update loyalty stats
+      // 2. Ensure Customer exists and resolve customerId FK
       const [custRows]: any = await conn.query('SELECT id FROM customer WHERE phone = ?', [customerPhone]);
+      let customerId: string;
       if (custRows.length > 0) {
+        customerId = custRows[0].id;
         await conn.execute(
-          `UPDATE customer SET 
+          `UPDATE customer SET
              name = ?, totalSpent = totalSpent + ?, purchaseCount = purchaseCount + 1, points = points + ?, updatedAt = NOW()
-           WHERE phone = ?`,
-          [customerName, totalAmount, earnedPoints, customerPhone]
+           WHERE id = ?`,
+          [customerName, totalAmount, earnedPoints, customerId]
         );
       } else {
+        customerId = 'cust-' + Date.now();
         await conn.execute(
           `INSERT INTO customer (id, name, phone, points, totalSpent, purchaseCount, repairCount, membershipTier, customerType, createdAt, updatedAt)
            VALUES (?, ?, ?, ?, ?, 1, 0, 'Thành viên mới', 'Khách lẻ', NOW(), NOW())`,
-          ['cust-' + Date.now(), customerName, customerPhone, earnedPoints, totalAmount]
+          [customerId, customerName, customerPhone, earnedPoints, totalAmount]
         );
       }
 
-      // 3. Create Invoice in MySQL
+      // 3. Create 3NF Invoice (FK -> customer.id, NO JSON items, NO duplicated customer columns)
       await conn.execute(
-        `INSERT INTO invoice 
-         (id, invoiceCode, customerName, customerPhone, items, subtotal, discount, totalAmount, paymentMethod, cashReceived, cashChange, cashierName, warrantyNote, status, createdAt, updatedAt)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'completed', NOW(), NOW())`,
+        `INSERT INTO invoice
+         (id, invoiceCode, customerId, subtotal, discount, totalAmount, paymentMethod, cashReceived, cashChange, cashierName, pointsEarned, warrantyNote, status, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'completed', NOW(), NOW())`,
         [
           invId,
           invoiceCode,
-          customerName,
-          customerPhone,
-          JSON.stringify(body.items),
+          customerId,
           subtotal,
           discount,
           totalAmount,
@@ -191,17 +238,29 @@ export async function POST(request: NextRequest) {
           body.cashReceived ? Number(body.cashReceived) : null,
           body.cashChange ? Number(body.cashChange) : null,
           sanitizeString(body.cashierName || 'Website Online Order', 100),
+          earnedPoints,
           sanitizeString(body.warrantyNote || 'Bảo hành điện tử 12 tháng theo IMEI/Hóa đơn.', 500),
         ]
       );
 
-      // 3.1. Insert 3NF Normalized Invoice Items
+      // 3.1. Insert 3NF Normalized Invoice Items (with costPrice)
       for (const item of body.items) {
         const itemId = 'ii_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
+        let costPrice = Number(item.costPrice || 0);
+        if (!costPrice && item.imei) {
+          const [psCost]: any = await conn.query('SELECT costPrice FROM phonestock WHERE imei = ?', [item.imei]);
+          costPrice = Number(psCost[0]?.costPrice || 0);
+        } else if (!costPrice && (item.accessoryId || item.id) && item.type === 'accessory') {
+          const [accCost]: any = await conn.query('SELECT costPrice FROM accessoryproduct WHERE id = ?', [
+            item.accessoryId || item.id,
+          ]);
+          costPrice = Number(accCost[0]?.costPrice || 0);
+        }
+
         await conn.execute(
-          `INSERT INTO invoiceitem 
-           (id, invoiceCode, itemType, productId, productName, imei, color, capacity, unitPrice, quantity, discount, subtotal, warrantyMonths, createdAt, updatedAt)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 12, NOW(), NOW())`,
+          `INSERT INTO invoiceitem
+           (id, invoiceCode, itemType, productId, productName, imei, color, capacity, unitPrice, costPrice, quantity, discount, subtotal, warrantyMonths, createdAt, updatedAt)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 12, NOW(), NOW())`,
           [
             itemId,
             invoiceCode,
@@ -212,6 +271,7 @@ export async function POST(request: NextRequest) {
             item.color || (item.variant ? item.variant.split('/')[0]?.trim() : null),
             item.capacity || (item.variant ? item.variant.split('/')[1]?.trim() : null),
             Number(item.unitPrice || item.price) || 0,
+            costPrice,
             Number(item.quantity) || 1,
             Number(item.discount) || 0,
             Number(item.subtotal || item.total || item.unitPrice || item.price) || 0,
@@ -219,18 +279,17 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // 4. Mark PhoneStock as sold & update accessory stock
+      // 4. Mark PhoneStock as sold (3NF: only soldInvoiceId FK) & deduct accessory stock
       for (const item of body.items) {
         if (item.imei) {
           await conn.execute(
-            `UPDATE phonestock SET 
-               status = 'sold', soldAt = ?, soldInvoiceId = ?, soldToCustomerName = ?, soldToCustomerPhone = ?, updatedAt = NOW()
+            `UPDATE phonestock SET
+               status = 'sold', soldAt = ?, soldInvoiceId = ?, updatedAt = NOW()
              WHERE imei = ?`,
-            [now, invoiceCode, customerName, customerPhone, item.imei]
+            [now, invoiceCode, item.imei]
           );
         }
 
-        // Deduct Accessory stock if item is an accessory
         const accessoryId = item.accessoryId || item.id;
         const qty = Number(item.quantity || 1);
         if (accessoryId && item.type === 'accessory') {
@@ -241,15 +300,15 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // 5. If paid by cash, card, or vietqr transfer, create a cashbook entry
+      // 5. Create 3NF Cashbook Receipt Entry (no transitive categoryLabel)
       if (totalAmount > 0) {
         const [cashCountRow]: any = await conn.query('SELECT COUNT(*) as cnt FROM cashbookentry');
         const cashCount = cashCountRow[0]?.cnt || 0;
         const cashbookEntryCode = `PT-2608-${String(cashCount + 1).padStart(3, '0')}`;
         await conn.execute(
-          `INSERT INTO cashbookentry 
-           (id, code, date, type, category, categoryLabel, amount, paymentMethod, referenceCode, description, creator, createdAt, updatedAt)
-           VALUES (?, ?, ?, 'receipt', 'sale_phone', 'Bán điện thoại & phụ kiện', ?, ?, ?, ?, ?, NOW(), NOW())`,
+          `INSERT INTO cashbookentry
+           (id, code, date, type, category, amount, paymentMethod, referenceCode, description, creator, createdAt, updatedAt)
+           VALUES (?, ?, ?, 'receipt', 'sale_phone', ?, ?, ?, ?, ?, NOW(), NOW())`,
           [
             'cb-' + Date.now(),
             cashbookEntryCode,
@@ -263,11 +322,16 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const [invRows]: any = await conn.query('SELECT * FROM invoice WHERE id = ?', [invId]);
+      const [invRows]: any = await conn.query(
+        `SELECT i.*, c.name AS customerName, c.phone AS customerPhone, c.email AS customerEmail, c.membershipTier AS customerTier
+         FROM invoice i
+         LEFT JOIN customer c ON i.customerId = c.id
+         WHERE i.id = ?`,
+        [invId]
+      );
       return invRows[0];
     });
 
-    // Sync in-memory fallback
     ServerStore.createInvoice({
       customerName,
       customerPhone,

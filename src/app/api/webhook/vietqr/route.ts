@@ -24,10 +24,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Hỗ trợ cả định dạng Casso, SePay, và ngân hàng Napas
-    const transferAmount = Number(
-      body.transferAmount || body.amount || body.price || 0
-    );
+    const transferAmount = Number(body.transferAmount || body.amount || body.price || 0);
     const content = String(body.content || body.description || body.subAccount || '');
     const referenceCode = String(body.referenceCode || body.ref || body.id || '');
     const transactionDate = String(body.transactionDate || body.when || new Date().toISOString());
@@ -39,7 +36,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 1. Process in-memory store
     const result = ServerStore.processVietQRWebhook({
       gateway: body.gateway || 'MBBank Napas 247',
       transactionDate,
@@ -50,7 +46,6 @@ export async function POST(request: NextRequest) {
       referenceCode,
     });
 
-    // 2. Persist directly into MySQL database via db (mysql2)
     const now = new Date();
     const dateStr = now.toISOString().split('T')[0];
     const countRow = await db.queryOne('SELECT COUNT(*) as cnt FROM cashbookentry');
@@ -59,9 +54,9 @@ export async function POST(request: NextRequest) {
     const cbId = 'cb-webhook-' + Date.now();
 
     await db.execute(
-      `INSERT INTO cashbookentry 
-       (id, code, date, type, category, categoryLabel, amount, paymentMethod, referenceCode, description, creator, createdAt, updatedAt)
-       VALUES (?, ?, ?, 'receipt', ?, 'VietQR Napas 247 Webhook', ?, 'transfer', ?, ?, 'Hệ Thống Webhook Tự Động', NOW(), NOW())`,
+      `INSERT INTO cashbookentry
+       (id, code, date, type, category, amount, paymentMethod, referenceCode, description, creator, createdAt, updatedAt)
+       VALUES (?, ?, ?, 'receipt', ?, ?, 'transfer', ?, ?, 'Hệ Thống Webhook Tự Động', NOW(), NOW())`,
       [
         cbId,
         cashbookCode,

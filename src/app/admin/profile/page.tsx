@@ -239,19 +239,20 @@ export default function AdminProfilePage() {
     setIsChangingPass(true);
 
     try {
-      const res = await fetch('/api/auth/staff/change-password', {
+      const res = await fetch('/api/admin/staff/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          id: staffUser?.id,
           username: staffUser?.username,
-          oldPassword: currentPassword,
+          currentPassword,
           newPassword,
         }),
       });
       const json = await res.json();
 
-      if (json.success) {
-        setSecurityFeedback({ type: 'success', message: '✓ Đổi mật khẩu tài khoản thành công!' });
+      if (res.ok && json.success) {
+        setSecurityFeedback({ type: 'success', message: '✓ Đổi mật khẩu tài khoản thành công trong CSDL MySQL!' });
         setCurrentPassword('');
         setNewPassword('');
         setConfirmPassword('');
@@ -259,10 +260,7 @@ export default function AdminProfilePage() {
         setSecurityFeedback({ type: 'error', message: json.error || 'Mật khẩu hiện tại không đúng.' });
       }
     } catch (err) {
-      setSecurityFeedback({ type: 'success', message: '✓ Đã cập nhật mật khẩu nội bộ thành công!' });
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
+      setSecurityFeedback({ type: 'error', message: 'Không thể kết nối máy chủ CSDL để đổi mật khẩu.' });
     } finally {
       setIsChangingPass(false);
     }

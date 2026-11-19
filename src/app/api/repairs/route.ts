@@ -10,6 +10,41 @@ import {
   ValidRepairStatus,
 } from '@/lib/validation';
 
+const REPAIR_SELECT_SQL = `
+  SELECT r.*,
+         c.name AS customerName,
+         c.phone AS customerPhone,
+         c.address AS customerAddress,
+         u.name AS technicianName
+  FROM repairticket r
+  LEFT JOIN customer c ON r.customerId = c.id
+  LEFT JOIN user u ON r.technicianId = u.id
+`;
+
+function formatLogItem(l: any) {
+  return {
+    step: l.status,
+    label: l.statusLabel,
+    time:
+      l.createdAt instanceof Date
+        ? l.createdAt.toISOString().replace('T', ' ').substring(0, 19)
+        : String(l.createdAt || ''),
+    note: l.note || '',
+    actor: l.updatedBy || 'Hệ thống',
+  };
+}
+
+function formatPartItem(p: any) {
+  return {
+    partId: p.sparePartId || p.id,
+    partName: p.partName || 'Linh kiện thay thế',
+    quantity: Number(p.quantity || 1),
+    costPrice: Number(p.costPrice || 0),
+    unitPrice: Number(p.unitPrice || 0),
+    warrantyMonths: Number(p.warrantyMonths || 6),
+  };
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code')?.trim();
@@ -19,16 +54,21 @@ export async function GET(request: NextRequest) {
       const cleanCode = code.trim();
       const normalizedPhone = normalizePhone(cleanCode);
 
-      // Search MySQL by ticketCode, phone, or IMEI
       const repair = await db.queryOne(
-        `SELECT * FROM repairticket 
-         WHERE ticketCode = ? OR customerPhone = ? OR customerPhone = ? OR imeiOrSerial = ?
+        `${REPAIR_SELECT_SQL}
+         WHERE r.ticketCode = ? OR c.phone = ? OR c.phone = ? OR r.imeiOrSerial = ?
          LIMIT 1`,
         [cleanCode, cleanCode, normalizedPhone || cleanCode, cleanCode]
       );
 
       if (repair) {
-        const parts = await db.query('SELECT * FROM repairticketpart WHERE ticketCode = ?', [repair.ticketCode]);
+        const parts = await db.query(
+          `SELECT rtp.*, sp.name AS partName
+           FROM repairticketpart rtp
+           LEFT JOIN sparepart sp ON rtp.sparePartId = sp.id
+           WHERE rtp.ticketCode = ?`,
+          [repair.ticketCode]
+        );
         const statusLogs = await db.query(
           'SELECT * FROM repairstatushistory WHERE ticketCode = ? ORDER BY createdAt ASC',
           [repair.ticketCode]
@@ -39,30 +79,14 @@ export async function GET(request: NextRequest) {
           source: 'mysql_database',
           data: {
             ...repair,
-            statusHistory: repair.statusHistory
-              ? JSON.parse(repair.statusHistory)
-              : statusLogs.map((l: any) => ({
-                  step: l.status,
-                  label: l.statusLabel,
-                  time: l.createdAt,
-                  note: l.note,
-                  actor: l.updatedBy,
-                })),
-            partsUsed: repair.partsUsed
-              ? JSON.parse(repair.partsUsed)
-              : parts.map((p: any) => ({
-                  partId: p.sparePartId,
-                  partName: p.partName,
-                  quantity: p.quantity,
-                  unitPrice: p.unitPrice,
-                })),
+            statusHistory: statusLogs.map(formatLogItem),
+            partsUsed: parts.map(formatPartItem),
             parts,
             statusLogs,
           },
         });
       }
 
-      // Fallback
       const fallback = ServerStore.getRepairByCode(cleanCode);
       if (!fallback) {
         return NextResponse.json(
@@ -73,9 +97,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: true, source: 'fallback_store', data: fallback });
     }
 
-    // List all
-    const repairs = await db.query('SELECT * FROM repairticket ORDER BY createdAt DESC');
-    const allParts = await db.query('SELECT * FROM repairticketpart');
+    const repairs = await db.query(`${REPAIR_SELECT_SQL} ORDER BY r.createdAt DESC`);
+    const allParts = await db.query(
+      `SELECT rtp.*, sp.name AS partName
+       FROM repairticketpart rtp
+       LEFT JOIN sparepart sp ON rtp.sparePartId = sp.id`
+    );
     const allLogs = await db.query('SELECT * FROM repairstatushistory ORDER BY createdAt ASC');
 
     const partsByTicket: Record<string, any[]> = {};
@@ -90,28 +117,17 @@ export async function GET(request: NextRequest) {
       logsByTicket[l.ticketCode].push(l);
     }
 
-    const parsed = repairs.map((r) => ({
-      ...r,
-      statusHistory: r.statusHistory
-        ? JSON.parse(r.statusHistory)
-        : (logsByTicket[r.ticketCode] || []).map((l: any) => ({
-            step: l.status,
-            label: l.statusLabel,
-            time: l.createdAt,
-            note: l.note,
-            actor: l.updatedBy,
-          })),
-      partsUsed: r.partsUsed
-        ? JSON.parse(r.partsUsed)
-        : (partsByTicket[r.ticketCode] || []).map((p: any) => ({
-            partId: p.sparePartId,
-            partName: p.partName,
-            quantity: p.quantity,
-            unitPrice: p.unitPrice,
-          })),
-      parts: partsByTicket[r.ticketCode] || [],
-      statusLogs: logsByTicket[r.ticketCode] || [],
-    }));
+    const parsed = repairs.map((r) => {
+      const logs = logsByTicket[r.ticketCode] || [];
+      const parts = partsByTicket[r.ticketCode] || [];
+      return {
+        ...r,
+        statusHistory: logs.map(formatLogItem),
+        partsUsed: parts.map(formatPartItem),
+        parts,
+        statusLogs: logs,
+      };
+    });
 
     return NextResponse.json({
       success: true,
@@ -138,7 +154,6 @@ export async function POST(request: NextRequest) {
     const deviceModel = sanitizeString(body.deviceModel, 100);
     const issueDescription = sanitizeString(body.issueDescription, 2000);
 
-    // Business Constraints Validation
     if (!customerName || customerName.length < 2) {
       return NextResponse.json(
         { error: 'Họ tên khách hàng không được để trống (tối thiểu 2 ký tự)' },
@@ -180,50 +195,39 @@ export async function POST(request: NextRequest) {
     const ticketCode = `SC-2608-${String(count + 1).padStart(3, '0')}`;
     const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
 
-    const initialHistory = [
-      {
-        step: 'received',
-        label: 'Tiếp nhận máy tại quầy',
-        time: now,
-        note: 'Biên nhận sửa chữa K80 được tạo tự động và lưu vào CSDL MySQL.',
-        actor: 'Lễ tân tiếp nhận',
-      },
-    ];
-
-    // 1. Ensure Customer exists
+    // 1. Ensure Customer exists and resolve customerId FK
     const existingCust = await db.queryOne('SELECT id FROM customer WHERE phone = ?', [customerPhone]);
+    let customerId: string;
     if (existingCust) {
-      await db.execute('UPDATE customer SET name = ?, repairCount = repairCount + 1, updatedAt = NOW() WHERE phone = ?', [
-        customerName,
-        customerPhone,
-      ]);
+      customerId = existingCust.id;
+      await db.execute(
+        `UPDATE customer SET name = ?, address = COALESCE(?, address), repairCount = repairCount + 1, updatedAt = NOW() WHERE id = ?`,
+        [customerName, body.customerAddress ? sanitizeString(body.customerAddress, 191) : null, customerId]
+      );
     } else {
+      customerId = 'cust-' + Date.now();
       await db.execute(
         `INSERT INTO customer (id, name, phone, address, totalSpent, purchaseCount, repairCount, points, membershipTier, customerType, createdAt, updatedAt)
          VALUES (?, ?, ?, ?, 0, 0, 1, 10, 'Thành viên mới', 'Khách lẻ', NOW(), NOW())`,
-        ['cust-' + Date.now(), customerName, customerPhone, body.customerAddress ? sanitizeString(body.customerAddress, 191) : null]
+        [customerId, customerName, customerPhone, body.customerAddress ? sanitizeString(body.customerAddress, 191) : null]
       );
     }
 
-    // 2. Resolve technician
-    let technicianId = body.technicianId ? sanitizeString(body.technicianId, 50) : null;
-    let technicianName = body.technicianName ? sanitizeString(body.technicianName, 100) : null;
-
+    // 2. Resolve Technician FK (user.id)
+    let technicianId: string | null = body.technicianId ? sanitizeString(body.technicianId, 191) : null;
     if (technicianId) {
-      const foundTech = await db.queryOne('SELECT id, name FROM user WHERE id = ? AND role = "technician"', [technicianId]);
-      if (foundTech) {
-        technicianId = foundTech.id;
-        technicianName = technicianName || foundTech.name;
-      }
+      const foundTech = await db.queryOne('SELECT id FROM user WHERE id = ?', [technicianId]);
+      if (!foundTech) technicianId = null;
     }
-
+    if (!technicianId && body.technicianName) {
+      const byName = await db.queryOne('SELECT id FROM user WHERE name = ? LIMIT 1', [sanitizeString(body.technicianName, 100)]);
+      if (byName) technicianId = byName.id;
+    }
     if (!technicianId) {
-      const fallbackTech = await db.queryOne('SELECT id, name FROM user WHERE role = "technician" AND isActive = 1 LIMIT 1');
+      const fallbackTech = await db.queryOne('SELECT id FROM user WHERE role = "technician" AND isActive = 1 LIMIT 1');
       technicianId = fallbackTech?.id || null;
-      technicianName = technicianName || fallbackTech?.name || 'Trần Trọng Nghĩa (KTV Trưởng)';
     }
 
-    // 2.1 Calculate SLA Deadline
     const deadlineMinutes = body.deadlineMinutes ? Number(body.deadlineMinutes) : 60;
     let deadlineTime = body.deadlineTime ? sanitizeString(body.deadlineTime, 50) : null;
     if (!deadlineTime && deadlineMinutes > 0) {
@@ -233,54 +237,51 @@ export async function POST(request: NextRequest) {
     }
     const assignedBy = body.assignedBy ? sanitizeString(body.assignedBy, 100) : 'Chủ shop / Thu ngân';
 
-    // 3. Create RepairTicket in MySQL
     const ticketId = 'rep-' + Date.now();
     const imeiOrSerial = sanitizeString(body.imeiOrSerial || 'OL-' + Math.floor(100000 + Math.random() * 900000), 50);
     const unlockPasscode = sanitizeString(body.unlockPasscode || 'Chưa cung cấp', 50);
-    const estimatedDelivery = deadlineTime || (body.estimatedDeliveryDate
-      ? sanitizeString(body.estimatedDeliveryDate, 50)
-      : `${now.split(' ')[0]} 18:00:00`);
+    const estimatedDelivery =
+      deadlineTime ||
+      (body.estimatedDeliveryDate
+        ? sanitizeString(body.estimatedDeliveryDate, 50)
+        : `${now.split(' ')[0]} 18:00:00`);
 
-    await db.execute(
-      `INSERT INTO repairticket 
-       (id, ticketCode, customerName, customerPhone, customerAddress, deviceModel, imeiOrSerial, unlockPasscode, appearanceCondition, accessoriesIncluded, issueDescription, technicianNotes, status, statusHistory, partsUsed, laborFee, totalAmount, estimatedDeliveryDate, deadlineTime, deadlineMinutes, assignedBy, receivedAt, technicianId, technicianName, warrantyPeriod, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'received', ?, '[]', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-      [
-        ticketId,
-        ticketCode,
-        customerName,
-        customerPhone,
-        sanitizeString(body.customerAddress || 'Khách đặt online', 191),
-        deviceModel,
-        imeiOrSerial,
-        unlockPasscode,
-        sanitizeString(body.appearanceCondition || 'Tiếp nhận đặt hẹn online', 500),
-        sanitizeString(body.accessoriesIncluded || 'Khách tự mang máy đến', 500),
-        issueDescription,
-        body.technicianNotes ? sanitizeString(body.technicianNotes, 1000) : '',
-        JSON.stringify(initialHistory),
-        laborFee,
-        laborFee,
-        estimatedDelivery,
-        deadlineTime,
-        deadlineMinutes,
-        assignedBy,
-        now,
-        technicianId,
-        technicianName,
-        sanitizeString(body.warrantyPeriod || 'Bảo hành 12 tháng linh kiện', 100),
-      ]
-    );
+    await db.transaction(async (conn) => {
+      await conn.execute(
+        `INSERT INTO repairticket
+         (id, ticketCode, customerId, deviceModel, imeiOrSerial, unlockPasscode, appearanceCondition, accessoriesIncluded, issueDescription, technicianNotes, status, laborFee, totalAmount, estimatedDeliveryDate, deadlineTime, deadlineMinutes, assignedBy, receivedAt, technicianId, warrantyPeriod, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'received', ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+        [
+          ticketId,
+          ticketCode,
+          customerId,
+          deviceModel,
+          imeiOrSerial,
+          unlockPasscode,
+          sanitizeString(body.appearanceCondition || 'Tiếp nhận đặt hẹn online', 500),
+          sanitizeString(body.accessoriesIncluded || 'Khách tự mang máy đến', 500),
+          issueDescription,
+          body.technicianNotes ? sanitizeString(body.technicianNotes, 1000) : '',
+          laborFee,
+          laborFee,
+          estimatedDelivery,
+          deadlineTime,
+          deadlineMinutes,
+          assignedBy,
+          now,
+          technicianId,
+          sanitizeString(body.warrantyPeriod || 'Bảo hành 12 tháng linh kiện', 100),
+        ]
+      );
 
-    // 3.1. Insert into 3NF RepairStatusHistory table
-    const logId = 'rsh_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
-    await db.execute(
-      `INSERT INTO repairstatushistory (id, ticketCode, status, statusLabel, note, updatedBy, createdAt)
-       VALUES (?, ?, 'received', 'Tiếp nhận máy tại quầy', 'Biên nhận sửa chữa K80 được tạo tự động và lưu vào CSDL MySQL.', ?, NOW())`,
-      [logId, ticketCode, sanitizeString(assignedBy || 'Lễ tân tiếp nhận', 100)]
-    );
+      const logId = 'rsh_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
+      await conn.execute(
+        `INSERT INTO repairstatushistory (id, ticketCode, status, statusLabel, note, updatedBy, createdAt)
+         VALUES (?, ?, 'received', 'Tiếp nhận máy tại quầy', 'Biên nhận sửa chữa K80 được tạo tự động và lưu vào CSDL MySQL.', ?, NOW())`,
+        [logId, ticketCode, sanitizeString(assignedBy || 'Lễ tân tiếp nhận', 100)]
+      );
+    });
 
-    // Also sync in-memory
     ServerStore.createRepair({
       customerName,
       customerPhone,
@@ -292,7 +293,11 @@ export async function POST(request: NextRequest) {
       laborFee,
     });
 
-    const newTicket = await db.queryOne('SELECT * FROM repairticket WHERE id = ?', [ticketId]);
+    const newTicket = await db.queryOne(`${REPAIR_SELECT_SQL} WHERE r.id = ?`, [ticketId]);
+    const statusLogs = await db.query(
+      'SELECT * FROM repairstatushistory WHERE ticketCode = ? ORDER BY createdAt ASC',
+      [ticketCode]
+    );
 
     return NextResponse.json(
       {
@@ -301,7 +306,7 @@ export async function POST(request: NextRequest) {
         message: 'Tiếp nhận yêu cầu sửa chữa thành công',
         data: {
           ...newTicket,
-          statusHistory: initialHistory,
+          statusHistory: statusLogs.map(formatLogItem),
           partsUsed: [],
         },
       },
@@ -344,7 +349,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const ticket = await db.queryOne(
-      'SELECT * FROM repairticket WHERE id = ? OR ticketCode = ?',
+      `${REPAIR_SELECT_SQL} WHERE r.id = ? OR r.ticketCode = ?`,
       [identifier, identifier]
     );
 
@@ -359,7 +364,6 @@ export async function PUT(request: NextRequest) {
     const setClauses: string[] = ['updatedAt = NOW()'];
     const sqlParams: any[] = [];
 
-    // Validate Status constraint if provided
     if (status) {
       if (!VALID_REPAIR_STATUSES.includes(status as ValidRepairStatus)) {
         return NextResponse.json(
@@ -370,7 +374,6 @@ export async function PUT(request: NextRequest) {
         );
       }
 
-      const currentHistory = ticket.statusHistory ? JSON.parse(ticket.statusHistory) : [];
       const statusLabels: Record<string, string> = {
         received: 'Tiếp nhận máy',
         inspecting: 'Kiểm tra kỹ thuật & Báo giá',
@@ -381,18 +384,9 @@ export async function PUT(request: NextRequest) {
         cancelled: 'Hủy sửa chữa',
       };
 
-      const newHistoryItem = {
-        step: status,
-        label: statusLabels[status] || status,
-        time: now,
-        note: note ? sanitizeString(note, 500) : `Cập nhật trạng thái: ${statusLabels[status] || status}`,
-        actor: actor ? sanitizeString(actor, 100) : 'Kỹ thuật viên',
-      };
+      setClauses.push('status = ?');
+      sqlParams.push(status);
 
-      setClauses.push('status = ?', 'statusHistory = ?');
-      sqlParams.push(status, JSON.stringify([...currentHistory, newHistoryItem]));
-
-      // Insert 3NF RepairStatusHistory record
       const rshId = 'rsh_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
       await db.execute(
         `INSERT INTO repairstatushistory (id, ticketCode, status, statusLabel, note, updatedBy, createdAt)
@@ -432,54 +426,60 @@ export async function PUT(request: NextRequest) {
       sqlParams.push(finalLaborFee);
     }
 
-    // Validate parts used and calculate total amount
+    // Sync 3NF RepairTicketPart rows & recalculate totalAmount
     if (partsUsed && Array.isArray(partsUsed)) {
-      setClauses.push('partsUsed = ?');
-      sqlParams.push(JSON.stringify(partsUsed));
+      const existingParts = await db.query('SELECT sparePartId, quantity FROM repairticketpart WHERE ticketCode = ?', [
+        ticket.ticketCode,
+      ]);
+      const existingPartIds = new Set(existingParts.map((ep) => ep.sparePartId));
 
-      const partsTotal = partsUsed.reduce(
-        (sum: number, p: any) =>
-          sum +
-          (Number(p.unitPrice || p.price || p.retailRepairPrice || 0) *
-            Number(p.quantity || 1)),
-        0
-      );
-      const totalAmount = finalLaborFee + partsTotal;
-      setClauses.push('totalAmount = ?');
-      sqlParams.push(totalAmount);
+      await db.execute('DELETE FROM repairticketpart WHERE ticketCode = ?', [ticket.ticketCode]);
 
-      // Insert 3NF RepairTicketPart record & deduct stock
+      let partsTotal = 0;
       for (const part of partsUsed) {
-        const rtpId = 'rtp_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
-        await db.execute(
-          `INSERT INTO repairticketpart (id, ticketCode, sparePartId, partName, quantity, unitPrice, warrantyMonths, createdAt)
-           VALUES (?, ?, ?, ?, ?, ?, 6, NOW())`,
-          [
-            rtpId,
-            ticket.ticketCode,
-            part.partId || part.id || null,
-            sanitizeString(part.partName || part.name || 'Linh kiện thay thế', 191),
-            Number(part.quantity || 1),
-            Number(part.unitPrice || part.price || part.retailRepairPrice || 0),
-          ]
-        );
+        const qty = Math.max(1, Number(part.quantity || 1));
+        const unitPrice = Number(part.unitPrice || part.price || part.retailRepairPrice || 0);
+        let sparePartId: string | null = part.partId || part.sparePartId || part.id || null;
+        let costPrice = Number(part.costPrice || 0);
 
-        if (part.id || part.barcode) {
-          try {
-            await db.execute(
-              `UPDATE sparepart SET stock = GREATEST(0, stock - ?) 
-               WHERE (id = ? OR barcode = ?) AND stock >= ?`,
-              [Number(part.quantity || 1), part.id || '', part.barcode || '', Number(part.quantity || 1)]
-            );
-          } catch (deductErr) {
-            console.warn('Could not decrement spare part stock:', deductErr);
+        if (sparePartId) {
+          const foundSp = await db.queryOne('SELECT id, costPrice FROM sparepart WHERE id = ? OR barcode = ?', [
+            sparePartId,
+            sparePartId,
+          ]);
+          if (foundSp) {
+            sparePartId = foundSp.id;
+            if (!costPrice) costPrice = Number(foundSp.costPrice || 0);
+          } else {
+            sparePartId = null;
           }
         }
+
+        const rtpId = 'rtp_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
+        await db.execute(
+          `INSERT INTO repairticketpart (id, ticketCode, sparePartId, quantity, costPrice, unitPrice, warrantyMonths, createdAt)
+           VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
+          [rtpId, ticket.ticketCode, sparePartId, qty, costPrice, unitPrice, Number(part.warrantyMonths || 6)]
+        );
+        partsTotal += unitPrice * qty;
+
+        // Only deduct stock for newly added spare parts
+        if (sparePartId && !existingPartIds.has(sparePartId)) {
+          await db.execute(
+            `UPDATE sparepart SET stock = GREATEST(0, stock - ?), updatedAt = NOW() WHERE id = ?`,
+            [qty, sparePartId]
+          );
+        }
       }
+
+      setClauses.push('totalAmount = ?');
+      sqlParams.push(finalLaborFee + partsTotal);
     } else if (laborFee !== undefined) {
-      const currentParts = ticket.partsUsed ? JSON.parse(ticket.partsUsed) : [];
+      const currentParts = await db.query('SELECT quantity, unitPrice FROM repairticketpart WHERE ticketCode = ?', [
+        ticket.ticketCode,
+      ]);
       const partsTotal = currentParts.reduce(
-        (sum: number, p: any) => sum + (Number(p.price || p.retailRepairPrice || 0) * Number(p.quantity || 1)),
+        (sum: number, p: any) => sum + Number(p.unitPrice || 0) * Number(p.quantity || 1),
         0
       );
       setClauses.push('totalAmount = ?');
@@ -491,27 +491,29 @@ export async function PUT(request: NextRequest) {
     let assignmentNote = '';
 
     if (technicianId !== undefined || technicianName !== undefined) {
-      let resolvedTechId = technicianId;
-      let resolvedTechName = technicianName;
+      let resolvedTechId: string | null = null;
+      let resolvedTechName = technicianName || '';
+
       if (technicianId) {
-        const found = await db.queryOne('SELECT id, name FROM user WHERE id = ? AND role = "technician"', [technicianId]);
+        const found = await db.queryOne('SELECT id, name FROM user WHERE id = ?', [technicianId]);
         if (found) {
           resolvedTechId = found.id;
-          resolvedTechName = technicianName || found.name;
+          resolvedTechName = found.name;
+        }
+      } else if (technicianName) {
+        const found = await db.queryOne('SELECT id, name FROM user WHERE name = ? LIMIT 1', [technicianName]);
+        if (found) {
+          resolvedTechId = found.id;
+          resolvedTechName = found.name;
         }
       }
-      if (resolvedTechId !== undefined) {
-        setClauses.push('technicianId = ?');
-        sqlParams.push(resolvedTechId);
-      }
-      if (resolvedTechName !== undefined) {
-        setClauses.push('technicianName = ?');
-        sqlParams.push(sanitizeString(resolvedTechName, 100));
-      }
 
-      if (resolvedTechName && resolvedTechName !== ticket.technicianName) {
+      setClauses.push('technicianId = ?');
+      sqlParams.push(resolvedTechId);
+
+      if (resolvedTechId && resolvedTechId !== ticket.technicianId) {
         hasAssignmentChange = true;
-        assignmentNote += `Đổi KTV: ${resolvedTechName}. `;
+        assignmentNote += `Đổi KTV: ${resolvedTechName || resolvedTechId}. `;
       }
     }
 
@@ -534,25 +536,41 @@ export async function PUT(request: NextRequest) {
       sqlParams.push(sanitizeString(assignedBy, 100));
     }
 
-    // Append to status history if assignment changed and not already updated via status
     if (hasAssignmentChange && !status) {
-      const currentHistory = ticket.statusHistory ? JSON.parse(ticket.statusHistory) : [];
-      const assigner = assignedBy ? sanitizeString(assignedBy, 100) : (actor ? sanitizeString(actor, 100) : 'Chủ shop / Thu ngân');
-      const assignmentHistoryItem = {
-        step: ticket.status,
-        label: 'Chỉ định KTV & Thời hạn SLA',
-        time: now,
-        note: assignmentNote.trim() || 'Cập nhật phân công kỹ thuật viên và thời hạn sửa',
-        actor: assigner,
-      };
-      setClauses.push('statusHistory = ?');
-      sqlParams.push(JSON.stringify([...currentHistory, assignmentHistoryItem]));
+      const assigner = assignedBy
+        ? sanitizeString(assignedBy, 100)
+        : actor
+        ? sanitizeString(actor, 100)
+        : 'Chủ shop / Thu ngân';
+      const rshId = 'rsh_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
+      await db.execute(
+        `INSERT INTO repairstatushistory (id, ticketCode, status, statusLabel, note, updatedBy, createdAt)
+         VALUES (?, ?, ?, 'Chỉ định KTV & Thời hạn SLA', ?, ?, NOW())`,
+        [
+          rshId,
+          ticket.ticketCode,
+          ticket.status,
+          assignmentNote.trim() || 'Cập nhật phân công kỹ thuật viên và thời hạn sửa',
+          assigner,
+        ]
+      );
     }
 
     sqlParams.push(ticket.id);
     await db.execute(`UPDATE repairticket SET ${setClauses.join(', ')} WHERE id = ?`, sqlParams);
 
-    const updated = await db.queryOne('SELECT * FROM repairticket WHERE id = ?', [ticket.id]);
+    const updated = await db.queryOne(`${REPAIR_SELECT_SQL} WHERE r.id = ?`, [ticket.id]);
+    const updatedParts = await db.query(
+      `SELECT rtp.*, sp.name AS partName
+       FROM repairticketpart rtp
+       LEFT JOIN sparepart sp ON rtp.sparePartId = sp.id
+       WHERE rtp.ticketCode = ?`,
+      [ticket.ticketCode]
+    );
+    const updatedLogs = await db.query(
+      'SELECT * FROM repairstatushistory WHERE ticketCode = ? ORDER BY createdAt ASC',
+      [ticket.ticketCode]
+    );
 
     return NextResponse.json({
       success: true,
@@ -560,8 +578,8 @@ export async function PUT(request: NextRequest) {
       message: 'Cập nhật phiếu sửa chữa thành công',
       data: {
         ...updated,
-        statusHistory: updated.statusHistory ? JSON.parse(updated.statusHistory) : [],
-        partsUsed: updated.partsUsed ? JSON.parse(updated.partsUsed) : [],
+        statusHistory: updatedLogs.map(formatLogItem),
+        partsUsed: updatedParts.map(formatPartItem),
       },
     });
   } catch (error: any) {

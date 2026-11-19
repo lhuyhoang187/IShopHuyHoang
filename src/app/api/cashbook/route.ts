@@ -3,11 +3,17 @@ import { db } from '@/lib/db';
 import {
   isValidAmount,
   sanitizeString,
+  getCashbookCategoryLabel,
 } from '@/lib/validation';
 
 export async function GET(request: NextRequest) {
   try {
-    const entries = await db.query('SELECT * FROM cashbookentry ORDER BY createdAt DESC');
+    const rawEntries = await db.query('SELECT * FROM cashbookentry ORDER BY createdAt DESC');
+
+    const entries = rawEntries.map((e) => ({
+      ...e,
+      categoryLabel: getCashbookCategoryLabel(e.category, e.type),
+    }));
 
     const totalReceipt = entries
       .filter((e) => e.type === 'receipt')
@@ -67,10 +73,6 @@ export async function POST(request: NextRequest) {
     }
 
     const paymentMethod = body.paymentMethod === 'transfer' ? 'transfer' : 'cash';
-    const categoryLabel = sanitizeString(
-      body.categoryLabel || (type === 'receipt' ? 'Thu tiền mặt / chuyển khoản' : 'Chi tiền mặt / chuyển khoản'),
-      100
-    );
 
     const countRow = await db.queryOne('SELECT COUNT(*) as cnt FROM cashbookentry');
     const count = countRow?.cnt || 0;
@@ -83,10 +85,10 @@ export async function POST(request: NextRequest) {
     const creator = sanitizeString(body.creator || 'Lê Huy Hoàng (Chủ Shop)', 100);
 
     await db.execute(
-      `INSERT INTO cashbookentry 
-       (id, code, date, type, category, categoryLabel, amount, paymentMethod, referenceCode, description, creator, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-      [id, code, dateStr, type, category, categoryLabel, amount, paymentMethod, referenceCode, description, creator]
+      `INSERT INTO cashbookentry
+       (id, code, date, type, category, amount, paymentMethod, referenceCode, description, creator, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+      [id, code, dateStr, type, category, amount, paymentMethod, referenceCode, description, creator]
     );
 
     const newEntry = await db.queryOne('SELECT * FROM cashbookentry WHERE id = ?', [id]);
@@ -96,7 +98,9 @@ export async function POST(request: NextRequest) {
         success: true,
         source: 'mysql_database',
         message: `Tạo ${type === 'receipt' ? 'Phiếu Thu' : 'Phiếu Chi'} thành công`,
-        data: newEntry,
+        data: newEntry
+          ? { ...newEntry, categoryLabel: getCashbookCategoryLabel(newEntry.category, newEntry.type) }
+          : null,
       },
       { status: 201 }
     );

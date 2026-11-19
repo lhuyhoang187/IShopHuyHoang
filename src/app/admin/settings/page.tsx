@@ -85,6 +85,32 @@ export default function AdminSettingsPage() {
     setCurrentRole(IShopStore.getRole());
     setPermissions(IShopStore.getPermissionMatrix());
 
+    // Đồng bộ cấu hình cửa hàng & ma trận phân quyền trực tiếp từ MySQL
+    fetch('/api/admin/settings', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((json) => {
+        if (json?.success && json.data) {
+          setStoreInfo({
+            name: json.data.storeName || 'iShop Huy Hoàng - Apple & Smartphone Premium',
+            address: json.data.address || '',
+            hotline: json.data.hotline || '',
+            returnPolicy: json.data.returnPolicy || '',
+            receiptFooter: json.data.receiptFooter || '',
+          });
+        }
+      })
+      .catch(() => {});
+
+    fetch('/api/admin/permissions', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((json) => {
+        if (json?.success && Array.isArray(json.data) && json.data.length > 0) {
+          setPermissions(json.data);
+          IShopStore.setPermissionMatrix(json.data);
+        }
+      })
+      .catch(() => {});
+
     const handleDataChanged = () => {
       setCurrentRole(IShopStore.getRole());
       setPermissions(IShopStore.getPermissionMatrix());
@@ -116,10 +142,17 @@ export default function AdminSettingsPage() {
     setTimeout(() => setRbacSuccessMsg(null), 3000);
   };
 
-  const handleSaveAllRbac = () => {
+  const handleSaveAllRbac = async () => {
     IShopStore.setPermissionMatrix(permissions);
     setIsDirtyRbac(false);
-    setRbacSuccessMsg('✓ Đã lưu và đồng bộ toàn bộ ma trận phân quyền RBAC thành công cho toàn hệ thống!');
+    try {
+      await fetch('/api/admin/permissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ permissions }),
+      });
+    } catch {}
+    setRbacSuccessMsg('✓ Đã lưu và đồng bộ toàn bộ ma trận phân quyền RBAC vào MySQL thành công!');
     setTimeout(() => setRbacSuccessMsg(null), 3500);
   };
 
@@ -184,8 +217,21 @@ export default function AdminSettingsPage() {
     }
   };
 
-  const handleSaveStoreInfo = (e: React.FormEvent) => {
+  const handleSaveStoreInfo = async (e: React.FormEvent) => {
     e.preventDefault();
+    try {
+      await fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          storeName: storeInfo.name,
+          address: storeInfo.address,
+          hotline: storeInfo.hotline,
+          returnPolicy: storeInfo.returnPolicy,
+          receiptFooter: storeInfo.receiptFooter,
+        }),
+      });
+    } catch {}
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 2500);
   };

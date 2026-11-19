@@ -104,3 +104,27 @@ export function isValidUsername(username: unknown): boolean {
   const usernameRegex = /^[a-zA-Z0-9_]{3,30}$/;
   return usernameRegex.test(username.trim());
 }
+
+/**
+ * Canonical cashbook category display labels (eliminates transitive categoryLabel column in 3NF).
+ */
+export const CASHBOOK_CATEGORY_LABELS: Record<string, string> = {
+  sale_phone: 'Bán điện thoại mới',
+  sale_accessory: 'Bán phụ kiện',
+  repair_service: 'Dịch vụ sửa chữa iCare',
+  service_repair: 'Tiền dịch vụ kỹ thuật',
+  supplier_restock: 'Nhập hàng / Trả nợ NCC',
+  rent: 'Chi phí mặt bằng',
+  salary: 'Chi lương nhân sự',
+  utilities: 'Điện nước / Internet',
+  marketing: 'Quảng cáo & Marketing',
+  other_receipt: 'Thu nhập khác',
+  other_payment: 'Chi phí vận hành khác',
+};
+
+export function getCashbookCategoryLabel(category: string, type?: string): string {
+  if (category && CASHBOOK_CATEGORY_LABELS[category]) {
+    return CASHBOOK_CATEGORY_LABELS[category];
+  }
+  return type === 'payment' ? 'Chi tiền mặt / chuyển khoản' : 'Thu tiền mặt / chuyển khoản';
+}

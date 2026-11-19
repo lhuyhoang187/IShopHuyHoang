@@ -9,12 +9,12 @@ export async function GET() {
     );
 
     const counts = await db.query(
-      'SELECT category, COUNT(*) as cnt FROM sparepart GROUP BY category'
+      'SELECT categoryId, COUNT(*) as cnt FROM sparepart GROUP BY categoryId'
     );
 
     const countMap: Record<string, number> = {};
     for (const c of counts) {
-      countMap[c.category] = Number(c.cnt || 0);
+      countMap[c.categoryId] = Number(c.cnt || 0);
     }
 
     const categories = dbCategories.map((c) => ({
@@ -22,7 +22,7 @@ export async function GET() {
       code: c.code,
       name: c.name,
       description: c.description,
-      productCount: countMap[c.code] || 0,
+      productCount: countMap[c.id] || 0,
     }));
 
     return NextResponse.json({
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
       const existing = await db.queryOne('SELECT id FROM sparepartcategory WHERE code = ?', [oldCode]);
       if (existing) {
         await db.execute(
-          `UPDATE sparepartcategory SET 
+          `UPDATE sparepartcategory SET
              code = ?, name = ?, description = ?, updatedAt = NOW()
            WHERE id = ?`,
           [cleanCode, cleanName, description || null, existing.id]
@@ -77,11 +77,6 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      await db.execute(
-        `UPDATE sparepart SET category = ?, categoryName = ?, updatedAt = NOW() WHERE category = ?`,
-        [cleanCode, cleanName, oldCode]
-      );
-
       return NextResponse.json({
         success: true,
         message: 'Đã cập nhật tên danh mục linh kiện thành công',
@@ -89,7 +84,6 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Action create
     const existing = await db.queryOne('SELECT id FROM sparepartcategory WHERE code = ?', [cleanCode]);
     let catId = existing?.id;
     if (existing) {
@@ -131,11 +125,29 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Thiếu mã danh mục' }, { status: 400 });
     }
 
-    await db.execute('DELETE FROM sparepartcategory WHERE code = ?', [code]);
-    await db.execute(
-      'UPDATE sparepart SET category = "other", categoryName = "Linh kiện khác", updatedAt = NOW() WHERE category = ?',
-      [code]
-    );
+    const target = await db.queryOne('SELECT id FROM sparepartcategory WHERE code = ?', [code]);
+    if (!target) {
+      return NextResponse.json({ error: 'Không tìm thấy danh mục cần xóa' }, { status: 404 });
+    }
+
+    let otherCat = await db.queryOne('SELECT id FROM sparepartcategory WHERE code = ?', ['other']);
+    if (!otherCat) {
+      const otherId = 'sp_cat_other_' + Date.now();
+      await db.execute(
+        `INSERT INTO sparepartcategory (id, code, name, isActive, createdAt, updatedAt)
+         VALUES (?, 'other', 'Linh kiện khác', 1, NOW(), NOW())`,
+        [otherId]
+      );
+      otherCat = { id: otherId };
+    }
+
+    if (target.id !== otherCat.id) {
+      await db.execute(
+        'UPDATE sparepart SET categoryId = ?, updatedAt = NOW() WHERE categoryId = ?',
+        [otherCat.id, target.id]
+      );
+      await db.execute('DELETE FROM sparepartcategory WHERE id = ?', [target.id]);
+    }
 
     return NextResponse.json({
       success: true,

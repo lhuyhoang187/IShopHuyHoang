@@ -1,258 +1,387 @@
 erDiagram
-    %% ==========================================
-    %% 1. QUAN HỆ DANH MỤC & SẢN PHẨM (3NF)
-    %% ==========================================
-    PhoneBrand ||--o{ PhoneProduct : "manufactures"
-    PhoneProduct ||--o{ PhoneVariant : "has_variants"
-    PhoneProduct ||--o{ PhoneStock : "tracks_inventory"
-    
-    AccessoryCategory ||--o{ AccessoryProduct : "categorizes"
-    SparePartCategory ||--o{ SparePart : "categorizes"
+    %% ======================================================
+    %% iShop Huy Hoàng - 3NF / BCNF Relational Schema (27 InnoDB Tables, 22 FKs)
+    %% ======================================================
 
-    %% ==========================================
-    %% 2. QUAN HỆ NHẬP HÀNG & KHO NCC
-    %% ==========================================
-    Supplier ||--o{ PhoneStock : "supplies"
-    Supplier ||--o{ SupplierOrder : "bills"
-    SupplierOrder ||--o{ SupplierOrderItem : "contains"
+    %% 1. DANH MỤC & SẢN PHẨM ĐIỆN THOẠI (3NF)
+    PhoneBrand ||--o{ PhoneProduct : "brandId"
+    PhoneProduct ||--o{ PhoneColor : "phoneId"
+    PhoneColor ||--o{ PhoneVariant : "colorId"
+    PhoneProduct ||--o{ PhoneStock : "phoneId"
 
-    %% ==========================================
-    %% 3. QUAN HỆ BÁN HÀNG POS & HÓA ĐƠN (3NF)
-    %% ==========================================
-    Customer ||--o{ Invoice : "purchases"
-    Invoice ||--o{ InvoiceItem : "contains_items"
-    Invoice ||--o{ PhoneStock : "sold_imei"
+    %% 2. PHỤ KIỆN & LINH KIỆN SỬA CHỮA (3NF)
+    AccessoryCategory ||--o{ AccessoryProduct : "categoryId"
+    SparePartCategory ||--o{ SparePart : "categoryId"
+    SparePart ||--o{ SparePartCompatibility : "sparePartId"
 
-    %% ==========================================
-    %% 4. QUAN HỆ TIẾP NHẬN SỬA CHỮA ICARE (3NF)
-    %% ==========================================
-    Customer ||--o{ RepairTicket : "requests_repair"
-    User ||--o{ RepairTicket : "assigned_technician"
-    RepairTicket ||--o{ RepairTicketPart : "uses_spare_parts"
-    SparePart ||--o{ RepairTicketPart : "supplied_from"
-    RepairTicket ||--o{ RepairStatusHistory : "logs_progress"
+    %% 3. NHÀ CUNG CẤP & NHẬP KHO (3NF)
+    Supplier ||--o{ PhoneStock : "supplierId"
+    Supplier ||--o{ SupplierOrder : "supplierId"
+    SupplierOrder ||--o{ SupplierOrderItem : "orderCode"
 
-    %% ==========================================
-    %% ĐỊNH NGHĨA CHI TIẾT CÁC BẢNG (ENTITIES)
-    %% ==========================================
+    %% 4. BÁN HÀNG POS & HÓA ĐƠN (3NF)
+    Customer ||--o{ Invoice : "customerId"
+    Invoice ||--o{ InvoiceItem : "invoiceCode"
+    Invoice ||--o{ PhoneStock : "soldInvoiceId"
+
+    %% 5. SỬA CHỮA iCARE & ĐẶT LỊCH (3NF)
+    PhoneBrand ||--o{ RepairService : "brandId"
+    PhoneBrand ||--o{ RepairBookingOption : "brandId"
+    Customer ||--o{ RepairBooking : "customerId"
+    RepairTicket ||--o{ RepairBooking : "ticketCode"
+    Customer ||--o{ RepairTicket : "customerId"
+    User ||--o{ RepairTicket : "technicianId"
+    RepairTicket ||--o{ RepairTicketPart : "ticketCode"
+    SparePart ||--o{ RepairTicketPart : "sparePartId"
+    RepairTicket ||--o{ RepairStatusHistory : "ticketCode"
+
+    %% ======================================================
+    %% CHI TIẾT 27 THỰC THỂ CHUẨN HÓA 3NF
+    %% ======================================================
 
     User {
-        string id PK
-        string username UK
-        string password
-        string name
-        string role
-        string phone
-        boolean isActive
+        varchar id PK
+        varchar username UK
+        varchar password
+        varchar name
+        varchar role
+        varchar email UK
+        varchar phone
+        longtext avatar
+        tinyint isActive
+        varchar department
+    }
+
+    RolePermission {
+        varchar id PK
+        varchar module
+        varchar category
+        text description
+        tinyint admin
+        tinyint tech
+        tinyint cashier
+    }
+
+    StoreSetting {
+        varchar id PK
+        varchar storeName
+        varchar hotline
+        varchar address
+        varchar email
+        varchar bankId
+        varchar bankAccountNo
+        varchar bankAccountName
+        tinyint posDiscountRequiresApproval
     }
 
     Customer {
-        string id PK
-        string phone UK
-        string name
-        string email
-        string address
-        float totalSpent
+        varchar id PK
+        varchar name
+        varchar phone UK
+        varchar email
+        varchar address
+        varchar city
+        varchar membershipTier
+        varchar customerType
+        double totalSpent
         int points
-        string membershipTier
-        string customerType
+        int purchaseCount
+        int repairCount
+        longtext avatar
     }
 
     Supplier {
-        string id PK
-        string name
-        string phone
-        string email
-        string contactPerson
-        float totalPurchased
-        float currentDebt
+        varchar id PK
+        varchar name
+        varchar phone
+        varchar email
+        varchar address
+        varchar contactPerson
+        double totalPurchased
+        double currentDebt
     }
 
     PhoneBrand {
-        string id PK
-        string name UK
-        string slug UK
-        string country
+        varchar id PK
+        varchar name UK
+        varchar slug UK
+        varchar country
         int displayOrder
+        tinyint isActive
     }
 
     PhoneProduct {
-        string id PK
-        string name
-        string slug UK
-        string brand FK
-        string description
-        float rating
-        boolean isHot
-        boolean isNew
+        varchar id PK
+        varchar name
+        varchar slug UK
+        varchar brandId FK
+        text description
+        double rating
+        int reviewCount
+        tinyint isHot
+        tinyint isNew
+        varchar specScreen
+        varchar specChip
+        varchar specRam
+        varchar specStorage
+        varchar specRearCamera
+        varchar specFrontCamera
+        varchar specBattery
+        varchar specCharging
+        varchar specOs
+        varchar specSim
+        varchar specWaterResistant
+        varchar specWeight
+        text warrantyInfo
+    }
+
+    PhoneColor {
+        varchar id PK
+        varchar phoneId FK
+        varchar name
+        varchar hex
+        text imageUrl
+        int displayOrder
     }
 
     PhoneVariant {
-        string id PK
-        string phoneId FK
-        string colorName
-        string colorHex
-        string capacity
-        float price
-        float originalPrice
-        boolean isOutOfStock
+        varchar id PK
+        varchar colorId FK
+        varchar capacity
+        double price
+        double originalPrice
+        tinyint isOutOfStock
     }
 
     PhoneStock {
-        string imei PK
-        string phoneId FK
-        string supplierId FK
-        string color
-        string capacity
-        float costPrice
-        float sellingPrice
-        string status
-        string soldInvoiceId FK
-        string importDate
+        varchar imei PK
+        varchar phoneId FK
+        varchar color
+        varchar capacity
+        double costPrice
+        double sellingPrice
+        varchar supplierId FK
+        varchar importDate
+        varchar status
+        int warrantyMonths
+        varchar soldAt
+        varchar soldInvoiceId FK
+        int rewardPoints
     }
 
     AccessoryCategory {
-        string id PK
-        string code UK
-        string name
+        varchar id PK
+        varchar code UK
+        varchar name
+        int displayOrder
+        tinyint isActive
     }
 
     AccessoryProduct {
-        string id PK
-        string name
-        string slug UK
-        string category FK
-        string barcode UK
-        float costPrice
-        float sellingPrice
+        varchar id PK
+        varchar name
+        varchar slug UK
+        varchar categoryId FK
+        varchar barcode UK
+        varchar brand
+        double costPrice
+        double sellingPrice
+        double originalPrice
         int stock
+        int minStockAlert
+        int pointsToRedeem
     }
 
     SparePartCategory {
-        string id PK
-        string code UK
-        string name
+        varchar id PK
+        varchar code UK
+        varchar name
+        int displayOrder
+        tinyint isActive
     }
 
     SparePart {
-        string id PK
-        string name
-        string category FK
-        string barcode UK
-        float costPrice
-        float retailRepairPrice
+        varchar id PK
+        varchar name
+        varchar categoryId FK
+        varchar barcode UK
+        double costPrice
+        double retailRepairPrice
         int stock
+        varchar unit
         int warrantyMonths
     }
 
-    RepairService {
-        string id PK
-        string name
-        string category
-        string deviceBrand
-        string deviceModels
-        float price
-        string warrantyPeriod
-        int estimatedMinutes
-    }
-
-    RepairTicket {
-        string id PK
-        string ticketCode UK
-        string customerPhone FK
-        string technicianId FK
-        string deviceModel
-        string imeiOrSerial
-        string unlockPasscode
-        string status
-        float laborFee
-        float totalAmount
-        string deadlineTime
-        int deadlineMinutes
-        string estimatedDeliveryDate
-    }
-
-    RepairTicketPart {
-        string id PK
-        string ticketCode FK
-        string sparePartId FK
-        string partName
-        int quantity
-        float unitPrice
-        int warrantyMonths
-    }
-
-    RepairStatusHistory {
-        string id PK
-        string ticketCode FK
-        string status
-        string statusLabel
-        string note
-        string updatedBy
-        datetime createdAt
+    SparePartCompatibility {
+        varchar id PK
+        varchar sparePartId FK
+        varchar deviceModel
     }
 
     Invoice {
-        string id PK
-        string invoiceCode UK
-        string customerPhone FK
-        float subtotal
-        float discount
-        float totalAmount
-        string paymentMethod
-        string cashierName
-        string status
+        varchar id PK
+        varchar invoiceCode UK
+        varchar customerId FK
+        double subtotal
+        double discount
+        double totalAmount
+        varchar paymentMethod
+        varchar cashierName
+        varchar status
+        int pointsEarned
         datetime createdAt
     }
 
     InvoiceItem {
-        string id PK
-        string invoiceCode FK
-        string itemType
-        string productId
-        string productName
-        string imei
-        string color
-        string capacity
-        float unitPrice
+        varchar id PK
+        varchar invoiceCode FK
+        varchar itemType
+        varchar productId
+        varchar productName
+        varchar imei
+        varchar color
+        varchar capacity
+        double unitPrice
+        double costPrice
         int quantity
-        float discount
-        float subtotal
+        double discount
+        double subtotal
+        int warrantyMonths
     }
 
-    CashbookEntry {
-        string id PK
-        string code UK
-        string date
-        string type
-        string category
-        float amount
-        string paymentMethod
-        string referenceCode
-        string description
-        string creator
+    RepairService {
+        varchar id PK
+        varchar name
+        varchar category
+        varchar brandId FK
+        text deviceModels
+        double price
+        double originalPrice
+        varchar warrantyPeriod
+        int estimatedMinutes
+        tinyint isFeatured
+        tinyint isActive
+    }
+
+    RepairBookingOption {
+        varchar id PK
+        varchar optionType
+        varchar brandId FK
+        varchar code
+        varchar label
+        varchar subLabel
+        text description
+        varchar icon
+        int displayOrder
+        tinyint isActive
+    }
+
+    RepairBooking {
+        varchar id PK
+        varchar bookingCode UK
+        varchar customerId FK
+        varchar deviceModel
+        varchar serviceName
+        varchar appointmentDate
+        varchar appointmentTime
+        varchar status
+        varchar ticketCode FK
+        varchar branchName
+    }
+
+    RepairTicket {
+        varchar id PK
+        varchar ticketCode UK
+        varchar customerId FK
+        varchar deviceModel
+        varchar imeiOrSerial
+        text issueDescription
+        text technicianNotes
+        varchar status
+        double laborFee
+        double totalAmount
+        varchar receivedAt
+        varchar deliveredAt
+        varchar technicianId FK
+        varchar assignedBy
+        int deadlineMinutes
+        varchar deadlineTime
+    }
+
+    RepairTicketPart {
+        varchar id PK
+        varchar ticketCode FK
+        varchar sparePartId FK
+        int quantity
+        double costPrice
+        double unitPrice
+        int warrantyMonths
+    }
+
+    RepairStatusHistory {
+        varchar id PK
+        varchar ticketCode FK
+        varchar status
+        varchar statusLabel
+        text note
+        varchar updatedBy
+        datetime createdAt
     }
 
     SupplierOrder {
-        string id PK
-        string orderCode UK
-        string supplierId FK
-        string date
-        float totalAmount
-        float paidAmount
-        float debtAmount
-        string status
+        varchar id PK
+        varchar orderCode UK
+        varchar supplierId FK
+        varchar date
+        varchar type
+        text itemsSummary
+        double totalAmount
+        double paidAmount
+        double debtAmount
+        varchar status
     }
 
     SupplierOrderItem {
-        string id PK
-        string orderCode FK
-        string itemType
-        string productName
-        string imei
-        string color
-        string capacity
-        float unitCost
-        float totalCost
+        varchar id PK
+        varchar orderCode FK
+        varchar itemType
+        varchar productId
+        varchar productName
+        varchar color
+        varchar capacity
+        int quantity
+        double unitCost
+        double totalCost
+        varchar imei
     }
 
+    CashbookEntry {
+        varchar id PK
+        varchar code UK
+        varchar date
+        varchar type
+        varchar category
+        double amount
+        varchar paymentMethod
+        varchar referenceCode
+        text description
+        varchar creator
+    }
+
+    Promotion {
+        varchar id PK
+        varchar promoType
+        varchar code UK
+        varchar title
+        text description
+        varchar badgeText
+        varchar discountType
+        double discountValue
+        double minOrderValue
+        datetime startDate
+        datetime endDate
+        tinyint isActive
+        varchar targetCategory
+        varchar bannerStyle
+        text qrPayload
+    }

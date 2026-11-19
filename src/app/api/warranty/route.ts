@@ -28,11 +28,18 @@ export async function GET(request: NextRequest) {
     const results: any[] = [];
     const seenIds = new Set<string>();
 
-    // 1. Query PhoneStock by IMEI, Customer Phone, or Invoice ID
+    // 1. Query 3NF PhoneStock JOIN PhoneProduct + Invoice + Customer
     const phoneStockItems = await db.query(
-      `SELECT * FROM phonestock 
-       WHERE imei = ? OR imei = ? OR soldToCustomerPhone = ? OR soldToCustomerPhone = ? OR soldInvoiceId = ? OR soldInvoiceId = ?
-       ORDER BY createdAt DESC`,
+      `SELECT ps.*,
+              p.name AS phoneName,
+              c.name AS soldToCustomerName,
+              c.phone AS soldToCustomerPhone
+       FROM phonestock ps
+       LEFT JOIN phoneproduct p ON ps.phoneId = p.id
+       LEFT JOIN invoice inv ON ps.soldInvoiceId = inv.invoiceCode
+       LEFT JOIN customer c ON inv.customerId = c.id
+       WHERE ps.imei = ? OR ps.imei = ? OR c.phone = ? OR c.phone = ? OR ps.soldInvoiceId = ? OR ps.soldInvoiceId = ?
+       ORDER BY ps.createdAt DESC`,
       [q, upperCode, q, normalizedPhone || q, q, upperCode]
     );
 
@@ -80,11 +87,17 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // 2. Query RepairTicket by Ticket Code, IMEI/Serial, or Customer Phone
+    // 2. Query 3NF RepairTicket JOIN Customer + User
     const repairTickets = await db.query(
-      `SELECT * FROM repairticket 
-       WHERE ticketCode = ? OR ticketCode = ? OR imeiOrSerial = ? OR customerPhone = ? OR customerPhone = ?
-       ORDER BY createdAt DESC`,
+      `SELECT r.*,
+              c.name AS customerName,
+              c.phone AS customerPhone,
+              u.name AS technicianName
+       FROM repairticket r
+       LEFT JOIN customer c ON r.customerId = c.id
+       LEFT JOIN user u ON r.technicianId = u.id
+       WHERE r.ticketCode = ? OR r.ticketCode = ? OR r.imeiOrSerial = ? OR c.phone = ? OR c.phone = ?
+       ORDER BY r.createdAt DESC`,
       [q, upperCode, q, q, normalizedPhone || q]
     );
 
@@ -99,7 +112,7 @@ export async function GET(request: NextRequest) {
 
       if (!isNaN(baseDate.getTime())) {
         const expiryDate = new Date(baseDate);
-        expiryDate.setMonth(expiryDate.getMonth() + 6); // 6 tháng bảo hành linh kiện sửa chữa
+        expiryDate.setMonth(expiryDate.getMonth() + 6);
         expiryDateString = expiryDate.toISOString().substring(0, 10);
         remainingDays = Math.ceil((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
         isExpired = remainingDays <= 0;
@@ -131,7 +144,6 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // 3. If nothing found in MySQL, check fallback ServerStore
     if (results.length === 0) {
       const fallback = ServerStore.checkWarranty(q);
       if (fallback.found) {

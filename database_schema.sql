@@ -1,6 +1,6 @@
 -- iShop Huy Hoàng - MySQL Database Schema & DDL
 -- Cơ sở dữ liệu chuẩn hóa Dạng chuẩn 3 (3NF) cho WampServer
--- Ngày xuất: 2026-11-17T14:34:16.956Z
+-- Ngày xuất: 2026-11-19T13:08:01.856Z
 
 CREATE DATABASE IF NOT EXISTS `ishop_huyhoang` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE `ishop_huyhoang`;
@@ -24,7 +24,7 @@ CREATE TABLE `accessorycategory` (
   KEY `AccessoryCategory_code_idx` (`code`),
   KEY `AccessoryCategory_isActive_idx` (`isActive`),
   KEY `AccessoryCategory_displayOrder_idx` (`displayOrder`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Table structure for table `accessoryproduct`
 DROP TABLE IF EXISTS `accessoryproduct`;
@@ -32,8 +32,7 @@ CREATE TABLE `accessoryproduct` (
   `id` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   `name` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   `slug` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `category` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `categoryName` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `categoryId` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `barcode` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
   `brand` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
   `costPrice` double NOT NULL,
@@ -53,28 +52,12 @@ CREATE TABLE `accessoryproduct` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `AccessoryProduct_slug_key` (`slug`),
   UNIQUE KEY `AccessoryProduct_barcode_key` (`barcode`),
-  KEY `AccessoryProduct_category_idx` (`category`),
   KEY `AccessoryProduct_brand_idx` (`brand`),
   KEY `AccessoryProduct_barcode_idx` (`barcode`),
-  KEY `AccessoryProduct_stock_idx` (`stock`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Table structure for table `auditlog`
-DROP TABLE IF EXISTS `auditlog`;
-CREATE TABLE `auditlog` (
-  `id` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `action` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `entity` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `entityId` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `performedBy` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `details` text COLLATE utf8mb4_unicode_ci,
-  `createdAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  PRIMARY KEY (`id`),
-  KEY `AuditLog_action_idx` (`action`),
-  KEY `AuditLog_entity_idx` (`entity`),
-  KEY `AuditLog_entityId_idx` (`entityId`),
-  KEY `AuditLog_createdAt_idx` (`createdAt`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  KEY `AccessoryProduct_stock_idx` (`stock`),
+  KEY `AccessoryProduct_categoryId_idx` (`categoryId`),
+  CONSTRAINT `fk_accessory_category` FOREIGN KEY (`categoryId`) REFERENCES `accessorycategory` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Table structure for table `cashbookentry`
 DROP TABLE IF EXISTS `cashbookentry`;
@@ -84,7 +67,6 @@ CREATE TABLE `cashbookentry` (
   `date` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
   `type` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
   `category` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `categoryLabel` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
   `amount` double NOT NULL,
   `paymentMethod` varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL,
   `referenceCode` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
@@ -99,7 +81,7 @@ CREATE TABLE `cashbookentry` (
   KEY `CashbookEntry_category_idx` (`category`),
   KEY `CashbookEntry_referenceCode_idx` (`referenceCode`),
   KEY `CashbookEntry_createdAt_idx` (`createdAt`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Table structure for table `customer`
 DROP TABLE IF EXISTS `customer`;
@@ -115,7 +97,7 @@ CREATE TABLE `customer` (
   `repairCount` int NOT NULL DEFAULT '0',
   `createdAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   `updatedAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  `avatar` longtext COLLATE utf8mb4_unicode_ci,
+  `avatar` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `birthday` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `city` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT 'TP. Hồ Chí Minh',
   `customerType` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT 'Khách lẻ',
@@ -130,41 +112,14 @@ CREATE TABLE `customer` (
   KEY `Customer_name_idx` (`name`),
   KEY `Customer_points_idx` (`points`),
   KEY `Customer_totalSpent_idx` (`totalSpent`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Table structure for table `emailnotification`
-DROP TABLE IF EXISTS `emailnotification`;
-CREATE TABLE `emailnotification` (
-  `id` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `toEmail` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `customerName` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `customerPhone` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `customerId` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `subject` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `type` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `title` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `contentSummary` text COLLATE utf8mb4_unicode_ci NOT NULL,
-  `htmlContent` longtext COLLATE utf8mb4_unicode_ci NOT NULL,
-  `sentAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  `referenceCode` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `isRead` tinyint(1) NOT NULL DEFAULT '0',
-  `createdAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  PRIMARY KEY (`id`),
-  KEY `EmailNotification_toEmail_idx` (`toEmail`),
-  KEY `EmailNotification_customerPhone_idx` (`customerPhone`),
-  KEY `EmailNotification_referenceCode_idx` (`referenceCode`),
-  KEY `EmailNotification_type_idx` (`type`),
-  KEY `EmailNotification_customerId_fkey` (`customerId`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Table structure for table `invoice`
 DROP TABLE IF EXISTS `invoice`;
 CREATE TABLE `invoice` (
   `id` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   `invoiceCode` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `customerName` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `customerPhone` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `items` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `customerId` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `subtotal` double NOT NULL,
   `discount` double NOT NULL DEFAULT '0',
   `totalAmount` double NOT NULL,
@@ -178,8 +133,6 @@ CREATE TABLE `invoice` (
   `adminApprovalNote` text COLLATE utf8mb4_unicode_ci,
   `approvedAt` datetime(3) DEFAULT NULL,
   `approvedBy` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `customerEmail` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `customerTier` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `depositAmount` double DEFAULT NULL,
   `depositPercent` double DEFAULT NULL,
   `estimatedDeliveryDate` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
@@ -190,17 +143,18 @@ CREATE TABLE `invoice` (
   `status` varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'completed',
   PRIMARY KEY (`id`),
   UNIQUE KEY `Invoice_invoiceCode_key` (`invoiceCode`),
-  KEY `Invoice_customerPhone_idx` (`customerPhone`),
   KEY `Invoice_paymentMethod_idx` (`paymentMethod`),
   KEY `Invoice_createdAt_idx` (`createdAt`),
-  KEY `Invoice_status_idx` (`status`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  KEY `Invoice_status_idx` (`status`),
+  KEY `Invoice_customerId_idx` (`customerId`),
+  CONSTRAINT `fk_invoice_customer` FOREIGN KEY (`customerId`) REFERENCES `customer` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Table structure for table `invoiceitem`
 DROP TABLE IF EXISTS `invoiceitem`;
 CREATE TABLE `invoiceitem` (
   `id` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `invoiceCode` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `invoiceCode` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `itemType` varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL,
   `productId` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `productName` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -208,6 +162,7 @@ CREATE TABLE `invoiceitem` (
   `color` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `capacity` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `unitPrice` double NOT NULL,
+  `costPrice` double NOT NULL DEFAULT '0',
   `quantity` int NOT NULL DEFAULT '1',
   `discount` double NOT NULL DEFAULT '0',
   `subtotal` double NOT NULL,
@@ -217,8 +172,9 @@ CREATE TABLE `invoiceitem` (
   PRIMARY KEY (`id`),
   KEY `InvoiceItem_invoiceCode_idx` (`invoiceCode`),
   KEY `InvoiceItem_productId_idx` (`productId`),
-  KEY `InvoiceItem_imei_idx` (`imei`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  KEY `InvoiceItem_imei_idx` (`imei`),
+  CONSTRAINT `fk_invoiceitem_invoice` FOREIGN KEY (`invoiceCode`) REFERENCES `invoice` (`invoiceCode`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Table structure for table `phonebrand`
 DROP TABLE IF EXISTS `phonebrand`;
@@ -238,7 +194,24 @@ CREATE TABLE `phonebrand` (
   UNIQUE KEY `PhoneBrand_slug_key` (`slug`),
   KEY `PhoneBrand_slug_idx` (`slug`),
   KEY `PhoneBrand_isActive_idx` (`isActive`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Table structure for table `phonecolor`
+DROP TABLE IF EXISTS `phonecolor`;
+CREATE TABLE `phonecolor` (
+  `id` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `phoneId` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `hex` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '#2B2B2B',
+  `imageUrl` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `displayOrder` int NOT NULL DEFAULT '0',
+  `createdAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `updatedAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `PhoneColor_phoneId_name_key` (`phoneId`,`name`),
+  KEY `PhoneColor_phoneId_idx` (`phoneId`),
+  CONSTRAINT `fk_phonecolor_phone` FOREIGN KEY (`phoneId`) REFERENCES `phoneproduct` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Table structure for table `phoneproduct`
 DROP TABLE IF EXISTS `phoneproduct`;
@@ -246,45 +219,51 @@ CREATE TABLE `phoneproduct` (
   `id` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   `name` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   `slug` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `brand` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `brandId` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `description` text COLLATE utf8mb4_unicode_ci NOT NULL,
   `rating` double NOT NULL DEFAULT '5',
   `reviewCount` int NOT NULL DEFAULT '0',
   `isHot` tinyint(1) NOT NULL DEFAULT '0',
   `isNew` tinyint(1) NOT NULL DEFAULT '0',
-  `colors` text COLLATE utf8mb4_unicode_ci NOT NULL,
-  `capacities` text COLLATE utf8mb4_unicode_ci NOT NULL,
-  `specs` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `specScreen` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `specChip` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `specRam` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `specStorage` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `specRearCamera` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `specFrontCamera` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `specBattery` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `specCharging` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `specOs` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `specSim` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `specWaterResistant` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `specWeight` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `warrantyInfo` text COLLATE utf8mb4_unicode_ci NOT NULL,
   `createdAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   `updatedAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
   UNIQUE KEY `PhoneProduct_slug_key` (`slug`),
-  KEY `PhoneProduct_brand_idx` (`brand`),
   KEY `PhoneProduct_isHot_idx` (`isHot`),
   KEY `PhoneProduct_isNew_idx` (`isNew`),
-  KEY `PhoneProduct_createdAt_idx` (`createdAt`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  KEY `PhoneProduct_createdAt_idx` (`createdAt`),
+  KEY `PhoneProduct_brandId_idx` (`brandId`),
+  CONSTRAINT `fk_phoneproduct_brand` FOREIGN KEY (`brandId`) REFERENCES `phonebrand` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Table structure for table `phonestock`
 DROP TABLE IF EXISTS `phonestock`;
 CREATE TABLE `phonestock` (
   `imei` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `phoneId` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `phoneName` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `phoneId` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `color` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
   `capacity` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
   `costPrice` double NOT NULL,
   `sellingPrice` double NOT NULL,
-  `supplierId` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `supplierName` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `supplierId` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `importDate` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
   `status` varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'in_stock',
   `warrantyMonths` int NOT NULL DEFAULT '12',
   `soldAt` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `soldToCustomerName` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `soldToCustomerPhone` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `soldInvoiceId` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `soldInvoiceId` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `createdAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   `updatedAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   `rewardPoints` int NOT NULL DEFAULT '0',
@@ -293,171 +272,101 @@ CREATE TABLE `phonestock` (
   KEY `PhoneStock_supplierId_idx` (`supplierId`),
   KEY `PhoneStock_status_idx` (`status`),
   KEY `PhoneStock_soldInvoiceId_idx` (`soldInvoiceId`),
-  KEY `PhoneStock_soldToCustomerPhone_idx` (`soldToCustomerPhone`),
-  KEY `PhoneStock_importDate_idx` (`importDate`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  KEY `PhoneStock_importDate_idx` (`importDate`),
+  CONSTRAINT `fk_phonestock_invoice` FOREIGN KEY (`soldInvoiceId`) REFERENCES `invoice` (`invoiceCode`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `fk_phonestock_phone` FOREIGN KEY (`phoneId`) REFERENCES `phoneproduct` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `fk_phonestock_supplier` FOREIGN KEY (`supplierId`) REFERENCES `supplier` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Table structure for table `phonevariant`
 DROP TABLE IF EXISTS `phonevariant`;
 CREATE TABLE `phonevariant` (
-  `id` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `phoneId` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `colorName` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `colorHex` varchar(30) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `imageUrl` text COLLATE utf8mb4_unicode_ci,
-  `capacity` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `id` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `colorId` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `capacity` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `price` double NOT NULL,
   `originalPrice` double DEFAULT NULL,
   `isOutOfStock` tinyint(1) NOT NULL DEFAULT '0',
   `createdAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   `updatedAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
-  KEY `PhoneVariant_phoneId_idx` (`phoneId`),
-  KEY `PhoneVariant_capacity_idx` (`capacity`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  UNIQUE KEY `PhoneVariant_color_cap_key` (`colorId`,`capacity`),
+  KEY `PhoneVariant_capacity_idx` (`capacity`),
+  CONSTRAINT `fk_phonevariant_color` FOREIGN KEY (`colorId`) REFERENCES `phonecolor` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table structure for table `productreview`
-DROP TABLE IF EXISTS `productreview`;
-CREATE TABLE `productreview` (
-  `id` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `productId` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `productType` varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'phone',
-  `customerId` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `customerName` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `customerPhone` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `rating` int NOT NULL DEFAULT '5',
-  `comment` text COLLATE utf8mb4_unicode_ci NOT NULL,
-  `isApproved` tinyint(1) NOT NULL DEFAULT '1',
-  `createdAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  `updatedAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  PRIMARY KEY (`id`),
-  KEY `ProductReview_productId_idx` (`productId`),
-  KEY `ProductReview_isApproved_idx` (`isApproved`),
-  KEY `ProductReview_customerId_fkey` (`customerId`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Table structure for table `promoqrcode`
-DROP TABLE IF EXISTS `promoqrcode`;
-CREATE TABLE `promoqrcode` (
-  `id` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `code` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `title` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `description` text COLLATE utf8mb4_unicode_ci NOT NULL,
-  `discountType` varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'percentage',
-  `discountValue` double NOT NULL,
+-- Table structure for table `promotion`
+DROP TABLE IF EXISTS `promotion`;
+CREATE TABLE `promotion` (
+  `id` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `promoType` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'campaign',
+  `code` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `title` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `badgeText` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `discountType` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'percentage',
+  `discountValue` double NOT NULL DEFAULT '0',
   `minOrderValue` double NOT NULL DEFAULT '0',
-  `startDate` datetime(3) NOT NULL,
-  `endDate` datetime(3) NOT NULL,
+  `startDate` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `endDate` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   `isActive` tinyint(1) NOT NULL DEFAULT '1',
-  `qrPayload` text COLLATE utf8mb4_unicode_ci NOT NULL,
-  `bannerColor` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `targetCategory` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'all',
+  `bannerStyle` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `qrPayload` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `createdAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   `updatedAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
-  UNIQUE KEY `PromoQRCode_code_key` (`code`),
-  KEY `PromoQRCode_code_idx` (`code`),
-  KEY `PromoQRCode_isActive_idx` (`isActive`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Table structure for table `promotioncampaign`
-DROP TABLE IF EXISTS `promotioncampaign`;
-CREATE TABLE `promotioncampaign` (
-  `id` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `title` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `description` text COLLATE utf8mb4_unicode_ci NOT NULL,
-  `badgeText` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `discountType` varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'percentage',
-  `discountValue` double NOT NULL,
-  `startDate` datetime(3) NOT NULL,
-  `endDate` datetime(3) NOT NULL,
-  `isActive` tinyint(1) NOT NULL DEFAULT '1',
-  `targetCategory` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'all',
-  `bannerGradient` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `createdAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  `updatedAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  PRIMARY KEY (`id`),
-  KEY `PromotionCampaign_isActive_idx` (`isActive`),
-  KEY `PromotionCampaign_startDate_endDate_idx` (`startDate`,`endDate`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Table structure for table `redeemedgift`
-DROP TABLE IF EXISTS `redeemedgift`;
-CREATE TABLE `redeemedgift` (
-  `id` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `giftCode` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `customerId` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `customerPhone` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `customerName` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `accessoryId` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `accessoryName` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `accessoryImage` text COLLATE utf8mb4_unicode_ci NOT NULL,
-  `pointsRedeemed` int NOT NULL,
-  `redeemedAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  `status` varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'active',
-  `notes` text COLLATE utf8mb4_unicode_ci,
-  `createdAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  `updatedAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `RedeemedGift_giftCode_key` (`giftCode`),
-  KEY `RedeemedGift_giftCode_idx` (`giftCode`),
-  KEY `RedeemedGift_customerPhone_idx` (`customerPhone`),
-  KEY `RedeemedGift_status_idx` (`status`),
-  KEY `RedeemedGift_customerId_fkey` (`customerId`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Table structure for table `registereddevice`
-DROP TABLE IF EXISTS `registereddevice`;
-CREATE TABLE `registereddevice` (
-  `id` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `imei` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `productName` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `phoneId` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `color` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `capacity` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `customerId` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `customerPhone` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `customerName` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `customerEmail` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `purchaseInvoiceCode` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `purchaseDate` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `warrantyExpiryDate` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `purchasePrice` double NOT NULL DEFAULT '0',
-  `repairHistoryCodes` text COLLATE utf8mb4_unicode_ci,
-  `createdAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  `updatedAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `RegisteredDevice_imei_key` (`imei`),
-  KEY `RegisteredDevice_imei_idx` (`imei`),
-  KEY `RegisteredDevice_customerPhone_idx` (`customerPhone`),
-  KEY `RegisteredDevice_customerId_fkey` (`customerId`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  UNIQUE KEY `Promotion_code_key` (`code`),
+  KEY `Promotion_type_active_idx` (`promoType`,`isActive`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Table structure for table `repairbooking`
 DROP TABLE IF EXISTS `repairbooking`;
 CREATE TABLE `repairbooking` (
   `id` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   `bookingCode` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `customerName` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `customerPhone` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `customerId` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `customerId` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `deviceModel` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
   `serviceName` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   `appointmentDate` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
   `appointmentTime` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
   `notes` text COLLATE utf8mb4_unicode_ci,
   `status` varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
-  `ticketCode` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `ticketCode` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `branchName` varchar(150) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `createdAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   `updatedAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
   UNIQUE KEY `RepairBooking_bookingCode_key` (`bookingCode`),
   KEY `RepairBooking_bookingCode_idx` (`bookingCode`),
-  KEY `RepairBooking_customerPhone_idx` (`customerPhone`),
   KEY `RepairBooking_status_idx` (`status`),
   KEY `RepairBooking_appointmentDate_idx` (`appointmentDate`),
-  KEY `RepairBooking_customerId_fkey` (`customerId`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  KEY `fk_repairbooking_customer` (`customerId`),
+  KEY `fk_repairbooking_ticket` (`ticketCode`),
+  CONSTRAINT `fk_repairbooking_customer` FOREIGN KEY (`customerId`) REFERENCES `customer` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `fk_repairbooking_ticket` FOREIGN KEY (`ticketCode`) REFERENCES `repairticket` (`ticketCode`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Table structure for table `repairbookingoption`
+DROP TABLE IF EXISTS `repairbookingoption`;
+CREATE TABLE `repairbookingoption` (
+  `id` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `optionType` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `brandId` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `code` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `label` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `subLabel` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `icon` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `displayOrder` int NOT NULL DEFAULT '0',
+  `isActive` tinyint(1) NOT NULL DEFAULT '1',
+  `createdAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `updatedAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (`id`),
+  KEY `RepairBookingOption_type_idx` (`optionType`),
+  KEY `RepairBookingOption_brandId_idx` (`brandId`),
+  CONSTRAINT `fk_repairbookingoption_brand` FOREIGN KEY (`brandId`) REFERENCES `phonebrand` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Table structure for table `repairservice`
 DROP TABLE IF EXISTS `repairservice`;
@@ -465,7 +374,7 @@ CREATE TABLE `repairservice` (
   `id` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   `name` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   `category` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `deviceBrand` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'Apple',
+  `brandId` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `deviceModels` text COLLATE utf8mb4_unicode_ci NOT NULL,
   `price` double NOT NULL,
   `originalPrice` double DEFAULT NULL,
@@ -477,17 +386,18 @@ CREATE TABLE `repairservice` (
   `createdAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   `updatedAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
-  KEY `RepairService_deviceBrand_idx` (`deviceBrand`),
   KEY `RepairService_category_idx` (`category`),
   KEY `RepairService_isActive_idx` (`isActive`),
-  KEY `RepairService_isFeatured_idx` (`isFeatured`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  KEY `RepairService_isFeatured_idx` (`isFeatured`),
+  KEY `RepairService_brandId_idx` (`brandId`),
+  CONSTRAINT `fk_repairservice_brand` FOREIGN KEY (`brandId`) REFERENCES `phonebrand` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Table structure for table `repairstatushistory`
 DROP TABLE IF EXISTS `repairstatushistory`;
 CREATE TABLE `repairstatushistory` (
   `id` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `ticketCode` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `ticketCode` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `status` varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL,
   `statusLabel` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
   `note` text COLLATE utf8mb4_unicode_ci,
@@ -496,17 +406,16 @@ CREATE TABLE `repairstatushistory` (
   PRIMARY KEY (`id`),
   KEY `RepairStatusHistory_ticketCode_idx` (`ticketCode`),
   KEY `RepairStatusHistory_status_idx` (`status`),
-  KEY `RepairStatusHistory_createdAt_idx` (`createdAt`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  KEY `RepairStatusHistory_createdAt_idx` (`createdAt`),
+  CONSTRAINT `fk_repairstatushistory_ticket` FOREIGN KEY (`ticketCode`) REFERENCES `repairticket` (`ticketCode`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Table structure for table `repairticket`
 DROP TABLE IF EXISTS `repairticket`;
 CREATE TABLE `repairticket` (
   `id` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   `ticketCode` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `customerName` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `customerPhone` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `customerAddress` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `customerId` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `deviceModel` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
   `imeiOrSerial` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
   `unlockPasscode` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -515,15 +424,12 @@ CREATE TABLE `repairticket` (
   `issueDescription` text COLLATE utf8mb4_unicode_ci NOT NULL,
   `technicianNotes` text COLLATE utf8mb4_unicode_ci,
   `status` varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'received',
-  `statusHistory` text COLLATE utf8mb4_unicode_ci NOT NULL,
-  `partsUsed` text COLLATE utf8mb4_unicode_ci NOT NULL,
   `laborFee` double NOT NULL DEFAULT '0',
   `totalAmount` double NOT NULL DEFAULT '0',
   `estimatedDeliveryDate` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
   `receivedAt` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
   `deliveredAt` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `technicianId` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `technicianName` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `technicianId` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `warrantyPeriod` text COLLATE utf8mb4_unicode_ci NOT NULL,
   `createdAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   `updatedAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
@@ -533,27 +439,31 @@ CREATE TABLE `repairticket` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `RepairTicket_ticketCode_key` (`ticketCode`),
   KEY `RepairTicket_status_idx` (`status`),
-  KEY `RepairTicket_customerPhone_idx` (`customerPhone`),
   KEY `RepairTicket_imeiOrSerial_idx` (`imeiOrSerial`),
   KEY `RepairTicket_technicianId_idx` (`technicianId`),
-  KEY `RepairTicket_createdAt_idx` (`createdAt`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  KEY `RepairTicket_createdAt_idx` (`createdAt`),
+  KEY `RepairTicket_customerId_idx` (`customerId`),
+  CONSTRAINT `fk_repairticket_customer` FOREIGN KEY (`customerId`) REFERENCES `customer` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `fk_repairticket_technician` FOREIGN KEY (`technicianId`) REFERENCES `user` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Table structure for table `repairticketpart`
 DROP TABLE IF EXISTS `repairticketpart`;
 CREATE TABLE `repairticketpart` (
   `id` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `ticketCode` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `sparePartId` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `partName` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `ticketCode` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `sparePartId` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `quantity` int NOT NULL DEFAULT '1',
+  `costPrice` double NOT NULL DEFAULT '0',
   `unitPrice` double NOT NULL,
   `warrantyMonths` int NOT NULL DEFAULT '6',
   `createdAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
   KEY `RepairTicketPart_ticketCode_idx` (`ticketCode`),
-  KEY `RepairTicketPart_sparePartId_idx` (`sparePartId`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  KEY `RepairTicketPart_sparePartId_idx` (`sparePartId`),
+  CONSTRAINT `fk_repairticketpart_part` FOREIGN KEY (`sparePartId`) REFERENCES `sparepart` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `fk_repairticketpart_ticket` FOREIGN KEY (`ticketCode`) REFERENCES `repairticket` (`ticketCode`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Table structure for table `rolepermission`
 DROP TABLE IF EXISTS `rolepermission`;
@@ -569,17 +479,15 @@ CREATE TABLE `rolepermission` (
   `updatedAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
   KEY `RolePermission_category_idx` (`category`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Table structure for table `sparepart`
 DROP TABLE IF EXISTS `sparepart`;
 CREATE TABLE `sparepart` (
   `id` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   `name` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `category` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `categoryName` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `categoryId` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `barcode` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `compatibleModels` text COLLATE utf8mb4_unicode_ci NOT NULL,
   `costPrice` double NOT NULL,
   `retailRepairPrice` double NOT NULL,
   `stock` int NOT NULL DEFAULT '0',
@@ -589,10 +497,11 @@ CREATE TABLE `sparepart` (
   `updatedAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
   UNIQUE KEY `SparePart_barcode_key` (`barcode`),
-  KEY `SparePart_category_idx` (`category`),
   KEY `SparePart_barcode_idx` (`barcode`),
-  KEY `SparePart_stock_idx` (`stock`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  KEY `SparePart_stock_idx` (`stock`),
+  KEY `SparePart_categoryId_idx` (`categoryId`),
+  CONSTRAINT `fk_sparepart_category` FOREIGN KEY (`categoryId`) REFERENCES `sparepartcategory` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Table structure for table `sparepartcategory`
 DROP TABLE IF EXISTS `sparepartcategory`;
@@ -609,29 +518,20 @@ CREATE TABLE `sparepartcategory` (
   UNIQUE KEY `SparePartCategory_code_key` (`code`),
   KEY `SparePartCategory_code_idx` (`code`),
   KEY `SparePartCategory_isActive_idx` (`isActive`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table structure for table `storebranch`
-DROP TABLE IF EXISTS `storebranch`;
-CREATE TABLE `storebranch` (
-  `id` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `code` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `name` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `phone` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `address` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `district` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `city` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'TP. Hồ Chí Minh',
-  `openingHours` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '08:00 - 21:30',
-  `mapUrl` text COLLATE utf8mb4_unicode_ci,
-  `isMainBranch` tinyint(1) NOT NULL DEFAULT '0',
-  `isActive` tinyint(1) NOT NULL DEFAULT '1',
+-- Table structure for table `sparepartcompatibility`
+DROP TABLE IF EXISTS `sparepartcompatibility`;
+CREATE TABLE `sparepartcompatibility` (
+  `id` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `sparePartId` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `deviceModel` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `createdAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  `updatedAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
-  UNIQUE KEY `StoreBranch_code_key` (`code`),
-  KEY `StoreBranch_code_idx` (`code`),
-  KEY `StoreBranch_isActive_idx` (`isActive`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  UNIQUE KEY `SparePartCompat_part_model_key` (`sparePartId`,`deviceModel`),
+  KEY `SparePartCompat_part_idx` (`sparePartId`),
+  CONSTRAINT `fk_sparepartcompat_part` FOREIGN KEY (`sparePartId`) REFERENCES `sparepart` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Table structure for table `storesetting`
 DROP TABLE IF EXISTS `storesetting`;
@@ -650,7 +550,7 @@ CREATE TABLE `storesetting` (
   `receiptFooter` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `returnPolicy` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Table structure for table `supplier`
 DROP TABLE IF EXISTS `supplier`;
@@ -668,15 +568,14 @@ CREATE TABLE `supplier` (
   PRIMARY KEY (`id`),
   KEY `Supplier_name_idx` (`name`),
   KEY `Supplier_phone_idx` (`phone`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Table structure for table `supplierorder`
 DROP TABLE IF EXISTS `supplierorder`;
 CREATE TABLE `supplierorder` (
   `id` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   `orderCode` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `supplierId` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `supplierName` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `supplierId` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `date` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
   `type` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
   `itemsSummary` text COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -685,7 +584,6 @@ CREATE TABLE `supplierorder` (
   `debtAmount` double NOT NULL,
   `status` varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL,
   `notes` text COLLATE utf8mb4_unicode_ci NOT NULL,
-  `importedImeis` text COLLATE utf8mb4_unicode_ci,
   `createdAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   `updatedAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
@@ -693,14 +591,15 @@ CREATE TABLE `supplierorder` (
   KEY `SupplierOrder_supplierId_idx` (`supplierId`),
   KEY `SupplierOrder_date_idx` (`date`),
   KEY `SupplierOrder_status_idx` (`status`),
-  KEY `SupplierOrder_createdAt_idx` (`createdAt`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  KEY `SupplierOrder_createdAt_idx` (`createdAt`),
+  CONSTRAINT `fk_supplierorder_supplier` FOREIGN KEY (`supplierId`) REFERENCES `supplier` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Table structure for table `supplierorderitem`
 DROP TABLE IF EXISTS `supplierorderitem`;
 CREATE TABLE `supplierorderitem` (
   `id` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `orderCode` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `orderCode` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `itemType` varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'phone',
   `productId` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `productName` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -714,8 +613,9 @@ CREATE TABLE `supplierorderitem` (
   PRIMARY KEY (`id`),
   KEY `SupplierOrderItem_orderCode_idx` (`orderCode`),
   KEY `SupplierOrderItem_productId_idx` (`productId`),
-  KEY `SupplierOrderItem_imei_idx` (`imei`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  KEY `SupplierOrderItem_imei_idx` (`imei`),
+  CONSTRAINT `fk_supplierorderitem_order` FOREIGN KEY (`orderCode`) REFERENCES `supplierorder` (`orderCode`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Table structure for table `user`
 DROP TABLE IF EXISTS `user`;
@@ -725,7 +625,7 @@ CREATE TABLE `user` (
   `password` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   `name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
   `role` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'cashier',
-  `avatar` longtext COLLATE utf8mb4_unicode_ci,
+  `avatar` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `createdAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   `email` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `isActive` tinyint(1) NOT NULL DEFAULT '1',
@@ -740,32 +640,6 @@ CREATE TABLE `user` (
   UNIQUE KEY `User_email_key` (`email`),
   KEY `User_role_idx` (`role`),
   KEY `User_isActive_idx` (`isActive`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Table structure for table `warrantyclaim`
-DROP TABLE IF EXISTS `warrantyclaim`;
-CREATE TABLE `warrantyclaim` (
-  `id` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `claimCode` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `imeiOrSerial` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `customerName` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `customerPhone` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `customerEmail` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `customerId` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `productName` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `issueDescription` text COLLATE utf8mb4_unicode_ci NOT NULL,
-  `status` varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
-  `resolutionNotes` text COLLATE utf8mb4_unicode_ci,
-  `resolvedAt` datetime(3) DEFAULT NULL,
-  `createdAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  `updatedAt` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `WarrantyClaim_claimCode_key` (`claimCode`),
-  KEY `WarrantyClaim_claimCode_idx` (`claimCode`),
-  KEY `WarrantyClaim_imeiOrSerial_idx` (`imeiOrSerial`),
-  KEY `WarrantyClaim_customerPhone_idx` (`customerPhone`),
-  KEY `WarrantyClaim_status_idx` (`status`),
-  KEY `WarrantyClaim_customerId_fkey` (`customerId`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;

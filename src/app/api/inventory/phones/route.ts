@@ -11,15 +11,26 @@ export async function GET(request: NextRequest) {
   const status = searchParams.get('status');
 
   try {
-    let sql = 'SELECT * FROM phonestock';
+    let sql = `
+      SELECT ps.*,
+             p.name AS phoneName,
+             s.name AS supplierName,
+             c.name AS soldToCustomerName,
+             c.phone AS soldToCustomerPhone
+      FROM phonestock ps
+      LEFT JOIN phoneproduct p ON ps.phoneId = p.id
+      LEFT JOIN supplier s ON ps.supplierId = s.id
+      LEFT JOIN invoice inv ON ps.soldInvoiceId = inv.invoiceCode
+      LEFT JOIN customer c ON inv.customerId = c.id
+    `;
     const params: any[] = [];
 
     if (status && status !== 'all') {
-      sql += ' WHERE status = ?';
+      sql += ' WHERE ps.status = ?';
       params.push(status);
     }
 
-    sql += ' ORDER BY createdAt DESC';
+    sql += ' ORDER BY ps.createdAt DESC';
 
     const items = await db.query(sql, params);
 
@@ -54,7 +65,6 @@ export async function POST(request: NextRequest) {
     const sellingPrice = Number(body.sellingPrice);
     const costPrice = Number(body.costPrice || 0);
 
-    // Business Constraints Validation
     if (!imei || !isValidImei(imei)) {
       return NextResponse.json(
         { error: 'Số IMEI không hợp lệ (cần từ 8 đến 25 ký tự chữ và số, không chứa khoảng trắng)' },
@@ -62,9 +72,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!phoneName || !color || !capacity) {
+    if (!color || !capacity) {
       return NextResponse.json(
-        { error: 'Vui lòng cung cấp đầy đủ tên máy, màu sắc và dung lượng' },
+        { error: 'Vui lòng cung cấp đầy đủ màu sắc và dung lượng' },
         { status: 400 }
       );
     }
@@ -84,7 +94,6 @@ export async function POST(request: NextRequest) {
     }
 
     const exists = await db.queryOne('SELECT imei FROM phonestock WHERE imei = ?', [imei]);
-
     if (exists) {
       return NextResponse.json(
         { error: `Số IMEI ${imei} đã tồn tại trong hệ thống kho!` },
@@ -92,37 +101,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Resolve or fallback PhoneProduct to strictly satisfy Foreign Key constraint
-    let resolvedPhoneId = body.phoneId ? sanitizeString(body.phoneId, 50) : null;
+    // Resolve PhoneProduct FK
+    let resolvedPhoneId = body.phoneId ? sanitizeString(body.phoneId, 191) : null;
     if (resolvedPhoneId) {
-      const phoneProductExists = await db.queryOne('SELECT id FROM phoneproduct WHERE id = ?', [resolvedPhoneId]);
-      if (!phoneProductExists) {
-        resolvedPhoneId = null;
-      }
+      const found = await db.queryOne('SELECT id FROM phoneproduct WHERE id = ?', [resolvedPhoneId]);
+      if (!found) resolvedPhoneId = null;
     }
-
+    if (!resolvedPhoneId && phoneName) {
+      const byName = await db.queryOne('SELECT id FROM phoneproduct WHERE name LIKE ? LIMIT 1', [`%${phoneName}%`]);
+      if (byName) resolvedPhoneId = byName.id;
+    }
     if (!resolvedPhoneId) {
       const firstPhone = await db.queryOne('SELECT id FROM phoneproduct LIMIT 1');
       resolvedPhoneId = firstPhone ? firstPhone.id : 'p-1';
     }
 
-    // Resolve or fallback Supplier to strictly satisfy Foreign Key constraint
-    let resolvedSupplierId = body.supplierId ? sanitizeString(body.supplierId, 50) : null;
-    let resolvedSupplierName = body.supplierName ? sanitizeString(body.supplierName, 150) : null;
-
+    // Resolve Supplier FK
+    let resolvedSupplierId = body.supplierId ? sanitizeString(body.supplierId, 191) : null;
     if (resolvedSupplierId) {
-      const supplierExists = await db.queryOne('SELECT id, name FROM supplier WHERE id = ?', [resolvedSupplierId]);
-      if (supplierExists) {
-        resolvedSupplierName = supplierExists.name;
-      } else {
-        resolvedSupplierId = null;
-      }
+      const supplierExists = await db.queryOne('SELECT id FROM supplier WHERE id = ?', [resolvedSupplierId]);
+      if (!supplierExists) resolvedSupplierId = null;
     }
-
     if (!resolvedSupplierId) {
-      const firstSupplier = await db.queryOne('SELECT id, name FROM supplier LIMIT 1');
-      resolvedSupplierId = firstSupplier ? firstSupplier.id : 'sup-1';
-      resolvedSupplierName = firstSupplier ? firstSupplier.name : 'Apple Authorized Distributor VN';
+      const firstSupplier = await db.queryOne('SELECT id FROM supplier LIMIT 1');
+      resolvedSupplierId = firstSupplier ? firstSupplier.id : null;
     }
 
     const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
@@ -130,25 +132,30 @@ export async function POST(request: NextRequest) {
     const warrantyMonths = Math.max(0, Number(body.warrantyMonths || 12));
 
     await db.execute(
-      `INSERT INTO phonestock 
-       (imei, phoneId, phoneName, color, capacity, costPrice, sellingPrice, supplierId, supplierName, importDate, status, warrantyMonths, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'in_stock', ?, NOW(), NOW())`,
+      `INSERT INTO phonestock
+       (imei, phoneId, color, capacity, costPrice, sellingPrice, supplierId, importDate, status, warrantyMonths, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'in_stock', ?, NOW(), NOW())`,
       [
         imei,
         resolvedPhoneId,
-        phoneName,
         color,
         capacity,
         costPrice,
         sellingPrice,
         resolvedSupplierId,
-        resolvedSupplierName || 'Nhà Phân Phối Chính Hãng',
         importDate,
         warrantyMonths,
       ]
     );
 
-    const newItem = await db.queryOne('SELECT * FROM phonestock WHERE imei = ?', [imei]);
+    const newItem = await db.queryOne(
+      `SELECT ps.*, p.name AS phoneName, s.name AS supplierName
+       FROM phonestock ps
+       LEFT JOIN phoneproduct p ON ps.phoneId = p.id
+       LEFT JOIN supplier s ON ps.supplierId = s.id
+       WHERE ps.imei = ?`,
+      [imei]
+    );
 
     return NextResponse.json(
       {
@@ -162,7 +169,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('Phone stock POST error:', error);
     return NextResponse.json(
-      { error: 'Lỗi nhập kho: ' + (error?.message || '') },
+      { error: 'Lỗi nhập máy vào kho: ' + (error?.message || '') },
       { status: 500 }
     );
   }

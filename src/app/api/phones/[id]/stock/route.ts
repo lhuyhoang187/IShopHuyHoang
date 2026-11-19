@@ -3,6 +3,9 @@ import { db } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
+const DEFAULT_PHONE_IMAGE =
+  'https://images.unsplash.com/photo-1580910051074-3eb694886505?w=800&auto=format&fit=crop&q=80';
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -21,8 +24,44 @@ export async function GET(
       );
     }
 
-    const colors = phone.colors ? JSON.parse(phone.colors) : [];
-    const capacities = phone.capacities ? JSON.parse(phone.capacities) : [];
+    const dbColors = await db.query(
+      'SELECT * FROM phonecolor WHERE phoneId = ? ORDER BY displayOrder ASC',
+      [phone.id]
+    );
+    const dbVariants = await db.query(
+      `SELECT v.*, c.name AS colorName, c.hex AS colorHex, c.imageUrl
+       FROM phonevariant v
+       INNER JOIN phonecolor c ON v.colorId = c.id
+       WHERE c.phoneId = ?
+       ORDER BY v.price ASC`,
+      [phone.id]
+    );
+
+    const colors = dbColors.map((c) => {
+      const colVars = dbVariants.filter((v) => v.colorId === c.id);
+      return {
+        id: c.id,
+        name: c.name,
+        hex: c.hex,
+        imageUrl: c.imageUrl || DEFAULT_PHONE_IMAGE,
+        isOutOfStock: colVars.length > 0 && colVars.every((v) => Boolean(v.isOutOfStock)),
+      };
+    });
+
+    const capMap = new Map<string, any>();
+    for (const v of dbVariants) {
+      if (!capMap.has(v.capacity)) {
+        capMap.set(v.capacity, {
+          size: v.capacity,
+          price: Number(v.price || 0),
+          originalPrice: Number(v.originalPrice || v.price || 0),
+          isOutOfStock: Boolean(v.isOutOfStock),
+        });
+      } else if (!v.isOutOfStock) {
+        capMap.get(v.capacity).isOutOfStock = false;
+      }
+    }
+    const capacities = Array.from(capMap.values());
 
     // Calculate actual IMEI stock per color and per capacity
     const inStockItems = await db.query(
@@ -87,58 +126,89 @@ export async function POST(
       );
     }
 
-    const setClauses: string[] = ['updatedAt = NOW()'];
-    const sqlParams: any[] = [];
+    const firstSup = await db.queryOne('SELECT id FROM supplier LIMIT 1');
+    const defaultSupplierId = firstSup?.id || null;
 
-    if (colors && Array.isArray(colors)) {
-      setClauses.push('colors = ?');
-      sqlParams.push(JSON.stringify(colors));
-    }
-    if (capacities && Array.isArray(capacities)) {
-      setClauses.push('capacities = ?');
-      sqlParams.push(JSON.stringify(capacities));
-    }
-
-    sqlParams.push(phone.id);
-
-    // Atomic transaction: Update PhoneProduct + sync PhoneStock in MySQL
     await db.transaction(async (conn) => {
-      await conn.execute(
-        `UPDATE phoneproduct SET ${setClauses.join(', ')} WHERE id = ?`,
-        sqlParams
-      );
+      await conn.execute('UPDATE phoneproduct SET updatedAt = NOW() WHERE id = ?', [phone.id]);
 
-      // Synchronize PhoneVariant & PhoneStock items if variantStocks or capacities/colors are specified
-      if (Array.isArray(capacities)) {
-        for (const cap of capacities) {
-          if (cap.size && Number(cap.price) > 0) {
+      // Ensure PhoneColor rows exist and sync
+      const colorIdByName = new Map<string, string>();
+      const [existingColors]: any = await conn.query('SELECT id, name FROM phonecolor WHERE phoneId = ?', [phone.id]);
+      for (const ec of existingColors) {
+        colorIdByName.set(String(ec.name).trim().toLowerCase(), ec.id);
+      }
+
+      if (Array.isArray(colors)) {
+        for (let idx = 0; idx < colors.length; idx++) {
+          const col = colors[idx];
+          if (!col?.name) continue;
+          const key = String(col.name).trim().toLowerCase();
+          let cid = colorIdByName.get(key);
+          if (!cid) {
+            cid = 'pc_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
             await conn.execute(
-              `UPDATE phonevariant SET price = ?, originalPrice = ?, isOutOfStock = ?, updatedAt = NOW()
-               WHERE phoneId = ? AND capacity = ?`,
-              [
-                Number(cap.price),
-                cap.originalPrice ? Number(cap.originalPrice) : null,
-                cap.isOutOfStock || cap.stock === 0 ? 1 : 0,
-                phone.id,
-                cap.size,
-              ]
+              `INSERT INTO phonecolor (id, phoneId, name, hex, imageUrl, displayOrder, createdAt, updatedAt)
+               VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+              [cid, phone.id, col.name.trim(), col.hex || '#2B2B2B', col.imageUrl || DEFAULT_PHONE_IMAGE, idx]
             );
+            colorIdByName.set(key, cid);
+          } else {
             await conn.execute(
-              `UPDATE phonestock SET sellingPrice = ?, updatedAt = NOW()
-               WHERE phoneId = ? AND capacity = ? AND status = 'in_stock'`,
-              [Number(cap.price), phone.id, cap.size]
+              `UPDATE phonecolor SET hex = ?, imageUrl = ?, updatedAt = NOW() WHERE id = ?`,
+              [col.hex || '#2B2B2B', col.imageUrl || DEFAULT_PHONE_IMAGE, cid]
+            );
+          }
+
+          if (col.isOutOfStock || col.stock === 0) {
+            await conn.execute(
+              `UPDATE phonevariant SET isOutOfStock = 1, updatedAt = NOW() WHERE colorId = ?`,
+              [cid]
             );
           }
         }
       }
 
-      if (Array.isArray(colors)) {
-        for (const col of colors) {
-          if (col.name && (col.isOutOfStock || col.stock === 0)) {
+      // Sync capacity pricing & stock status across phonevariant + phonestock
+      if (Array.isArray(capacities)) {
+        for (const cap of capacities) {
+          if (cap.size && Number(cap.price) > 0) {
+            for (const cid of colorIdByName.values()) {
+              const [exVar]: any = await conn.query(
+                'SELECT id FROM phonevariant WHERE colorId = ? AND capacity = ?',
+                [cid, cap.size]
+              );
+              if (exVar[0]?.id) {
+                await conn.execute(
+                  `UPDATE phonevariant SET price = ?, originalPrice = ?, isOutOfStock = ?, updatedAt = NOW() WHERE id = ?`,
+                  [
+                    Number(cap.price),
+                    cap.originalPrice ? Number(cap.originalPrice) : null,
+                    cap.isOutOfStock || cap.stock === 0 ? 1 : 0,
+                    exVar[0].id,
+                  ]
+                );
+              } else {
+                const varId = 'var_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
+                await conn.execute(
+                  `INSERT INTO phonevariant (id, colorId, capacity, price, originalPrice, isOutOfStock, createdAt, updatedAt)
+                   VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+                  [
+                    varId,
+                    cid,
+                    cap.size,
+                    Number(cap.price),
+                    cap.originalPrice ? Number(cap.originalPrice) : null,
+                    cap.isOutOfStock || cap.stock === 0 ? 1 : 0,
+                  ]
+                );
+              }
+            }
+
             await conn.execute(
-              `UPDATE phonevariant SET isOutOfStock = 1, updatedAt = NOW()
-               WHERE phoneId = ? AND colorName = ?`,
-              [phone.id, col.name]
+              `UPDATE phonestock SET sellingPrice = ?, updatedAt = NOW()
+               WHERE phoneId = ? AND capacity = ? AND status = 'in_stock'`,
+              [Number(cap.price), phone.id, cap.size]
             );
           }
         }
@@ -149,20 +219,22 @@ export async function POST(
           const [colorName, capSize] = key.split('_');
           if (!colorName || !capSize) continue;
 
-          await conn.execute(
-            `UPDATE phonevariant SET isOutOfStock = ?, updatedAt = NOW()
-             WHERE phoneId = ? AND colorName = ? AND capacity = ?`,
-            [conf.isOutOfStock || conf.stock === 0 ? 1 : 0, phone.id, colorName, capSize]
-          );
+          const cid = colorIdByName.get(colorName.trim().toLowerCase());
+          if (cid) {
+            await conn.execute(
+              `UPDATE phonevariant SET isOutOfStock = ?, updatedAt = NOW()
+               WHERE colorId = ? AND capacity = ?`,
+              [conf.isOutOfStock || conf.stock === 0 ? 1 : 0, cid, capSize]
+            );
+          }
 
           const [currentStock]: any = await conn.query(
-            `SELECT imei FROM phonestock 
+            `SELECT imei FROM phonestock
              WHERE phoneId = ? AND status = 'in_stock' AND color LIKE ? AND capacity LIKE ?`,
             [phone.id, `%${colorName}%`, `%${capSize}%`]
           );
 
           if (conf.isOutOfStock) {
-            // Mark existing in_stock as reserved / out of stock
             for (const item of currentStock) {
               await conn.execute(
                 'UPDATE phonestock SET status = "reserved", updatedAt = NOW() WHERE imei = ?',
@@ -172,7 +244,6 @@ export async function POST(
           } else if (typeof conf.stock === 'number') {
             const diff = conf.stock - currentStock.length;
             if (diff > 0) {
-              // Add new stock items
               const capObj = capacities?.find((c: any) => c.size === capSize);
               const sellPrice = capObj?.price || 30000000;
               const costPrice = Math.round(sellPrice * 0.85);
@@ -180,14 +251,13 @@ export async function POST(
               for (let i = 0; i < diff; i++) {
                 const imei = `35${Math.floor(1000000000000 + Math.random() * 9000000000000)}`;
                 await conn.execute(
-                  `INSERT INTO phonestock 
-                   (imei, phoneId, phoneName, color, capacity, costPrice, sellingPrice, supplierId, supplierName, importDate, status, warrantyMonths, createdAt, updatedAt)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, 'sup-1', 'Apple Authorized Distributor VN', CURDATE(), 'in_stock', 12, NOW(), NOW())`,
-                  [imei, phone.id, phone.name, colorName, capSize, costPrice, sellPrice]
+                  `INSERT INTO phonestock
+                   (imei, phoneId, color, capacity, costPrice, sellingPrice, supplierId, importDate, status, warrantyMonths, createdAt, updatedAt)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, CURDATE(), 'in_stock', 12, NOW(), NOW())`,
+                  [imei, phone.id, colorName, capSize, costPrice, sellPrice, defaultSupplierId]
                 );
               }
             } else if (diff < 0) {
-              // Mark excess items as reserved
               const toReserve = currentStock.slice(0, Math.abs(diff));
               for (const item of toReserve) {
                 await conn.execute(
@@ -201,17 +271,15 @@ export async function POST(
       }
     });
 
-    const updated = await db.queryOne('SELECT * FROM phoneproduct WHERE id = ?', [phone.id]);
-
     return NextResponse.json({
       success: true,
       message: 'Cập nhật tồn kho và trạng thái biến thể thành công!',
       data: {
-        id: updated.id,
-        name: updated.name,
-        slug: updated.slug,
-        colors: colors || JSON.parse(updated.colors),
-        capacities: capacities || JSON.parse(updated.capacities),
+        id: phone.id,
+        name: phone.name,
+        slug: phone.slug,
+        colors: colors || [],
+        capacities: capacities || [],
       },
     });
   } catch (error: any) {

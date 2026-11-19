@@ -4,7 +4,48 @@ import {
   isValidImei,
   isValidAmount,
   sanitizeString,
+  getCashbookCategoryLabel,
 } from '@/lib/validation';
+
+export async function GET() {
+  try {
+    const orders = await db.query(
+      `SELECT so.*, s.name AS supplierName
+       FROM supplierorder so
+       LEFT JOIN supplier s ON so.supplierId = s.id
+       ORDER BY so.createdAt DESC`
+    );
+    const items = await db.query('SELECT * FROM supplierorderitem ORDER BY createdAt ASC');
+
+    const itemsByOrder: Record<string, any[]> = {};
+    for (const it of items) {
+      if (!itemsByOrder[it.orderCode]) itemsByOrder[it.orderCode] = [];
+      itemsByOrder[it.orderCode].push(it);
+    }
+
+    const mapped = orders.map((ord) => {
+      const ordItems = itemsByOrder[ord.orderCode] || [];
+      return {
+        ...ord,
+        items: ordItems,
+        importedImeis: ordItems.map((x) => x.imei).filter(Boolean),
+      };
+    });
+
+    return NextResponse.json({
+      success: true,
+      source: 'mysql_database',
+      total: mapped.length,
+      data: mapped,
+    });
+  } catch (error: any) {
+    console.error('Restock GET error:', error);
+    return NextResponse.json(
+      { error: 'Lỗi truy vấn lịch sử nhập kho: ' + (error?.message || '') },
+      { status: 500 }
+    );
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,7 +71,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Clean and deduplicate IMEIs in the incoming batch
     const rawImeis: string[] = imeis.map((im: any) => String(im).trim()).filter(Boolean);
     const uniqueImeis = Array.from(new Set(rawImeis));
 
@@ -41,7 +81,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate each IMEI
     for (const imei of uniqueImeis) {
       if (!isValidImei(imei)) {
         return NextResponse.json(
@@ -62,9 +101,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Resolve Supplier
     const supplier = await db.queryOne('SELECT * FROM supplier WHERE id = ?', [supplierId]);
-
     if (!supplier) {
       return NextResponse.json(
         { error: `Không tìm thấy nhà cung cấp với mã ID: ${supplierId}` },
@@ -74,15 +111,20 @@ export async function POST(request: NextRequest) {
 
     const supplierName = supplier.name;
 
-    // Resolve PhoneProduct foreign key
-    let resolvedPhoneId = phoneId ? sanitizeString(phoneId, 50) : null;
+    let resolvedPhoneId = phoneId ? sanitizeString(phoneId, 191) : null;
+    let resolvedPhoneName = sanitizeString(phoneName || '', 191);
     if (resolvedPhoneId) {
-      const existsPhone = await db.queryOne('SELECT id FROM phoneproduct WHERE id = ?', [resolvedPhoneId]);
-      if (!existsPhone) resolvedPhoneId = null;
+      const existsPhone = await db.queryOne('SELECT id, name FROM phoneproduct WHERE id = ?', [resolvedPhoneId]);
+      if (existsPhone) {
+        resolvedPhoneName = resolvedPhoneName || existsPhone.name;
+      } else {
+        resolvedPhoneId = null;
+      }
     }
     if (!resolvedPhoneId) {
-      const firstPhone = await db.queryOne('SELECT id FROM phoneproduct LIMIT 1');
+      const firstPhone = await db.queryOne('SELECT id, name FROM phoneproduct LIMIT 1');
       resolvedPhoneId = firstPhone ? firstPhone.id : 'p-1';
+      resolvedPhoneName = resolvedPhoneName || firstPhone?.name || 'iPhone Mới Nhập';
     }
 
     const totalBatchCost = costNum * uniqueImeis.length;
@@ -96,74 +138,67 @@ export async function POST(request: NextRequest) {
     const orderCount = countRow?.cnt || 0;
     const orderCode = `NH-2608-${String(orderCount + 1).padStart(3, '0')}`;
 
-    // Execute in SQL Transaction for full atomic data integrity
     const result = await db.transaction(async (conn) => {
-      // 1. Insert/Update PhoneStock for each IMEI
+      // 1. Insert/Update 3NF PhoneStock (no transitive phoneName / supplierName)
       for (const imei of uniqueImeis) {
         await conn.execute(
-          `INSERT INTO phonestock 
-           (imei, phoneId, phoneName, color, capacity, costPrice, sellingPrice, supplierId, supplierName, importDate, status, warrantyMonths, createdAt, updatedAt)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'in_stock', 12, NOW(), NOW())
+          `INSERT INTO phonestock
+           (imei, phoneId, color, capacity, costPrice, sellingPrice, supplierId, importDate, status, warrantyMonths, createdAt, updatedAt)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'in_stock', 12, NOW(), NOW())
            ON DUPLICATE KEY UPDATE
              phoneId = VALUES(phoneId),
-             phoneName = VALUES(phoneName),
              color = VALUES(color),
              capacity = VALUES(capacity),
              costPrice = VALUES(costPrice),
              sellingPrice = VALUES(sellingPrice),
              supplierId = VALUES(supplierId),
-             supplierName = VALUES(supplierName),
              status = 'in_stock',
              updatedAt = NOW()`,
           [
             imei,
             resolvedPhoneId,
-            sanitizeString(phoneName || 'iPhone Mới Nhập', 191),
             sanitizeString(color || 'Titan Tự Nhiên', 100),
             sanitizeString(capacity || '256GB', 50),
             costNum,
             sellNum,
             supplierId,
-            supplierName,
             dateStr,
           ]
         );
       }
 
-      // 2. Create Supplier Order record
+      // 2. Create 3NF SupplierOrder (no supplierName / importedImeis JSON)
       const orderId = 'ord-' + Date.now();
       await conn.execute(
-        `INSERT INTO supplierorder 
-         (id, orderCode, supplierId, supplierName, date, type, itemsSummary, totalAmount, paidAmount, debtAmount, status, notes, importedImeis, createdAt, updatedAt)
-         VALUES (?, ?, ?, ?, ?, 'phones', ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+        `INSERT INTO supplierorder
+         (id, orderCode, supplierId, date, type, itemsSummary, totalAmount, paidAmount, debtAmount, status, notes, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, 'phones', ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
         [
           orderId,
           orderCode,
           supplierId,
-          supplierName,
           dateStr,
-          `Nhập ${uniqueImeis.length} cây ${phoneName || 'iPhone'} (${color || 'Titan'} - ${capacity || '256GB'})`,
+          `Nhập ${uniqueImeis.length} cây ${resolvedPhoneName} (${color || 'Titan'} - ${capacity || '256GB'})`,
           totalBatchCost,
           paid,
           debtIncrease,
           debtIncrease === 0 ? 'completed' : 'partial',
           sanitizeString(notes || 'Nhập lô hàng chính ngạch.', 1000),
-          JSON.stringify(uniqueImeis),
         ]
       );
 
-      // 2.1. Insert 3NF Normalized Supplier Order Items
+      // 2.1. Insert 3NF Normalized SupplierOrderItem rows
       for (const imei of uniqueImeis) {
         const itemId = 'soi_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
         await conn.execute(
-          `INSERT INTO supplierorderitem 
+          `INSERT INTO supplierorderitem
            (id, orderCode, itemType, productId, productName, color, capacity, quantity, unitCost, totalCost, imei, createdAt)
            VALUES (?, ?, 'phone', ?, ?, ?, ?, 1, ?, ?, ?, NOW())`,
           [
             itemId,
             orderCode,
             resolvedPhoneId,
-            sanitizeString(phoneName || 'iPhone', 191),
+            resolvedPhoneName,
             sanitizeString(color || 'Titan', 100),
             sanitizeString(capacity || '256GB', 50),
             costNum,
@@ -173,17 +208,17 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // 3. Update Supplier debt & purchase totals
+      // 3. Update Supplier totals
       await conn.execute(
-        `UPDATE supplier SET 
-           totalPurchased = totalPurchased + ?, 
-           currentDebt = currentDebt + ?, 
-           updatedAt = NOW() 
+        `UPDATE supplier SET
+           totalPurchased = totalPurchased + ?,
+           currentDebt = currentDebt + ?,
+           updatedAt = NOW()
          WHERE id = ?`,
         [totalBatchCost, debtIncrease, supplierId]
       );
 
-      // 4. Auto-generate Cashbook Payment Entry (Phiếu Chi tiền mặt/chuyển khoản)
+      // 4. Create 3NF Cashbook Payment Entry (no categoryLabel column)
       let cashbookEntry = null;
       if (paid > 0) {
         const [cashCountRow]: any = await conn.query('SELECT COUNT(*) as cnt FROM cashbookentry');
@@ -192,9 +227,9 @@ export async function POST(request: NextRequest) {
         const cashId = 'cb-' + Date.now();
 
         await conn.execute(
-          `INSERT INTO cashbookentry 
-           (id, code, date, type, category, categoryLabel, amount, paymentMethod, referenceCode, description, creator, createdAt, updatedAt)
-           VALUES (?, ?, ?, 'payment', 'supplier_restock', 'Nhập hàng nhà cung cấp', ?, 'transfer', ?, ?, 'Lê Huy Hoàng (Chủ Shop)', NOW(), NOW())`,
+          `INSERT INTO cashbookentry
+           (id, code, date, type, category, amount, paymentMethod, referenceCode, description, creator, createdAt, updatedAt)
+           VALUES (?, ?, ?, 'payment', 'supplier_restock', ?, 'transfer', ?, ?, 'Lê Huy Hoàng (Chủ Shop)', NOW(), NOW())`,
           [
             cashId,
             cashCode,
@@ -206,12 +241,21 @@ export async function POST(request: NextRequest) {
         );
 
         const [cashRows]: any = await conn.query('SELECT * FROM cashbookentry WHERE id = ?', [cashId]);
-        cashbookEntry = cashRows[0];
+        cashbookEntry = cashRows[0]
+          ? { ...cashRows[0], categoryLabel: getCashbookCategoryLabel(cashRows[0].category, cashRows[0].type) }
+          : null;
       }
 
-      const [orderRows]: any = await conn.query('SELECT * FROM supplierorder WHERE id = ?', [orderId]);
+      const [orderRows]: any = await conn.query(
+        `SELECT so.*, s.name AS supplierName FROM supplierorder so LEFT JOIN supplier s ON so.supplierId = s.id WHERE so.id = ?`,
+        [orderId]
+      );
 
-      return { order: orderRows[0], cashbookEntry, importedCount: uniqueImeis.length };
+      return {
+        order: orderRows[0] ? { ...orderRows[0], importedImeis: uniqueImeis } : null,
+        cashbookEntry,
+        importedCount: uniqueImeis.length,
+      };
     });
 
     return NextResponse.json({

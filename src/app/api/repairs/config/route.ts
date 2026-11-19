@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { sanitizeString } from '@/lib/validation';
 import {
   initialRepairDeviceOptions,
   initialRepairServiceCatalog,
@@ -9,51 +10,21 @@ import {
 
 export const dynamic = 'force-dynamic';
 
-async function ensureConfigTable() {
-  await db.execute(
-    `CREATE TABLE IF NOT EXISTS repairbookingconfig (
-       configKey VARCHAR(100) NOT NULL PRIMARY KEY,
-       configData LONGTEXT NOT NULL,
-       updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`
-  );
-}
-
-async function getConfigList<T>(key: string, defaultList: T[]): Promise<T[]> {
-  try {
-    await ensureConfigTable();
-    const row = await db.queryOne('SELECT configData FROM repairbookingconfig WHERE configKey = ?', [key]);
-    if (row && row.configData) {
-      const parsed = JSON.parse(row.configData);
-      if (Array.isArray(parsed)) return parsed;
-    }
-  } catch (e) {
-    console.warn(`Read repairbookingconfig [${key}] notice:`, e);
-  }
-  return defaultList;
-}
-
-async function saveConfigList<T>(key: string, list: T[]): Promise<void> {
-  await ensureConfigTable();
-  const jsonStr = JSON.stringify(list);
-  await db.execute(
-    `INSERT INTO repairbookingconfig (configKey, configData, updatedAt)
-     VALUES (?, ?, NOW())
-     ON DUPLICATE KEY UPDATE configData = VALUES(configData), updatedAt = NOW()`,
-    [key, jsonStr]
-  );
+async function resolveBrandId(brandName?: string): Promise<string | null> {
+  if (!brandName || brandName === 'Chung' || brandName === 'Khác') return null;
+  const found = await db.queryOne('SELECT id FROM phonebrand WHERE LOWER(name) = LOWER(?)', [brandName.trim()]);
+  return found?.id || null;
 }
 
 export async function GET(request: NextRequest) {
   try {
-    let dbServices: any[] = [];
-    try {
-      dbServices = await db.query(
-        'SELECT * FROM repairservice WHERE isActive = 1 ORDER BY isFeatured DESC, createdAt DESC'
-      );
-    } catch (e) {
-      console.warn('DB read notice for repair services:', e);
-    }
+    const dbServices = await db.query(
+      `SELECT s.*, COALESCE(b.name, 'Chung') AS deviceBrand
+       FROM repairservice s
+       LEFT JOIN phonebrand b ON s.brandId = b.id
+       WHERE s.isActive = 1
+       ORDER BY s.isFeatured DESC, s.createdAt DESC`
+    );
 
     const services =
       dbServices.length > 0
@@ -71,11 +42,50 @@ export async function GET(request: NextRequest) {
           }))
         : initialRepairServiceCatalog;
 
-    const [devices, symptoms, timeSlots] = await Promise.all([
-      getConfigList('devices', initialRepairDeviceOptions),
-      getConfigList('symptoms', initialRepairSymptoms),
-      getConfigList('timeSlots', initialRepairTimeSlots),
-    ]);
+    const options = await db.query(
+      `SELECT o.*, COALESCE(b.name, 'Khác') AS brandName
+       FROM repairbookingoption o
+       LEFT JOIN phonebrand b ON o.brandId = b.id
+       WHERE o.isActive = 1
+       ORDER BY o.displayOrder ASC, o.createdAt ASC`
+    );
+
+    const deviceRows = options.filter((o) => o.optionType === 'device');
+    const symptomRows = options.filter((o) => o.optionType === 'symptom');
+    const timeSlotRows = options.filter((o) => o.optionType === 'timeslot');
+
+    const devices =
+      deviceRows.length > 0
+        ? deviceRows.map((d) => ({
+            id: d.id,
+            name: d.label,
+            brand: d.brandName || 'Khác',
+            isActive: Boolean(d.isActive),
+          }))
+        : initialRepairDeviceOptions;
+
+    const symptoms =
+      symptomRows.length > 0
+        ? symptomRows.map((s) => ({
+            id: s.id,
+            code: s.code || s.id,
+            title: s.label,
+            icon: s.icon || '🛠️',
+            description: s.description || '',
+            isActive: Boolean(s.isActive),
+          }))
+        : initialRepairSymptoms;
+
+    const timeSlots =
+      timeSlotRows.length > 0
+        ? timeSlotRows.map((ts) => ({
+            id: ts.id,
+            time: ts.code || ts.label.slice(0, 5),
+            label: ts.label,
+            period: (ts.subLabel as 'morning' | 'afternoon' | 'evening') || 'morning',
+            isActive: Boolean(ts.isActive),
+          }))
+        : initialRepairTimeSlots;
 
     return NextResponse.json({
       success: true,
@@ -108,88 +118,105 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { action, type, item, id } = body;
 
-    // 1. Save service to repairservice table in MySQL
+    // 1. Save/delete service in 3NF repairservice table
     if (type === 'service') {
       if ((action === 'add' || action === 'update') && item) {
-        try {
-          const serviceId = item.id || 'srv_' + Date.now();
-          const existing = await db.queryOne('SELECT id FROM repairservice WHERE id = ?', [serviceId]);
+        const serviceId = item.id || 'srv_' + Date.now();
+        const brandId = await resolveBrandId(item.deviceBrand);
+        const existing = await db.queryOne('SELECT id FROM repairservice WHERE id = ?', [serviceId]);
 
-          if (existing) {
-            await db.execute(
-              `UPDATE repairservice SET 
-                 name = ?, category = ?, deviceBrand = ?, deviceModels = ?, price = ?, 
-                 warrantyPeriod = ?, estimatedMinutes = ?, description = ?, isActive = ?, updatedAt = NOW()
-               WHERE id = ?`,
-              [
-                item.name,
-                item.category || 'other',
-                item.deviceBrand || 'Apple',
-                item.deviceModels || 'Tất cả dòng máy',
-                Number(item.price) || 0,
-                item.warranty || '12 Tháng',
-                Number(item.estimatedMinutes) || 30,
-                item.description || null,
-                item.isActive !== undefined ? (item.isActive ? 1 : 0) : 1,
-                serviceId,
-              ]
-            );
-          } else {
-            await db.execute(
-              `INSERT INTO repairservice 
-               (id, name, category, deviceBrand, deviceModels, price, warrantyPeriod, estimatedMinutes, description, isActive, createdAt, updatedAt)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-              [
-                serviceId,
-                item.name,
-                item.category || 'other',
-                item.deviceBrand || 'Apple',
-                item.deviceModels || 'Tất cả dòng máy',
-                Number(item.price) || 0,
-                item.warranty || '12 Tháng',
-                Number(item.estimatedMinutes) || 30,
-                item.description || null,
-                item.isActive !== undefined ? (item.isActive ? 1 : 0) : 1,
-              ]
-            );
-          }
-        } catch (dbErr) {
-          console.warn('DB upsert notice for repair service:', dbErr);
+        if (existing) {
+          await db.execute(
+            `UPDATE repairservice SET
+               name = ?, category = ?, brandId = ?, deviceModels = ?, price = ?,
+               warrantyPeriod = ?, estimatedMinutes = ?, description = ?, isActive = ?, updatedAt = NOW()
+             WHERE id = ?`,
+            [
+              sanitizeString(item.name, 191),
+              item.category || 'other',
+              brandId,
+              item.deviceModels || 'Tất cả dòng máy',
+              Number(item.price) || 0,
+              item.warranty || '12 Tháng',
+              Number(item.estimatedMinutes) || 30,
+              item.description || null,
+              item.isActive !== undefined ? (item.isActive ? 1 : 0) : 1,
+              serviceId,
+            ]
+          );
+        } else {
+          await db.execute(
+            `INSERT INTO repairservice
+             (id, name, category, brandId, deviceModels, price, warrantyPeriod, estimatedMinutes, description, isActive, createdAt, updatedAt)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+            [
+              serviceId,
+              sanitizeString(item.name, 191),
+              item.category || 'other',
+              brandId,
+              item.deviceModels || 'Tất cả dòng máy',
+              Number(item.price) || 0,
+              item.warranty || '12 Tháng',
+              Number(item.estimatedMinutes) || 30,
+              item.description || null,
+              item.isActive !== undefined ? (item.isActive ? 1 : 0) : 1,
+            ]
+          );
         }
       } else if (action === 'delete' && id) {
-        try {
-          await db.execute('DELETE FROM repairservice WHERE id = ?', [id]);
-        } catch (dbErr) {
-          console.warn('DB delete notice for repair service:', dbErr);
-        }
+        await db.execute('DELETE FROM repairservice WHERE id = ?', [id]);
       }
     }
 
-    // 2. Save devices, symptoms, or timeSlots to repairbookingconfig table in MySQL
+    // 2. Save/delete atomic rows in 3NF repairbookingoption table
     if (type === 'device' || type === 'symptom' || type === 'timeSlot') {
-      const keyMap: Record<string, { key: string; defaults: any[] }> = {
-        device: { key: 'devices', defaults: initialRepairDeviceOptions },
-        symptom: { key: 'symptoms', defaults: initialRepairSymptoms },
-        timeSlot: { key: 'timeSlots', defaults: initialRepairTimeSlots },
-      };
-      const cfg = keyMap[type];
-      const currentList = await getConfigList<any>(cfg.key, cfg.defaults);
+      const optionType = type === 'timeSlot' ? 'timeslot' : type;
 
       if ((action === 'add' || action === 'update') && item) {
-        const exists = currentList.some((x: any) => x.id === item.id);
-        const nextList = exists
-          ? currentList.map((x: any) => (x.id === item.id ? { ...x, ...item } : x))
-          : [...currentList, item];
-        await saveConfigList(cfg.key, nextList);
+        const optId = item.id || `${optionType}_${Date.now()}`;
+        const brandId = type === 'device' ? await resolveBrandId(item.brand) : null;
+        const code =
+          type === 'symptom'
+            ? sanitizeString(item.code || optId, 50)
+            : type === 'timeSlot'
+            ? sanitizeString(item.time || '', 50)
+            : null;
+        const label =
+          type === 'device'
+            ? sanitizeString(item.name, 191)
+            : type === 'symptom'
+            ? sanitizeString(item.title, 191)
+            : sanitizeString(item.label || item.time, 191);
+        const subLabel = type === 'timeSlot' ? sanitizeString(item.period || 'morning', 100) : null;
+        const description = type === 'symptom' ? sanitizeString(item.description || '', 500) : null;
+        const icon = type === 'symptom' ? sanitizeString(item.icon || '🛠️', 50) : null;
+        const isActive = item.isActive !== undefined ? (item.isActive ? 1 : 0) : 1;
+
+        const existing = await db.queryOne('SELECT id FROM repairbookingoption WHERE id = ?', [optId]);
+        if (existing) {
+          await db.execute(
+            `UPDATE repairbookingoption SET
+               optionType = ?, brandId = ?, code = ?, label = ?, subLabel = ?, description = ?, icon = ?, isActive = ?, updatedAt = NOW()
+             WHERE id = ?`,
+            [optionType, brandId, code, label, subLabel, description, icon, isActive, optId]
+          );
+        } else {
+          const cnt = await db.queryOne('SELECT COUNT(*) as c FROM repairbookingoption WHERE optionType = ?', [optionType]);
+          await db.execute(
+            `INSERT INTO repairbookingoption
+             (id, optionType, brandId, code, label, subLabel, description, icon, displayOrder, isActive, createdAt, updatedAt)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+            [optId, optionType, brandId, code, label, subLabel, description, icon, (cnt?.c || 0) + 1, isActive]
+          );
+        }
       } else if (action === 'delete' && id) {
-        const nextList = currentList.filter((x: any) => x.id !== id);
-        await saveConfigList(cfg.key, nextList);
+        await db.execute('DELETE FROM repairbookingoption WHERE id = ?', [id]);
       }
     }
 
     return NextResponse.json({
       success: true,
-      message: 'Cập nhật cấu hình bàn sửa chữa vào CSDL thành công',
+      message: 'Cập nhật cấu hình bàn sửa chữa vào CSDL 3NF thành công',
     });
   } catch (error: any) {
     console.error('Repair config POST error:', error);

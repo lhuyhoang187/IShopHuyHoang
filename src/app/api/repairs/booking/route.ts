@@ -9,7 +9,11 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
 
     let sql = `
-      SELECT b.*, c.name as customer_name, c.membershipTier, c.points 
+      SELECT b.*,
+             c.name AS customerName,
+             c.phone AS customerPhone,
+             c.membershipTier,
+             c.points
       FROM repairbooking b
       LEFT JOIN customer c ON b.customerId = c.id
     `;
@@ -18,7 +22,7 @@ export async function GET(request: NextRequest) {
 
     if (phone) {
       const cleanPhone = normalizePhone(phone);
-      whereClauses.push('b.customerPhone = ?');
+      whereClauses.push('c.phone = ?');
       params.push(cleanPhone);
     }
     if (status) {
@@ -38,7 +42,8 @@ export async function GET(request: NextRequest) {
       ...b,
       customer: b.customerId
         ? {
-            name: b.customer_name || b.customerName,
+            name: b.customerName,
+            phone: b.customerPhone,
             membershipTier: b.membershipTier || 'Thành viên mới',
             points: Number(b.points || 0),
           }
@@ -61,16 +66,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const {
-      name,
-      phone,
-      model,
-      service,
-      date,
-      time,
-      notes,
-      branchName,
-    } = body;
+    const { name, phone, model, service, date, time, notes, branchName } = body;
 
     const customerName = sanitizeString(name, 100);
     const rawPhone = String(phone || '');
@@ -94,20 +90,29 @@ export async function POST(request: NextRequest) {
     const count = countRow?.cnt || 0;
     const bookingCode = `DL-2608-${String(count + 1).padStart(3, '0')}`;
 
-    // Tìm xem khách hàng đã có trong danh bạ chưa
+    // Ensure customer exists to satisfy 3NF FK customerId -> customer(id)
     const existingCustomer = await db.queryOne('SELECT id FROM customer WHERE phone = ?', [customerPhone]);
+    let customerId: string;
+    if (existingCustomer?.id) {
+      customerId = existingCustomer.id;
+    } else {
+      customerId = 'cust-' + Date.now();
+      await db.execute(
+        `INSERT INTO customer (id, name, phone, totalSpent, purchaseCount, repairCount, points, membershipTier, customerType, createdAt, updatedAt)
+         VALUES (?, ?, ?, 0, 0, 0, 0, 'Thành viên mới', 'Khách lẻ', NOW(), NOW())`,
+        [customerId, customerName, customerPhone]
+      );
+    }
 
     const bookingId = 'rb_' + Date.now();
     await db.execute(
-      `INSERT INTO repairbooking 
-       (id, bookingCode, customerName, customerPhone, customerId, deviceModel, serviceName, appointmentDate, appointmentTime, notes, branchName, status, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW(), NOW())`,
+      `INSERT INTO repairbooking
+       (id, bookingCode, customerId, deviceModel, serviceName, appointmentDate, appointmentTime, notes, branchName, status, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW(), NOW())`,
       [
         bookingId,
         bookingCode,
-        customerName,
-        customerPhone,
-        existingCustomer?.id || null,
+        customerId,
         sanitizeString(model || 'Thiết bị di động', 100),
         sanitizeString(service || 'Kiểm tra tổng quát', 191),
         String(date || new Date().toISOString().substring(0, 10)),
@@ -117,7 +122,13 @@ export async function POST(request: NextRequest) {
       ]
     );
 
-    const booking = await db.queryOne('SELECT * FROM repairbooking WHERE id = ?', [bookingId]);
+    const booking = await db.queryOne(
+      `SELECT b.*, c.name AS customerName, c.phone AS customerPhone
+       FROM repairbooking b
+       LEFT JOIN customer c ON b.customerId = c.id
+       WHERE b.id = ?`,
+      [bookingId]
+    );
 
     return NextResponse.json({
       success: true,

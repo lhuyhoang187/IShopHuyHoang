@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { isValidAmount, sanitizeString, normalizePhone } from '@/lib/validation';
+import { isValidAmount, sanitizeString, normalizePhone, getCashbookCategoryLabel } from '@/lib/validation';
 
 export async function GET(request: NextRequest) {
   try {
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
 
       const id = body.id || 'sup-' + Date.now();
       await db.execute(
-        `INSERT INTO supplier 
+        `INSERT INTO supplier
          (id, name, phone, email, address, contactPerson, totalPurchased, currentDebt, createdAt, updatedAt)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
         [id, name, phone || '0900000000', email, address, contactPerson, Number(body.totalPurchased || 0), Math.max(0, currentDebt)]
@@ -77,7 +77,6 @@ export async function POST(request: NextRequest) {
     }
 
     const supplier = await db.queryOne('SELECT * FROM supplier WHERE id = ?', [supplierId]);
-
     if (!supplier) {
       return NextResponse.json(
         { error: 'Không tìm thấy nhà cung cấp' },
@@ -85,7 +84,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Atomic transaction: Deduct debt + create cashbook payment entry
     const result = await db.transaction(async (conn) => {
       const newDebt = Math.max(0, Number(supplier.currentDebt || 0) - payAmount);
       await conn.execute('UPDATE supplier SET currentDebt = ?, updatedAt = NOW() WHERE id = ?', [newDebt, supplierId]);
@@ -98,9 +96,9 @@ export async function POST(request: NextRequest) {
       const cashId = 'cb-' + Date.now();
 
       await conn.execute(
-        `INSERT INTO cashbookentry 
-         (id, code, date, type, category, categoryLabel, amount, paymentMethod, referenceCode, description, creator, createdAt, updatedAt)
-         VALUES (?, ?, ?, 'payment', 'supplier_restock', 'Thanh toán nợ NCC', ?, ?, ?, ?, ?, NOW(), NOW())`,
+        `INSERT INTO cashbookentry
+         (id, code, date, type, category, amount, paymentMethod, referenceCode, description, creator, createdAt, updatedAt)
+         VALUES (?, ?, ?, 'payment', 'supplier_restock', ?, ?, ?, ?, ?, NOW(), NOW())`,
         [
           cashId,
           code,
@@ -116,7 +114,12 @@ export async function POST(request: NextRequest) {
       const [updatedSup]: any = await conn.query('SELECT * FROM supplier WHERE id = ?', [supplierId]);
       const [cashEntry]: any = await conn.query('SELECT * FROM cashbookentry WHERE id = ?', [cashId]);
 
-      return { supplier: updatedSup[0], cashbook: cashEntry[0] };
+      return {
+        supplier: updatedSup[0],
+        cashbook: cashEntry[0]
+          ? { ...cashEntry[0], categoryLabel: getCashbookCategoryLabel(cashEntry[0].category, cashEntry[0].type) }
+          : null,
+      };
     });
 
     return NextResponse.json({
@@ -202,7 +205,6 @@ export async function DELETE(request: NextRequest) {
     }
 
     const existing = await db.queryOne('SELECT * FROM supplier WHERE id = ?', [id]);
-
     if (!existing) {
       return NextResponse.json({ error: 'Không tìm thấy nhà cung cấp' }, { status: 404 });
     }
