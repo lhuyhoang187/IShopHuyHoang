@@ -281,9 +281,11 @@ export default function AccessoriesPage() {
 
                 <div className="flex items-baseline justify-between pt-1">
                   <div>
-                    <span className="text-xs text-slate-400 line-through block font-medium">
-                      {formatVND(acc.originalPrice)}
-                    </span>
+                    {acc.originalPrice > acc.sellingPrice && (
+                      <span className="text-xs text-slate-400 line-through block font-medium">
+                        {formatVND(acc.originalPrice)}
+                      </span>
+                    )}
                     <span className="text-base font-black text-emerald-700">
                       {formatVND(acc.sellingPrice)}
                     </span>

@@ -274,9 +274,11 @@ export default function PhoneDetailPage() {
           <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-white p-5 sm:p-6 rounded-3xl border border-amber-200 shadow-md space-y-3">
             <div className="flex items-baseline justify-between">
               <div>
-                <span className="text-xs text-slate-400 line-through block font-medium">
-                  {formatVND(selectedCapacity.originalPrice * quantity)}
-                </span>
+                {selectedCapacity.originalPrice > finalPrice && (
+                  <span className="text-xs text-slate-400 line-through block font-medium">
+                    {formatVND(selectedCapacity.originalPrice * quantity)}
+                  </span>
+                )}
                 <span className="text-3xl sm:text-4xl font-black text-amber-700">
                   {formatVND(finalPrice * quantity)}
                 </span>
@@ -299,9 +301,11 @@ export default function PhoneDetailPage() {
                 </div>
               ) : (
                 <div className="text-right">
-                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-200 shadow-sm">
-                    Tiết kiệm {formatVND((selectedCapacity.originalPrice - selectedCapacity.price) * quantity)}
-                  </span>
+                  {selectedCapacity.originalPrice > selectedCapacity.price && (
+                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-200 shadow-sm">
+                      Tiết kiệm {formatVND((selectedCapacity.originalPrice - selectedCapacity.price) * quantity)}
+                    </span>
+                  )}
                   <div className="text-[11px] text-emerald-700 mt-2 flex items-center gap-1.5 justify-end font-bold">
                     <span>Còn {availableStockCount} máy sẵn IMEI</span>
                   </div>

@@ -350,7 +350,7 @@ export default function AdminRestockPage() {
         {
           size: initialCapacity,
           price: initialPrice,
-          originalPrice: initialPrice > 0 ? Math.round(initialPrice * 1.08) : 0,
+          originalPrice: initialPrice,
         },
       ],
       specs: {

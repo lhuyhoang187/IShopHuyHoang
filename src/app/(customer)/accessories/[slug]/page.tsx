@@ -140,9 +140,11 @@ export default function AccessoryDetailPage() {
           <div className="p-5 sm:p-6 rounded-3xl border border-emerald-200 bg-gradient-to-r from-emerald-50/80 via-emerald-50/30 to-white shadow-md space-y-3">
             <div className="flex items-baseline justify-between gap-3">
               <div>
-                <span className="text-xs text-slate-400 line-through block font-medium">
-                  {formatVND(accessory.originalPrice * quantity)}
-                </span>
+                {accessory.originalPrice > accessory.sellingPrice && (
+                  <span className="text-xs text-slate-400 line-through block font-medium">
+                    {formatVND(accessory.originalPrice * quantity)}
+                  </span>
+                )}
                 <span className="text-3xl font-black text-emerald-700">
                   {formatVND(accessory.sellingPrice * quantity)}
                 </span>

@@ -327,9 +327,11 @@ export default function PhonesPage() {
 
                 <div className="pt-1 flex items-baseline justify-between">
                   <div>
-                    <span className="text-xs text-slate-400 line-through block font-medium">
-                      {formatVND(lowestCapacity.originalPrice)}
-                    </span>
+                    {lowestCapacity.originalPrice > lowestCapacity.price && (
+                      <span className="text-xs text-slate-400 line-through block font-medium">
+                        {formatVND(lowestCapacity.originalPrice)}
+                      </span>
+                    )}
                     <span className="text-base font-black text-amber-700">
                       {formatVND(lowestCapacity.price)}
                     </span>

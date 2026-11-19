@@ -857,9 +857,11 @@ export default function CustomerHomePage() {
                       </p>
                     </div>
                     <div className="text-right">
-                      <span className="text-xs sm:text-sm text-slate-400 line-through block">
-                        {formatVND(heroDisplayOriginalPrice)}
-                      </span>
+                      {heroDisplayOriginalPrice > heroDisplayPrice && (
+                        <span className="text-xs sm:text-sm text-slate-400 line-through block">
+                          {formatVND(heroDisplayOriginalPrice)}
+                        </span>
+                      )}
                       <span className="text-2xl font-black text-amber-700">
                         {formatVND(heroDisplayPrice)}
                       </span>
@@ -1104,9 +1106,11 @@ export default function CustomerHomePage() {
                         {formatVND(phone.capacities[0]?.price || 0)}
                       </span>
                     </div>
-                    <span className="text-xs sm:text-sm text-slate-400 line-through font-medium">
-                      {formatVND(phone.capacities[0]?.originalPrice || (phone.capacities[0]?.price || 0) * 1.08)}
-                    </span>
+                    {(phone.capacities[0]?.originalPrice || 0) > (phone.capacities[0]?.price || 0) && (
+                      <span className="text-xs sm:text-sm text-slate-400 line-through font-medium">
+                        {formatVND(phone.capacities[0]?.originalPrice || 0)}
+                      </span>
+                    )}
                   </div>
 
                   {/* Thông tin số lượng hiện đang có ở kho */}
