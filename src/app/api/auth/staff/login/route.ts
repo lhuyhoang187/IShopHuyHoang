@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { db, SERVER_BOOT_ID } from '@/lib/db';
 import { sanitizeString } from '@/lib/validation';
 
 export async function POST(request: NextRequest) {
@@ -52,6 +52,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      bootId: SERVER_BOOT_ID,
       message: 'Đăng nhập thành công',
       data: {
         id: user.id,

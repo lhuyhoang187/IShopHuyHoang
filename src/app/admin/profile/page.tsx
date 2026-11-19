@@ -98,11 +98,12 @@ export default function AdminProfilePage() {
       setAvatar(user.avatar || '');
     }
     setIsLoading(false);
+    if (!user?.username) return;
 
     // Đồng bộ tức thời thông tin hồ sơ và ảnh avatar mới nhất từ CSDL MySQL
-    const targetUsername = user?.username || 'admin';
+    const targetUsername = user.username;
     try {
-      const res = await fetch(`/api/admin/staff/profile?username=${targetUsername}`, { cache: 'no-store' });
+      const res = await fetch(`/api/admin/staff/profile?username=${encodeURIComponent(targetUsername)}`, { cache: 'no-store' });
       const json = await res.json();
       if (json.success && json.data) {
         const dbUser = json.data;
@@ -118,16 +119,21 @@ export default function AdminProfilePage() {
         const dbAvatar = dbUser.avatar && dbUser.avatar.length !== 65535 ? dbUser.avatar : '';
         setAvatar(dbAvatar);
 
-        if (user) {
-          const syncedUser = {
-            ...user,
-            name: dbUser.name || user.name,
-            phone: dbUser.phone || user.phone,
-            email: dbUser.email || user.email,
-            department: dbUser.department || user.department,
-            avatar: dbAvatar || undefined,
-          };
-          setStaffUser(syncedUser);
+        const syncedUser = {
+          ...user,
+          name: dbUser.name || user.name,
+          phone: dbUser.phone || user.phone,
+          email: dbUser.email || user.email,
+          department: dbUser.department || user.department,
+          avatar: dbAvatar || undefined,
+        };
+        setStaffUser(syncedUser);
+        if (
+          syncedUser.name !== user.name ||
+          syncedUser.avatar !== user.avatar ||
+          syncedUser.phone !== user.phone ||
+          syncedUser.email !== user.email
+        ) {
           IShopStore.setStaffUser(syncedUser);
         }
       }

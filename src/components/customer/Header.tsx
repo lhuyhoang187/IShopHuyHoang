@@ -47,6 +47,7 @@ export default function Header() {
 
   useEffect(() => {
     updateCounts();
+    IShopStore.verifySessionWithServer().then(() => updateCounts()).catch(() => {});
     const listener = () => updateCounts();
     window.addEventListener('ishop_data_changed', listener);
     return () => window.removeEventListener('ishop_data_changed', listener);

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { db, SERVER_BOOT_ID } from '@/lib/db';
 import {
   normalizePhone,
   isValidPhone,
@@ -10,7 +10,7 @@ import {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, phone, email, password, avatar, birthday, gender, city, address } = body;
+    const { mode = 'login', name, phone, email, password, avatar, birthday, gender, city, address } = body;
 
     const normalizedPhone = phone ? normalizePhone(phone) : '';
     const cleanEmail = email ? sanitizeString(email, 100).toLowerCase() : '';
@@ -46,17 +46,38 @@ export async function POST(request: Request) {
       customer = await db.queryOne('SELECT * FROM customer WHERE LOWER(email) = ?', [cleanEmail]);
     }
 
-    // If customer exists and password is provided for login check
-    if (customer && password && customer.password) {
-      if (customer.password !== password) {
+    if (mode === 'login') {
+      if (!customer) {
         return NextResponse.json(
-          { success: false, error: 'Mật khẩu đăng nhập không chính xác' },
+          {
+            success: false,
+            error: 'Tài khoản khách hàng chưa tồn tại trên hệ thống. Vui lòng chuyển sang tab Đăng ký (Sign up) để tạo tài khoản mới!',
+          },
           { status: 401 }
+        );
+      }
+
+      if (customer.password) {
+        if (!password || customer.password !== String(password)) {
+          return NextResponse.json(
+            { success: false, error: 'Mật khẩu đăng nhập không chính xác!' },
+            { status: 401 }
+          );
+        }
+      }
+    } else if (mode === 'signup') {
+      if (customer && customer.password) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Email hoặc số điện thoại này đã được đăng ký tài khoản. Vui lòng chuyển sang Đăng nhập!',
+          },
+          { status: 409 }
         );
       }
     }
 
-    // If not found, create new customer in MySQL
+    // If not found (only reachable in signup or update mode), create new customer in MySQL
     if (!customer) {
       const customerName = name ? sanitizeString(name, 100) : (cleanEmail ? cleanEmail.split('@')[0] : 'Khách Hàng');
       const customerPhone = normalizedPhone || ('09' + Math.floor(10000000 + Math.random() * 90000000));
@@ -81,8 +102,8 @@ export async function POST(request: Request) {
       );
 
       customer = await db.queryOne('SELECT * FROM customer WHERE id = ?', [customerId]);
-    } else {
-      // If updating fields
+    } else if (mode !== 'login') {
+      // If updating fields during signup of existing walk-in customer or profile update
       const setClauses: string[] = [];
       const params: any[] = [];
 
@@ -132,6 +153,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
+      bootId: SERVER_BOOT_ID,
       message: 'Đăng nhập / Đồng bộ thông tin khách hàng thành công',
       data: {
         id: customer.id,

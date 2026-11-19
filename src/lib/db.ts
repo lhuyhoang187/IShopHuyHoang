@@ -1,9 +1,17 @@
 import mysql from 'mysql2/promise';
 
-// Global singleton pool for Next.js hot reload in development
+// Global singleton pool & server boot token for Next.js
 const globalForDb = globalThis as unknown as {
   mysqlPool: mysql.Pool | undefined;
+  serverBootId: string | undefined;
 };
+
+// Unique token generated once when the Node.js server process starts.
+// Whenever the program is stopped and started again, SERVER_BOOT_ID changes,
+// invalidating any previous client login session.
+export const SERVER_BOOT_ID =
+  globalForDb.serverBootId ??
+  (globalForDb.serverBootId = `boot_${process.pid}_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`);
 
 function getPoolConfig(): mysql.PoolOptions {
   const dbUrl = process.env.DATABASE_URL || 'mysql://root:@127.0.0.1:3306/ishop_huyhoang';

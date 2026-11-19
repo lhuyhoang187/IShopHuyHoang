@@ -98,6 +98,7 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
   // States for UX
   const [isLoading, setIsLoading] = useState(false);
   const [socialLoading, setSocialLoading] = useState<string | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successInfo, setSuccessInfo] = useState<{ email: string; isNewUser: boolean }>({
     email: '',
@@ -155,51 +156,41 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
     if (mode === 'signup' && !firstName) return;
 
     setIsLoading(true);
+    setAuthError(null);
 
     try {
       const res = await fetch('/api/auth/customer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          mode,
           name: firstName || email.split('@')[0],
           email: email,
+          password: password,
         }),
       });
       const json = await res.json();
-      if (json.success && json.data) {
-        IShopStore.setCustomerUser(json.data);
+      if (res.ok && json.success && json.data) {
+        IShopStore.setCustomerUser(json.data, json.bootId);
+        setSuccessInfo({
+          email,
+          isNewUser: mode === 'signup',
+        });
+        setShowSuccessModal(true);
+        triggerConfetti();
       } else {
-        const user: CustomerUser = {
-          id: 'cust-' + Date.now(),
-          name: firstName || email.split('@')[0],
-          email: email,
-          phone: '090' + Math.floor(1000000 + Math.random() * 9000000),
-          points: 100,
-        };
-        IShopStore.setCustomerUser(user);
+        setAuthError(json.error || 'Đăng nhập / Đăng ký không thành công. Vui lòng kiểm tra lại!');
       }
-    } catch {
-      const user: CustomerUser = {
-        id: 'cust-' + Date.now(),
-        name: firstName || email.split('@')[0],
-        email: email,
-        phone: '090' + Math.floor(1000000 + Math.random() * 9000000),
-        points: 100,
-      };
-      IShopStore.setCustomerUser(user);
+    } catch (err: any) {
+      setAuthError('Không thể kết nối máy chủ xác thực: ' + (err?.message || ''));
     } finally {
       setIsLoading(false);
-      setSuccessInfo({
-        email,
-        isNewUser: mode === 'signup',
-      });
-      setShowSuccessModal(true);
-      triggerConfetti();
     }
   };
 
   const handleSocialLogin = async (provider: 'Google' | 'Apple') => {
     setSocialLoading(provider);
+    setAuthError(null);
     const mockEmail = `vip.${provider.toLowerCase()}@gmail.com`;
     const mockName = provider === 'Google' ? 'Khách Hàng Google' : 'Khách Hàng Apple';
 
@@ -208,40 +199,27 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          mode: 'update',
           name: mockName,
           email: mockEmail,
         }),
       });
       const json = await res.json();
-      if (json.success && json.data) {
-        IShopStore.setCustomerUser(json.data);
-      } else {
-        const user: CustomerUser = {
-          id: 'cust-' + Date.now(),
-          name: mockName,
+      if (res.ok && json.success && json.data) {
+        IShopStore.setCustomerUser(json.data, json.bootId);
+        setSuccessInfo({
           email: mockEmail,
-          phone: '098' + Math.floor(1000000 + Math.random() * 9000000),
-          points: 100,
-        };
-        IShopStore.setCustomerUser(user);
+          isNewUser: false,
+        });
+        setShowSuccessModal(true);
+        triggerConfetti();
+      } else {
+        setAuthError(json.error || `Không thể đăng nhập bằng ${provider}.`);
       }
-    } catch {
-      const user: CustomerUser = {
-        id: 'cust-' + Date.now(),
-        name: mockName,
-        email: mockEmail,
-        phone: '098' + Math.floor(1000000 + Math.random() * 9000000),
-        points: 100,
-      };
-      IShopStore.setCustomerUser(user);
+    } catch (err: any) {
+      setAuthError('Không thể kết nối máy chủ xác thực: ' + (err?.message || ''));
     } finally {
       setSocialLoading(null);
-      setSuccessInfo({
-        email: mockEmail,
-        isNewUser: false,
-      });
-      setShowSuccessModal(true);
-      triggerConfetti();
     }
   };
 
@@ -390,6 +368,19 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
 
               {/* Form nhập liệu */}
               <form onSubmit={handleSubmit} autoComplete="off" className="space-y-4 max-w-md mx-auto">
+                {authError && (
+                  <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium flex items-center justify-between gap-2">
+                    <span>{authError}</span>
+                    <button
+                      type="button"
+                      onClick={() => setAuthError(null)}
+                      className="text-rose-500 hover:text-rose-800 shrink-0"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+
                 <AnimatePresence initial={false}>
                   {mode === 'signup' && (
                     <motion.div

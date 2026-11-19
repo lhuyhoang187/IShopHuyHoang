@@ -46,6 +46,7 @@ export default function AdminLayout({
   const [pendingRepairs, setPendingRepairs] = useState<RepairTicket[]>([]);
   const [latestInvoices, setLatestInvoices] = useState<Invoice[]>([]);
   const [isMounted, setIsMounted] = useState(false);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
 
   // Staff Login Form state
   const [authTab, setAuthTab] = useState<'login' | 'register'>('login');
@@ -78,8 +79,20 @@ export default function AdminLayout({
 
   useEffect(() => {
     setIsMounted(true);
-    loadAdminState();
-    IShopStore.hydrateFromDatabase();
+    let active = true;
+    IShopStore.verifySessionWithServer()
+      .then(() => {
+        if (!active) return;
+        loadAdminState();
+        setIsCheckingSession(false);
+        IShopStore.hydrateFromDatabase();
+      })
+      .catch(() => {
+        if (!active) return;
+        loadAdminState();
+        setIsCheckingSession(false);
+      });
+
     const listener = () => loadAdminState();
     window.addEventListener('ishop_data_changed', listener);
     const interval = setInterval(() => {
@@ -88,6 +101,7 @@ export default function AdminLayout({
       }
     }, 10000);
     return () => {
+      active = false;
       window.removeEventListener('ishop_data_changed', listener);
       clearInterval(interval);
     };
@@ -116,18 +130,14 @@ export default function AdminLayout({
       const json = await res.json();
 
       if (json.isPending) {
-        setStaffUser({
+        const pendingUser: StaffUser = {
           id: json.data.id,
           username: json.data.username,
           name: json.data.name,
           role: 'pending',
-        });
-        IShopStore.setStaffUser({
-          id: json.data.id,
-          username: json.data.username,
-          name: json.data.name,
-          role: 'pending',
-        });
+        };
+        setStaffUser(pendingUser);
+        IShopStore.setStaffUser(pendingUser, json.bootId);
         return;
       }
 
@@ -137,7 +147,7 @@ export default function AdminLayout({
           ...json.data,
           avatar: json.data.avatar || cachedAvatar,
         };
-        IShopStore.setStaffUser(finalUser);
+        IShopStore.setStaffUser(finalUser, json.bootId);
         setStaffUser(finalUser);
         setCurrentRole(finalUser.role);
       } else {
@@ -189,8 +199,8 @@ export default function AdminLayout({
     setStaffUser(null);
   };
 
-  if (!isMounted) {
-    return <div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-500 text-xs font-medium">Đang khởi tạo cổng quản trị...</div>;
+  if (!isMounted || isCheckingSession) {
+    return <div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-500 text-xs font-medium">Đang xác thực phiên làm việc cổng quản trị...</div>;
   }
 
   // 1. MANDATORY AUTH GATE: If not logged in, show Staff Login Gateway

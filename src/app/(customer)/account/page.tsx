@@ -141,7 +141,15 @@ export default function AccountPage() {
   };
 
   useEffect(() => {
-    loadUserData();
+    let active = true;
+    IShopStore.verifySessionWithServer()
+      .then(() => {
+        if (active) loadUserData();
+      })
+      .catch(() => {
+        if (active) loadUserData();
+      });
+
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const tabParam = params.get('tab');
@@ -151,7 +159,10 @@ export default function AccountPage() {
     }
     const handleDataChange = () => loadUserData();
     window.addEventListener('ishop_data_changed', handleDataChange);
-    return () => window.removeEventListener('ishop_data_changed', handleDataChange);
+    return () => {
+      active = false;
+      window.removeEventListener('ishop_data_changed', handleDataChange);
+    };
   }, []);
 
   // Handle Login Submit
@@ -165,32 +176,38 @@ export default function AccountPage() {
     setLoginError(null);
 
     try {
-      const custs = IShopStore.getCustomers();
-      const matched = custs.find((c) => c.phone.trim() === loginPhone.trim());
-      const cachedAvatar =
-        IShopStore.getCustomerAvatar(loginPhone.trim()) ||
-        (matched?.email && IShopStore.getCustomerAvatar(matched.email)) ||
-        matched?.avatar;
+      const res = await fetch('/api/auth/customer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mode: 'login',
+          phone: loginPhone.trim(),
+          password: loginPass || undefined,
+        }),
+      });
+      const json = await res.json();
 
-      const userObj: CustomerUser = {
-        id: matched ? matched.id : 'cust-' + Date.now(),
-        name: matched ? matched.name : 'Khách Hàng ' + loginPhone.slice(-4),
-        phone: loginPhone.trim(),
-        email: matched?.email || undefined,
-        address: matched?.address || undefined,
-        points: matched ? matched.points : 150,
-        membershipTier: matched ? matched.membershipTier : 'Thành viên mới',
-        birthday: matched?.birthday || undefined,
-        city: matched?.city || 'TP. Hồ Chí Minh',
-        avatar: cachedAvatar || undefined,
-      };
+      if (res.ok && json.success && json.data) {
+        const dbCust = json.data;
+        const cachedAvatar =
+          dbCust.avatar ||
+          IShopStore.getCustomerAvatar(loginPhone.trim()) ||
+          (dbCust.email && IShopStore.getCustomerAvatar(dbCust.email));
 
-      IShopStore.setCustomerUser(userObj);
-      setCustomerUser(userObj);
-      setAvatar(userObj.avatar || '');
-      confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 } });
+        const userObj: CustomerUser = {
+          ...dbCust,
+          avatar: cachedAvatar || undefined,
+        };
+
+        IShopStore.setCustomerUser(userObj, json.bootId);
+        setCustomerUser(userObj);
+        setAvatar(userObj.avatar || '');
+        confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 } });
+      } else {
+        setLoginError(json.error || 'Tài khoản khách hàng chưa tồn tại hoặc mật khẩu không chính xác!');
+      }
     } catch {
-      setLoginError('Không thể đăng nhập. Vui lòng thử lại!');
+      setLoginError('Không thể kết nối máy chủ xác thực. Vui lòng thử lại!');
     } finally {
       setIsLoggingIn(false);
     }

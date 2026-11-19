@@ -73,6 +73,48 @@ function setStorage<T>(key: string, value: T, silent = false): boolean {
   }
 }
 
+function getSessionStorage<T>(key: string, defaultValue: T): T {
+  if (typeof window === 'undefined') return defaultValue;
+  try {
+    const item = sessionStorage.getItem(STORAGE_PREFIX + key);
+    return item ? JSON.parse(item) : defaultValue;
+  } catch (err) {
+    console.error('Error reading sessionStorage', err);
+    return defaultValue;
+  }
+}
+
+function setSessionStorage<T>(key: string, value: T, silent = false): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    // Always purge any legacy persistent localStorage key of the same name
+    try {
+      localStorage.removeItem(STORAGE_PREFIX + key);
+    } catch {}
+
+    if (value === null || value === undefined) {
+      const hadExisting = sessionStorage.getItem(STORAGE_PREFIX + key) !== null;
+      sessionStorage.removeItem(STORAGE_PREFIX + key);
+      if (hadExisting && !silent) {
+        window.dispatchEvent(new Event('ishop_data_changed'));
+      }
+      return hadExisting;
+    }
+
+    const serialized = JSON.stringify(value);
+    const existing = sessionStorage.getItem(STORAGE_PREFIX + key);
+    if (existing === serialized) return false;
+    sessionStorage.setItem(STORAGE_PREFIX + key, serialized);
+    if (!silent) {
+      window.dispatchEvent(new Event('ishop_data_changed'));
+    }
+    return true;
+  } catch (err) {
+    console.error('Error writing sessionStorage', err);
+    return false;
+  }
+}
+
 export interface RecentItem {
   id: string;
   code: string;
@@ -241,10 +283,102 @@ export const initialRepairTimeSlots: RepairTimeSlotOption[] = [
 ];
 
 export const IShopStore = {
+  // Verify current session against server process boot ID and live MySQL accounts.
+  // If the server was restarted (bootId changed) or the account no longer exists in MySQL,
+  // any stored session is immediately invalidated.
+  async verifySessionWithServer(): Promise<{
+    staffUser: StaffUser | null;
+    customerUser: CustomerUser | null;
+  }> {
+    if (typeof window === 'undefined') {
+      return { staffUser: null, customerUser: null };
+    }
+    const staff = this.getStaffUser();
+    const customer = this.getCustomerUser();
+    const savedBootId = getSessionStorage<string | null>('auth_boot_id', null);
+
+    try {
+      const params = new URLSearchParams();
+      params.set('_t', String(Date.now()));
+      if (staff?.id) params.set('staffId', staff.id);
+      if (staff?.username) params.set('staffUsername', staff.username);
+      if (customer?.id) params.set('customerId', customer.id);
+      if (customer?.phone) params.set('customerPhone', customer.phone);
+      if (customer?.email) params.set('customerEmail', customer.email);
+
+      const res = await fetch(`/api/auth/session?${params.toString()}`, {
+        cache: 'no-store',
+      });
+      const json = await res.json();
+
+      if (!json || !json.bootId) {
+        return { staffUser: this.getStaffUser(), customerUser: this.getCustomerUser() };
+      }
+
+      // If no bootId was saved for this session or the server was restarted (bootId mismatch),
+      // force immediate logout of both staff and customer sessions.
+      if (!savedBootId || savedBootId !== json.bootId) {
+        const hadSession = Boolean(staff || customer);
+        setSessionStorage('staff_user', null, true);
+        setSessionStorage('current_role', null, true);
+        setSessionStorage('customer_user', null, true);
+        setSessionStorage('auth_boot_id', json.bootId, true);
+        if (hadSession) {
+          window.dispatchEvent(new Event('ishop_data_changed'));
+        }
+        return { staffUser: null, customerUser: null };
+      }
+
+      let changed = false;
+
+      if (staff) {
+        if (!json.staffValid) {
+          setSessionStorage('staff_user', null, true);
+          setSessionStorage('current_role', null, true);
+          changed = true;
+        } else if (json.staffUser) {
+          const mergedStaff: StaffUser = {
+            ...staff,
+            ...json.staffUser,
+            avatar: json.staffUser.avatar || staff.avatar,
+          };
+          changed = setSessionStorage('staff_user', mergedStaff, true) || changed;
+          setSessionStorage('current_role', mergedStaff.role, true);
+        }
+      }
+
+      if (customer) {
+        if (!json.customerValid) {
+          setSessionStorage('customer_user', null, true);
+          changed = true;
+        } else if (json.customerUser) {
+          const mergedCustomer: CustomerUser = {
+            ...customer,
+            ...json.customerUser,
+            avatar: json.customerUser.avatar || customer.avatar,
+          };
+          changed = setSessionStorage('customer_user', mergedCustomer, true) || changed;
+        }
+      }
+
+      if (changed) {
+        window.dispatchEvent(new Event('ishop_data_changed'));
+      }
+    } catch (e) {
+      console.warn('Session verification notice:', e);
+    }
+
+    return {
+      staffUser: this.getStaffUser(),
+      customerUser: this.getCustomerUser(),
+    };
+  },
+
   // Centralized Database Hydration: Automatically synchronizes all live tables from MySQL
   async hydrateFromDatabase(forceNotify = false) {
     if (typeof window === 'undefined') return;
     try {
+      await this.verifySessionWithServer();
       const ts = Date.now();
       const noCache: RequestInit = { cache: 'no-store' };
       const [
@@ -381,10 +515,10 @@ export const IShopStore = {
   getRole(): Role {
     const staff = this.getStaffUser();
     if (staff) return staff.role;
-    return getStorage<Role>('current_role', 'admin');
+    return getSessionStorage<Role>('current_role', 'admin');
   },
   setRole(role: Role) {
-    setStorage('current_role', role);
+    setSessionStorage('current_role', role);
   },
 
   // Staff Authentication & Avatars
@@ -411,13 +545,13 @@ export const IShopStore = {
     setStorage('staff_avatars', avatars);
   },
   getStaffUser(): StaffUser | null {
-    const user = getStorage<StaffUser | null>('staff_user', null);
+    const user = getSessionStorage<StaffUser | null>('staff_user', null);
     if (user?.avatar && user.avatar.length === 65535) {
       user.avatar = undefined;
     }
     return user;
   },
-  setStaffUser(user: StaffUser | null) {
+  setStaffUser(user: StaffUser | null, bootId?: string) {
     if (user) {
       const cachedAvatar = user.username && this.getStaffAvatar(user.username);
       if (!user.avatar && cachedAvatar) {
@@ -427,9 +561,14 @@ export const IShopStore = {
         this.setStaffAvatar(user.username, user.avatar);
       }
     }
-    setStorage('staff_user', user);
+    if (bootId) {
+      setSessionStorage('auth_boot_id', bootId, true);
+    }
+    setSessionStorage('staff_user', user, true);
     if (user) {
-      setStorage('current_role', user.role);
+      setSessionStorage('current_role', user.role, true);
+    } else {
+      setSessionStorage('current_role', null, true);
     }
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new Event('ishop_data_changed'));
@@ -446,7 +585,8 @@ export const IShopStore = {
     return updated;
   },
   logoutStaff() {
-    setStorage('staff_user', null);
+    setSessionStorage('staff_user', null, true);
+    setSessionStorage('current_role', null, true);
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new Event('ishop_data_changed'));
     }
@@ -476,7 +616,7 @@ export const IShopStore = {
     setStorage('customer_avatars', avatars);
   },
   getCustomerUser(): CustomerUser | null {
-    const user = getStorage<CustomerUser | null>('customer_user', null);
+    const user = getSessionStorage<CustomerUser | null>('customer_user', null);
     if (!user) return null;
     if (user.avatar && user.avatar.length === 65535) {
       user.avatar = undefined;
@@ -493,12 +633,12 @@ export const IShopStore = {
       if (matched && typeof matched.points === 'number' && matched.points !== user.points) {
         user.points = matched.points;
         user.membershipTier = matched.membershipTier || user.membershipTier;
-        setStorage('customer_user', user);
+        setSessionStorage('customer_user', user, true);
       }
     }
     return user;
   },
-  setCustomerUser(user: CustomerUser | null) {
+  setCustomerUser(user: CustomerUser | null, bootId?: string) {
     if (user) {
       let cachedAvatar =
         (user.phone && this.getCustomerAvatar(user.phone)) ||
@@ -526,7 +666,10 @@ export const IShopStore = {
         if (user.id) this.setCustomerAvatar(user.id, user.avatar);
       }
     }
-    setStorage('customer_user', user);
+    if (bootId) {
+      setSessionStorage('auth_boot_id', bootId, true);
+    }
+    setSessionStorage('customer_user', user, true);
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new Event('ishop_data_changed'));
     }
@@ -542,7 +685,7 @@ export const IShopStore = {
       if (updated.id) this.setCustomerAvatar(updated.id, updated.avatar || null);
     }
 
-    setStorage('customer_user', updated);
+    setSessionStorage('customer_user', updated, true);
 
     // Đồng bộ vào danh bạ khách hàng
     const customers = this.getCustomers();
@@ -589,7 +732,7 @@ export const IShopStore = {
     return updated;
   },
   logoutCustomer() {
-    setStorage('customer_user', null);
+    setSessionStorage('customer_user', null, true);
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new Event('ishop_data_changed'));
     }
@@ -2408,29 +2551,27 @@ export const IShopStore = {
   // Clear local cache and re-sync fresh from MySQL database
   resetAllData() {
     if (typeof window === 'undefined') return;
-    const savedStaff = this.getStaffUser();
     localStorage.clear();
-    if (savedStaff) {
-      setStorage('staff_user', savedStaff, true);
-    }
+    sessionStorage.clear();
     this.hydrateFromDatabase(true);
   },
 };
 
 // Automatic background & cross-tab real-time synchronization with live MySQL Database
 if (typeof window !== 'undefined') {
-  // Tự động dọn sạch dữ liệu cache mẫu cũ (v6) khi nâng cấp sang bản production sạch (v7), giữ lại phiên đăng nhập admin
+  // Xóa bỏ hoàn toàn mọi token đăng nhập cũ lưu cứng trong localStorage để bắt buộc xác thực theo phiên (sessionStorage + server boot ID)
   try {
     const oldPrefix = 'ishop_huyhoang_v6_mysql_';
-    const oldAdminRaw = localStorage.getItem(oldPrefix + 'staff_user');
-    if (oldAdminRaw && !localStorage.getItem(STORAGE_PREFIX + 'staff_user')) {
-      const parsed = JSON.parse(oldAdminRaw);
-      if (parsed?.username === 'admin') {
-        localStorage.setItem(STORAGE_PREFIX + 'staff_user', oldAdminRaw);
-      }
-    }
+    localStorage.removeItem(STORAGE_PREFIX + 'staff_user');
+    localStorage.removeItem(STORAGE_PREFIX + 'customer_user');
+    localStorage.removeItem(STORAGE_PREFIX + 'current_role');
     Object.keys(localStorage).forEach((k) => {
-      if (k.startsWith(oldPrefix)) {
+      if (
+        k.startsWith(oldPrefix) ||
+        k.endsWith('_staff_user') ||
+        k.endsWith('_customer_user') ||
+        k.endsWith('_current_role')
+      ) {
         localStorage.removeItem(k);
       }
     });
