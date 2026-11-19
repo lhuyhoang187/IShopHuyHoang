@@ -126,11 +126,11 @@ export default function PhonesPage() {
           {/* Quick Search */}
           <div className="lg:col-span-5 relative">
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
+            <input autoComplete="off"
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Tìm nhanh theo tên máy, chip (A20 Pro, Snapdragon)..."
+              placeholder=""
               className="w-full pl-9 pr-8 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-amber-500 shadow-2xs"
             />
             {searchQuery && (

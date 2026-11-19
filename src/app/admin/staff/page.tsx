@@ -326,11 +326,11 @@ export default function AdminStaffPage() {
         <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="relative flex-1 max-w-md">
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
+            <input autoComplete="off"
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Tìm kiếm nhân viên theo họ tên hoặc username..."
+              placeholder=""
               className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-xs placeholder-slate-400 focus:outline-none focus:border-amber-500 focus:bg-white"
             />
           </div>
@@ -439,39 +439,39 @@ export default function AdminStaffPage() {
               </button>
             </div>
 
-            <form onSubmit={handleCreateStaff} className="space-y-4 text-xs">
+            <form autoComplete="off" onSubmit={handleCreateStaff} className="space-y-4 text-xs">
               <div>
                 <label className="text-slate-700 font-bold mb-1 block">Họ và tên nhân viên *:</label>
-                <input
+                <input autoComplete="off"
                   type="text"
                   required
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
-                  placeholder="VD: Trần Văn Bình"
+                  placeholder=""
                   className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-medium focus:bg-white focus:outline-none focus:border-amber-500"
                 />
               </div>
 
               <div>
                 <label className="text-slate-700 font-bold mb-1 block">Tên đăng nhập (Username) *:</label>
-                <input
+                <input autoComplete="off"
                   type="text"
                   required
                   value={newUsername}
                   onChange={(e) => setNewUsername(e.target.value)}
-                  placeholder="VD: tranbinh"
+                  placeholder=""
                   className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono font-bold focus:bg-white focus:outline-none focus:border-amber-500"
                 />
               </div>
 
               <div>
                 <label className="text-slate-700 font-bold mb-1 block">Mật khẩu ban đầu *:</label>
-                <input
+                <input autoComplete="off"
                   type="password"
                   required
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Nhập mật khẩu..."
+                  placeholder=""
                   className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono focus:bg-white focus:outline-none focus:border-amber-500"
                 />
               </div>

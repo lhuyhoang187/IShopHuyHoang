@@ -568,23 +568,23 @@ export default function AdminProfilePage() {
               </button>
             </div>
 
-            <form onSubmit={handleSaveProfile} className="space-y-4 text-xs">
+            <form autoComplete="off" onSubmit={handleSaveProfile} className="space-y-4 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="text-slate-700 font-bold mb-1 block">Họ và Tên Nhân Viên: *</label>
-                  <input
+                  <input autoComplete="off"
                     type="text"
                     required
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    placeholder="Nguyễn Văn B"
+                    placeholder=""
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-medium focus:bg-white focus:outline-none focus:border-amber-500"
                   />
                 </div>
 
                 <div>
                   <label className="text-slate-700 font-bold mb-1 block">Tên Đăng Nhập (Username):</label>
-                  <input
+                  <input autoComplete="off"
                     type="text"
                     disabled
                     value={username}
@@ -595,7 +595,7 @@ export default function AdminProfilePage() {
 
                 <div>
                   <label className="text-slate-700 font-bold mb-1 block">Chức Vụ / Vai Trò:</label>
-                  <input
+                  <input autoComplete="off"
                     type="text"
                     disabled
                     value={roleInfo.title}
@@ -607,22 +607,22 @@ export default function AdminProfilePage() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="text-slate-700 font-bold mb-1 block">Số Điện Thoại Nội Bộ: *</label>
-                  <input
+                  <input autoComplete="off"
                     type="tel"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    placeholder="09xx xxx xxx"
+                    placeholder=""
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono font-medium focus:bg-white focus:outline-none focus:border-amber-500"
                   />
                 </div>
 
                 <div>
                   <label className="text-slate-700 font-bold mb-1 block">Email Công Vụ:</label>
-                  <input
+                  <input autoComplete="off"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="nhanvien@ishophuyhoang.vn"
+                    placeholder=""
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:outline-none focus:border-amber-500"
                   />
                 </div>
@@ -653,7 +653,7 @@ export default function AdminProfilePage() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="text-slate-700 font-bold mb-1 block">Ngày Sinh:</label>
-                  <input
+                  <input autoComplete="off"
                     type="date"
                     value={birthday}
                     onChange={(e) => setBirthday(e.target.value)}
@@ -663,11 +663,11 @@ export default function AdminProfilePage() {
 
                 <div className="sm:col-span-2">
                   <label className="text-slate-700 font-bold mb-1 block">Địa Chỉ Cư Trú / Liên Hệ:</label>
-                  <input
+                  <input autoComplete="off"
                     type="text"
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
-                    placeholder="Số nhà, tên đường, phường xã..."
+                    placeholder=""
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:outline-none focus:border-amber-500"
                   />
                 </div>
@@ -681,7 +681,7 @@ export default function AdminProfilePage() {
                   rows={3}
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
-                  placeholder="Kinh nghiệm ép kính, xử lý Face ID, tư vấn giải pháp Apple..."
+                  placeholder=""
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:outline-none focus:border-amber-500"
                 />
               </div>
@@ -728,16 +728,16 @@ export default function AdminProfilePage() {
               </div>
             )}
 
-            <form onSubmit={handleChangePassword} className="space-y-4 max-w-xl text-xs">
+            <form autoComplete="off" onSubmit={handleChangePassword} className="space-y-4 max-w-xl text-xs">
               <div>
                 <label className="text-slate-700 font-bold mb-1 block">Mật Khẩu Hiện Tại: *</label>
                 <div className="relative">
-                  <input
+                  <input autoComplete="off"
                     type={showCurrentPass ? 'text' : 'password'}
                     required
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
-                    placeholder="Nhập mật khẩu đang dùng"
+                    placeholder=""
                     className="w-full pl-3.5 pr-10 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono focus:bg-white focus:outline-none focus:border-amber-500"
                   />
                   <button
@@ -753,12 +753,12 @@ export default function AdminProfilePage() {
               <div>
                 <label className="text-slate-700 font-bold mb-1 block">Mật Khẩu Mới: *</label>
                 <div className="relative">
-                  <input
+                  <input autoComplete="off"
                     type={showNewPass ? 'text' : 'password'}
                     required
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="Tối thiểu 6 ký tự"
+                    placeholder=""
                     className="w-full pl-3.5 pr-10 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono focus:bg-white focus:outline-none focus:border-amber-500"
                   />
                   <button
@@ -790,12 +790,12 @@ export default function AdminProfilePage() {
               <div>
                 <label className="text-slate-700 font-bold mb-1 block">Xác Nhận Mật Khẩu Mới: *</label>
                 <div className="relative">
-                  <input
+                  <input autoComplete="off"
                     type={showConfirmPass ? 'text' : 'password'}
                     required
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Nhập lại mật khẩu mới"
+                    placeholder=""
                     className="w-full pl-3.5 pr-10 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono focus:bg-white focus:outline-none focus:border-amber-500"
                   />
                   <button
@@ -829,7 +829,7 @@ export default function AdminProfilePage() {
                     <p className="font-bold text-slate-900">Xác Thực 2 Bước (2FA Nhân Viên)</p>
                     <p className="text-slate-500 text-[11px]">Bắt buộc OTP khi đăng nhập IP lạ</p>
                   </div>
-                  <input
+                  <input autoComplete="off"
                     type="checkbox"
                     checked={isTwoFactor}
                     onChange={(e) => setIsTwoFactor(e.target.checked)}
@@ -842,7 +842,7 @@ export default function AdminProfilePage() {
                     <p className="font-bold text-slate-900">Khóa Phiên Khi Rời Máy 15 Phút</p>
                     <p className="text-slate-500 text-[11px]">Tự động đăng xuất bảo vệ quầy POS</p>
                   </div>
-                  <input
+                  <input autoComplete="off"
                     type="checkbox"
                     defaultChecked
                     className="w-5 h-5 accent-amber-500 rounded cursor-pointer"

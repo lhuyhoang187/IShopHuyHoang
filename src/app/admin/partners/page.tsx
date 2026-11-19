@@ -402,13 +402,10 @@ export default function AdminPartnersPage() {
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
+            autoComplete="off"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder={
-              activeTab === 'customers'
-                ? 'Tìm kiếm theo tên khách hàng, số điện thoại...'
-                : 'Tìm kiếm theo tên nhà phân phối, người liên hệ, SĐT...'
-            }
+            placeholder=""
             className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-purple-500 focus:bg-white transition-all font-medium"
           />
         </div>
@@ -601,7 +598,7 @@ export default function AdminPartnersPage() {
               </button>
             </div>
 
-            <form onSubmit={handlePayDebt} className="space-y-4 text-xs">
+            <form autoComplete="off" onSubmit={handlePayDebt} className="space-y-4 text-xs">
               <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
                 <span className="text-slate-500 text-[11px] font-semibold">Nhà cung cấp:</span>
                 <p className="text-sm font-black text-slate-900">{selectedSupplier.name}</p>
@@ -614,7 +611,7 @@ export default function AdminPartnersPage() {
                 <label className="text-slate-700 font-bold mb-1 block">
                   Số tiền thanh toán đợt này (VND) *:
                 </label>
-                <input
+                <input autoComplete="off"
                   type="number"
                   required
                   value={payAmount}
@@ -674,28 +671,28 @@ export default function AdminPartnersPage() {
               </button>
             </div>
 
-            <form onSubmit={handleSaveCustomer} className="space-y-3.5 text-xs">
+            <form autoComplete="off" onSubmit={handleSaveCustomer} className="space-y-3.5 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-slate-700 font-bold mb-1 block">Họ và tên khách hàng *:</label>
-                  <input
+                  <input autoComplete="off"
                     type="text"
                     required
                     value={custFormName}
                     onChange={(e) => setCustFormName(e.target.value)}
-                    placeholder="Nguyễn Văn A"
+                    placeholder=""
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-semibold focus:bg-white focus:outline-none focus:border-purple-500"
                   />
                 </div>
                 <div>
                   <label className="text-slate-700 font-bold mb-1 block">Số điện thoại (10 số) *:</label>
-                  <input
+                  <input autoComplete="off"
                     type="text"
                     required
                     value={custFormPhone}
                     disabled={!!editingCustomer}
                     onChange={(e) => setCustFormPhone(e.target.value)}
-                    placeholder="0901234567"
+                    placeholder=""
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900 font-bold focus:bg-white focus:outline-none focus:border-purple-500 disabled:opacity-70"
                   />
                 </div>
@@ -704,17 +701,17 @@ export default function AdminPartnersPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-slate-700 font-bold mb-1 block">Email (Tùy chọn):</label>
-                  <input
+                  <input autoComplete="off"
                     type="email"
                     value={custFormEmail}
                     onChange={(e) => setCustFormEmail(e.target.value)}
-                    placeholder="khachhang@gmail.com"
+                    placeholder=""
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-medium focus:bg-white focus:outline-none focus:border-purple-500"
                   />
                 </div>
                 <div>
                   <label className="text-slate-700 font-bold mb-1 block">Điểm tích lũy khởi tạo:</label>
-                  <input
+                  <input autoComplete="off"
                     type="number"
                     value={custFormPoints}
                     onChange={(e) => setCustFormPoints(Number(e.target.value) || 0)}
@@ -725,11 +722,11 @@ export default function AdminPartnersPage() {
 
               <div>
                 <label className="text-slate-700 font-bold mb-1 block">Địa chỉ giao hàng / cư trú:</label>
-                <input
+                <input autoComplete="off"
                   type="text"
                   value={custFormAddress}
                   onChange={(e) => setCustFormAddress(e.target.value)}
-                  placeholder="Số nhà, Tên đường, Quận/Huyện, TP.HCM"
+                  placeholder=""
                   className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-medium focus:bg-white focus:outline-none focus:border-purple-500"
                 />
               </div>
@@ -740,7 +737,7 @@ export default function AdminPartnersPage() {
                   rows={2}
                   value={custFormNotes}
                   onChange={(e) => setCustFormNotes(e.target.value)}
-                  placeholder="Ghi chú sở thích, nhu cầu đặc biệt..."
+                  placeholder=""
                   className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-medium focus:bg-white focus:outline-none focus:border-purple-500"
                 />
               </div>
@@ -781,15 +778,15 @@ export default function AdminPartnersPage() {
               </button>
             </div>
 
-            <form onSubmit={handleSaveSupplier} className="space-y-3.5 text-xs">
+            <form autoComplete="off" onSubmit={handleSaveSupplier} className="space-y-3.5 text-xs">
               <div>
                 <label className="text-slate-700 font-bold mb-1 block">Tên Công Ty / Nhà Phân Phối *:</label>
-                <input
+                <input autoComplete="off"
                   type="text"
                   required
                   value={supFormName}
                   onChange={(e) => setSupFormName(e.target.value)}
-                  placeholder="Công Ty CP Phân Phối FPT Synnex..."
+                  placeholder=""
                   className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:bg-white focus:outline-none focus:border-blue-500"
                 />
               </div>
@@ -797,22 +794,22 @@ export default function AdminPartnersPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-slate-700 font-bold mb-1 block">Người đại diện liên hệ:</label>
-                  <input
+                  <input autoComplete="off"
                     type="text"
                     value={supFormContactPerson}
                     onChange={(e) => setSupFormContactPerson(e.target.value)}
-                    placeholder="Nguyễn Văn Đại Diện"
+                    placeholder=""
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-semibold focus:bg-white focus:outline-none focus:border-blue-500"
                   />
                 </div>
                 <div>
                   <label className="text-slate-700 font-bold mb-1 block">Số điện thoại hotline *:</label>
-                  <input
+                  <input autoComplete="off"
                     type="text"
                     required
                     value={supFormPhone}
                     onChange={(e) => setSupFormPhone(e.target.value)}
-                    placeholder="028.7300.6666"
+                    placeholder=""
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900 font-bold focus:bg-white focus:outline-none focus:border-blue-500"
                   />
                 </div>
@@ -821,17 +818,17 @@ export default function AdminPartnersPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-slate-700 font-bold mb-1 block">Email nhà cung cấp:</label>
-                  <input
+                  <input autoComplete="off"
                     type="email"
                     value={supFormEmail}
                     onChange={(e) => setSupFormEmail(e.target.value)}
-                    placeholder="contact@synnexfpt.com.vn"
+                    placeholder=""
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-medium focus:bg-white focus:outline-none focus:border-blue-500"
                   />
                 </div>
                 <div>
                   <label className="text-slate-700 font-bold mb-1 block">Công nợ ban đầu (VND):</label>
-                  <input
+                  <input autoComplete="off"
                     type="number"
                     value={supFormInitialDebt}
                     onChange={(e) => setSupFormInitialDebt(Number(e.target.value) || 0)}
@@ -842,11 +839,11 @@ export default function AdminPartnersPage() {
 
               <div>
                 <label className="text-slate-700 font-bold mb-1 block">Địa chỉ trụ sở / kho hàng:</label>
-                <input
+                <input autoComplete="off"
                   type="text"
                   value={supFormAddress}
                   onChange={(e) => setSupFormAddress(e.target.value)}
-                  placeholder="Tòa nhà FPT, Quận 7, TP.HCM"
+                  placeholder=""
                   className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-medium focus:bg-white focus:outline-none focus:border-blue-500"
                 />
               </div>

@@ -309,11 +309,11 @@ export default function InventoryPhonesPage() {
               {/* Search box */}
               <div className="md:col-span-5 relative">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
+                <input autoComplete="off"
                   type="text"
                   value={phoneSearch}
                   onChange={(e) => setPhoneSearch(e.target.value)}
-                  placeholder="Tìm theo tên máy (iPhone 18, iPhone Duo, S24 Ultra...)"
+                  placeholder=""
                   className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-amber-500 focus:bg-white transition-colors font-medium"
                 />
                 {phoneSearch && (
@@ -674,11 +674,11 @@ export default function InventoryPhonesPage() {
           <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-4">
             <div className="relative flex-1 min-w-[260px]">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
+              <input autoComplete="off"
                 type="text"
                 value={searchImei}
                 onChange={(e) => setSearchImei(e.target.value)}
-                placeholder="Tìm theo số IMEI (15 số), tên máy, SĐT người mua..."
+                placeholder=""
                 className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-amber-500 focus:bg-white font-mono transition-colors"
               />
             </div>

@@ -1309,11 +1309,11 @@ export default function AdminUnifiedPage() {
           <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-4">
             <div className="relative flex-1 min-w-[260px]">
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
+              <input autoComplete="off"
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Tìm kiếm theo mã phiếu (PT-..., PC-...), mã tham chiếu (HD-..., SC-...), diễn giải..."
+                placeholder=""
                 className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:bg-white transition-all font-mono"
               />
             </div>
@@ -1450,7 +1450,7 @@ export default function AdminUnifiedPage() {
               </button>
             </div>
 
-            <form onSubmit={handleAddEntry} className="space-y-4 text-xs">
+            <form autoComplete="off" onSubmit={handleAddEntry} className="space-y-4 text-xs">
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
@@ -1492,7 +1492,7 @@ export default function AdminUnifiedPage() {
 
               <div>
                 <label className="text-slate-700 font-bold mb-1.5 block">Số tiền (VND) *:</label>
-                <input
+                <input autoComplete="off"
                   type="number"
                   required
                   min={1000}
@@ -1522,7 +1522,7 @@ export default function AdminUnifiedPage() {
                   required
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Diễn giải chi tiết lý do thu/chi..."
+                  placeholder=""
                   className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500 font-medium"
                 />
               </div>

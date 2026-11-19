@@ -280,7 +280,7 @@ export default function AdminLayout({
                   required
                   value={loginUsername}
                   onChange={(e) => setLoginUsername(e.target.value)}
-                  placeholder="VD: admin hoặc cashier..."
+                  placeholder=""
                   className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono focus:outline-none focus:border-amber-500 focus:bg-white"
                 />
               </div>
@@ -295,7 +295,7 @@ export default function AdminLayout({
                   required
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
-                  placeholder="Nhập mật khẩu..."
+                  placeholder=""
                   className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono focus:outline-none focus:border-amber-500 focus:bg-white"
                 />
               </div>
@@ -329,7 +329,7 @@ export default function AdminLayout({
                   required
                   value={regName}
                   onChange={(e) => setRegName(e.target.value)}
-                  placeholder="VD: Trần Văn Bình"
+                  placeholder=""
                   className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:outline-none focus:border-amber-500 focus:bg-white"
                 />
               </div>
@@ -343,7 +343,7 @@ export default function AdminLayout({
                   required
                   value={regUsername}
                   onChange={(e) => setRegUsername(e.target.value)}
-                  placeholder="VD: tranbinh"
+                  placeholder=""
                   className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono focus:outline-none focus:border-amber-500 focus:bg-white"
                 />
               </div>
@@ -357,7 +357,7 @@ export default function AdminLayout({
                   required
                   value={regPassword}
                   onChange={(e) => setRegPassword(e.target.value)}
-                  placeholder="Tối thiểu 6 ký tự..."
+                  placeholder=""
                   className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono focus:outline-none focus:border-amber-500 focus:bg-white"
                 />
               </div>

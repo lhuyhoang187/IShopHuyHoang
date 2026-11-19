@@ -499,11 +499,11 @@ export default function RepairPriceListPage() {
         <div className="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-xs grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
           <div className="sm:col-span-7 relative">
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
+            <input autoComplete="off"
               type="text"
               value={priceSearchQuery}
               onChange={(e) => setPriceSearchQuery(e.target.value)}
-              placeholder="Tìm nhanh dịch vụ hoặc dòng máy (VD: Thay pin, Ép kính, iPhone 18, S24 Ultra)..."
+              placeholder=""
               className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:bg-white"
             />
           </div>
@@ -684,26 +684,26 @@ export default function RepairPriceListPage() {
               </div>
 
               {/* Quick Customer Login Form */}
-              <form onSubmit={handleCustomerQuickLogin} className="max-w-md mx-auto space-y-3 text-xs text-left">
+              <form autoComplete="off" onSubmit={handleCustomerQuickLogin} className="max-w-md mx-auto space-y-3 text-xs text-left">
                 <div>
                   <label className="text-slate-700 font-bold mb-1 block">Họ và tên của bạn *:</label>
-                  <input
+                  <input autoComplete="off"
                     type="text"
                     required
                     value={quickLoginName}
                     onChange={(e) => setQuickLoginName(e.target.value)}
-                    placeholder="VD: Nguyễn Văn Nam"
+                    placeholder=""
                     className="w-full p-3 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-amber-500 shadow-sm placeholder:text-slate-400 font-medium"
                   />
                 </div>
                 <div>
                   <label className="text-slate-700 font-bold mb-1 block">Số điện thoại liên hệ *:</label>
-                  <input
+                  <input autoComplete="off"
                     type="tel"
                     required
                     value={quickLoginPhone}
                     onChange={(e) => setQuickLoginPhone(e.target.value)}
-                    placeholder="VD: 0909123456"
+                    placeholder=""
                     className="w-full p-3 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-amber-500 shadow-sm placeholder:text-slate-400 font-mono font-bold text-amber-700"
                   />
                 </div>
@@ -735,19 +735,19 @@ export default function RepairPriceListPage() {
                 </button>
               </div>
 
-              <form onSubmit={handleBooking} className="space-y-5 text-xs">
+              <form autoComplete="off" onSubmit={handleBooking} className="space-y-5 text-xs">
                 {/* 1. Full name & Phone number (Retained as text inputs as requested) */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="text-slate-700 font-bold mb-1 block">
                       Họ và tên của bạn: *
                     </label>
-                    <input
+                    <input autoComplete="off"
                       type="text"
                       required
                       value={bookingForm.name}
                       onChange={(e) => setBookingForm({ ...bookingForm, name: e.target.value })}
-                      placeholder="VD: Nguyễn Văn Nam"
+                      placeholder=""
                       className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-medium focus:bg-white focus:outline-none focus:border-amber-500 shadow-xs"
                     />
                   </div>
@@ -755,12 +755,12 @@ export default function RepairPriceListPage() {
                     <label className="text-slate-700 font-bold mb-1 block">
                       Số điện thoại liên hệ: *
                     </label>
-                    <input
+                    <input autoComplete="off"
                       type="tel"
                       required
                       value={bookingForm.phone}
                       onChange={(e) => setBookingForm({ ...bookingForm, phone: e.target.value })}
-                      placeholder="VD: 0909123456"
+                      placeholder=""
                       className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-amber-700 font-mono font-bold focus:bg-white focus:outline-none focus:border-amber-500 shadow-xs"
                     />
                   </div>
@@ -815,38 +815,7 @@ export default function RepairPriceListPage() {
 
                   {selectedBrand !== 'Khác' && (
                     <>
-                      {/* Tầng 2: Gợi ý nhanh các dòng máy phổ biến nhất (1 Chạm) */}
-                      {hotDevicesForBrand.length > 0 && (
-                        <div className="space-y-1">
-                          <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">
-                            Chọn nhanh dòng máy phổ biến:
-                          </span>
-                          <div className="flex flex-wrap gap-1.5">
-                            {hotDevicesForBrand.map((hotName) => {
-                              const isSelected = bookingForm.model === hotName;
-                              return (
-                                <button
-                                  key={hotName}
-                                  type="button"
-                                  onClick={() => {
-                                    setBookingForm((prev) => ({ ...prev, model: hotName }));
-                                    setIsDeviceDropdownOpen(false);
-                                  }}
-                                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                                    isSelected
-                                      ? 'bg-amber-500 text-slate-950 font-black shadow-sm ring-2 ring-amber-400/40'
-                                      : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs'
-                                  }`}
-                                >
-                                  {hotName}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Tầng 3: Custom Searchable Dropdown (Gọn gàng, max-h-48, KHÔNG TRÀN MÀN HÌNH) */}
+                      {/* Custom Searchable Dropdown (Gọn gàng, max-h-48, KHÔNG TRÀN MÀN HÌNH) */}
                       <div className="relative">
                         {isDeviceDropdownOpen && (
                           <div
@@ -881,11 +850,11 @@ export default function RepairPriceListPage() {
                             {/* Search Input */}
                             <div className="relative">
                               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                              <input
+                              <input autoComplete="off"
                                 type="text"
                                 value={deviceSearchQuery}
                                 onChange={(e) => setDeviceSearchQuery(e.target.value)}
-                                placeholder={`Tìm dòng máy (VD: 15 Pro, S24, Note...)...`}
+                                placeholder=""
                                 className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:border-amber-500 placeholder:text-slate-400"
                                 autoFocus
                               />
@@ -945,12 +914,12 @@ export default function RepairPriceListPage() {
                       <label className="text-[11px] font-bold text-amber-900 block">
                         Nhập chính xác tên máy của bạn: *
                       </label>
-                      <input
+                      <input autoComplete="off"
                         type="text"
                         required
                         value={customModelText}
                         onChange={(e) => setCustomModelText(e.target.value)}
-                        placeholder="VD: Xiaomi 14 Ultra, iPad Mini 6, Google Pixel 8 Pro..."
+                        placeholder=""
                         className="w-full p-2.5 rounded-xl bg-white border border-amber-400 text-slate-900 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-amber-500"
                         autoFocus
                       />
@@ -968,35 +937,6 @@ export default function RepairPriceListPage() {
                     <span className="text-[11px] text-slate-500 font-medium">
                       {serviceCatalog.length} dịch vụ niêm yết
                     </span>
-                  </div>
-
-                  {/* Gợi ý nhanh các dịch vụ phổ biến (1 Chạm) */}
-                  <div className="space-y-1">
-                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">
-                      Chọn nhanh dịch vụ phổ biến:
-                    </span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {hotServices.map((hs) => {
-                        const isSelected = bookingForm.service === hs.name;
-                        return (
-                          <button
-                            key={hs.name}
-                            type="button"
-                            onClick={() => {
-                              setBookingForm((prev) => ({ ...prev, service: hs.name }));
-                              setIsServiceDropdownOpen(false);
-                            }}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                              isSelected
-                                ? 'bg-amber-500 text-slate-950 font-black shadow-sm ring-2 ring-amber-400/40'
-                                : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs'
-                            }`}
-                          >
-                            {hs.label}
-                          </button>
-                        );
-                      })}
-                    </div>
                   </div>
 
                   {/* Custom Searchable Service Dropdown (Gọn gàng, max-h-52) */}
@@ -1037,11 +977,11 @@ export default function RepairPriceListPage() {
                         <div className="space-y-1.5">
                           <div className="relative">
                             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                            <input
+                            <input autoComplete="off"
                               type="text"
                               value={serviceSearchQuery}
                               onChange={(e) => setServiceSearchQuery(e.target.value)}
-                              placeholder="Tìm dịch vụ (VD: pin, màn hình, ép kính, sạc...)..."
+                              placeholder=""
                               className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:border-amber-500 placeholder:text-slate-400"
                               autoFocus
                             />
@@ -1176,7 +1116,7 @@ export default function RepairPriceListPage() {
 
                     <div className="mt-2 flex items-center gap-2">
                       <span className="text-[11px] text-slate-500">Hoặc chọn ngày khác:</span>
-                      <input
+                      <input autoComplete="off"
                         type="date"
                         required
                         value={bookingForm.date}
@@ -1245,11 +1185,11 @@ export default function RepairPriceListPage() {
                   </div>
 
                   <div>
-                    <input
+                    <input autoComplete="off"
                       type="text"
                       value={extraNotes}
                       onChange={(e) => setExtraNotes(e.target.value)}
-                      placeholder="Ghi chú thêm chi tiết (nếu có): VD: Máy rơi từ tầng 2 xuống, chập sau khi đi mưa..."
+                      placeholder=""
                       className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:bg-white focus:outline-none focus:border-amber-500 placeholder:text-slate-400 font-medium"
                     />
                   </div>

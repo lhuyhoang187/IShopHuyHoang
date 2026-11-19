@@ -271,13 +271,13 @@ export function PromoQRSection() {
               </button>
             </div>
 
-            <form onSubmit={handleCreatePromo} className="space-y-4 text-xs">
+            <form autoComplete="off" onSubmit={handleCreatePromo} className="space-y-4 text-xs">
               <div>
                 <label className="font-bold text-slate-700 block mb-1">Mã Khuyến Mãi (Voucher Code):</label>
-                <input
+                <input autoComplete="off"
                   type="text"
                   required
-                  placeholder="VD: FLASH-SUMMER-300K"
+                  placeholder=""
                   value={formCode}
                   onChange={(e) => setFormCode(e.target.value.toUpperCase())}
                   className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono font-bold uppercase text-slate-900 focus:outline-blue-600"
@@ -286,10 +286,10 @@ export function PromoQRSection() {
 
               <div>
                 <label className="font-bold text-slate-700 block mb-1">Tiêu Đề Khuyến Mãi:</label>
-                <input
+                <input autoComplete="off"
                   type="text"
                   required
-                  placeholder="VD: Giảm 300.000đ khi đặt mua iPhone mới"
+                  placeholder=""
                   value={formTitle}
                   onChange={(e) => setFormTitle(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl border border-slate-300 text-slate-900 focus:outline-blue-600"
@@ -310,7 +310,7 @@ export function PromoQRSection() {
                 </div>
                 <div>
                   <label className="font-bold text-slate-700 block mb-1">Mức Giảm:</label>
-                  <input
+                  <input autoComplete="off"
                     type="number"
                     value={formValue}
                     onChange={(e) => setFormValue(Number(e.target.value))}
@@ -322,7 +322,7 @@ export function PromoQRSection() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="font-bold text-slate-700 block mb-1">Đơn Hàng Tối Thiểu:</label>
-                  <input
+                  <input autoComplete="off"
                     type="number"
                     value={formMinOrder}
                     onChange={(e) => setFormMinOrder(Number(e.target.value))}
@@ -331,7 +331,7 @@ export function PromoQRSection() {
                 </div>
                 <div>
                   <label className="font-bold text-slate-700 block mb-1">Thời Hạn Hiệu Lực (Số ngày):</label>
-                  <input
+                  <input autoComplete="off"
                     type="number"
                     min="1"
                     max="90"
@@ -346,7 +346,7 @@ export function PromoQRSection() {
                 <label className="font-bold text-slate-700 block mb-1">Mô Tả Chi Tiết:</label>
                 <textarea
                   rows={2}
-                  placeholder="Ghi chú điều kiện áp dụng..."
+                  placeholder=""
                   value={formDesc}
                   onChange={(e) => setFormDesc(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl border border-slate-300 text-slate-900"

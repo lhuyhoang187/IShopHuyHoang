@@ -768,7 +768,7 @@ export default function RevenueAnalyticsSection({
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
-              <input
+              <input autoComplete="off"
                 type="date"
                 value={selectedDate}
                 onChange={(e) => {

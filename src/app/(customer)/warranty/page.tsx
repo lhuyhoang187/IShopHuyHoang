@@ -171,7 +171,7 @@ function WarrantyContent() {
 
       {/* Search Input Box */}
       <div className="bg-white rounded-3xl p-6 sm:p-9 border border-slate-200 shadow-md space-y-5">
-        <form
+        <form autoComplete="off"
           onSubmit={(e) => {
             e.preventDefault();
             handleSearch();
@@ -180,11 +180,11 @@ function WarrantyContent() {
         >
           <div className="flex flex-col sm:flex-row items-center gap-3">
             <div className="relative flex-1 w-full">
-              <input
+              <input autoComplete="off"
                 type="text"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
-                placeholder="Nhập số IMEI, Số điện thoại hoặc Mã hóa đơn/phiếu SC..."
+                placeholder=""
                 className="w-full pl-5 pr-14 py-4 bg-slate-50 border border-slate-300 rounded-2xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-amber-500 font-mono text-sm sm:text-base transition-colors"
                 maxLength={30}
               />

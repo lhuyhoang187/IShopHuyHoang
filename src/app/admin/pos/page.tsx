@@ -640,11 +640,11 @@ export default function POSPage() {
               <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
                 <div className="sm:col-span-6 relative">
                   <Search className="w-4 h-4 text-amber-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                  <input
+                  <input autoComplete="off"
                     type="text"
                     value={phoneSearch}
                     onChange={(e) => setPhoneSearch(e.target.value)}
-                    placeholder="Quét 15 số IMEI hoặc gõ tên máy..."
+                    placeholder=""
                     className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-amber-500 focus:bg-white font-mono transition-colors"
                     autoFocus
                   />
@@ -736,11 +736,11 @@ export default function POSPage() {
               <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
                 <div className="sm:col-span-7 relative">
                   <Barcode className="w-4 h-4 text-emerald-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                  <input
+                  <input autoComplete="off"
                     type="text"
                     value={accessorySearch}
                     onChange={(e) => setAccessorySearch(e.target.value)}
-                    placeholder="Quét mã vạch Barcode hoặc gõ tên phụ kiện..."
+                    placeholder=""
                     className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white font-mono transition-colors"
                     autoFocus
                   />
@@ -839,11 +839,11 @@ export default function POSPage() {
 
               {/* Customer Name Display / Quick Edit */}
               <div>
-                <input
+                <input autoComplete="off"
                   type="text"
                   value={customerName}
                   onChange={(e) => setCustomerName(e.target.value)}
-                  placeholder="Khách Lẻ Cửa Hàng..."
+                  placeholder=""
                   className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-slate-900 font-bold text-xs sm:text-sm focus:outline-none focus:border-amber-500 shadow-2xs"
                 />
               </div>
@@ -936,7 +936,7 @@ export default function POSPage() {
                       rows={2}
                       value={customerAddress}
                       onChange={(e) => setCustomerAddress(e.target.value)}
-                      placeholder="Nhập địa chỉ giao hàng / hóa đơn..."
+                      placeholder=""
                       className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-900 text-xs focus:outline-none focus:border-amber-500 leading-tight"
                     />
                   </div>
@@ -946,11 +946,11 @@ export default function POSPage() {
                 <div className="grid grid-cols-12 gap-2 items-center">
                   <span className="col-span-4 text-slate-500 font-semibold text-[11px]">Điện thoại:</span>
                   <div className="col-span-8">
-                    <input
+                    <input autoComplete="off"
                       type="tel"
                       value={customerPhone}
                       onChange={(e) => setCustomerPhone(e.target.value)}
-                      placeholder="09xx xxx xxx (kích hoạt BH)"
+                      placeholder=""
                       className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-blue-700 font-mono font-bold text-xs focus:outline-none focus:border-amber-500"
                     />
                   </div>
@@ -1142,7 +1142,7 @@ export default function POSPage() {
                       <div className="flex items-center gap-1.5 w-36">
                         {customDiscountType === 'percent' ? (
                           <>
-                            <input
+                            <input autoComplete="off"
                               type="number"
                               min="0"
                               max="100"
@@ -1152,21 +1152,21 @@ export default function POSPage() {
                                   Math.max(0, Math.min(100, Number(e.target.value) || 0))
                                 )
                               }
-                              placeholder="0"
+                              placeholder=""
                               className="w-full text-right p-1.5 bg-white border border-blue-300 rounded-lg text-slate-900 font-mono font-bold text-xs focus:outline-none focus:border-blue-500"
                             />
                             <span className="text-slate-500 font-bold">%</span>
                           </>
                         ) : (
                           <>
-                            <input
+                            <input autoComplete="off"
                               type="number"
                               min="0"
                               value={customDiscountFixed || ''}
                               onChange={(e) =>
                                 setCustomDiscountFixed(Math.max(0, Number(e.target.value) || 0))
                               }
-                              placeholder="0"
+                              placeholder=""
                               className="w-full text-right p-1.5 bg-white border border-blue-300 rounded-lg text-slate-900 font-mono font-bold text-xs focus:outline-none focus:border-blue-500"
                             />
                             <span className="text-slate-500 font-bold">đ</span>
@@ -1231,11 +1231,11 @@ export default function POSPage() {
                 <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2.5">
                   <div className="flex items-center justify-between">
                     <span className="text-slate-600 font-semibold">Tiền khách đưa:</span>
-                    <input
+                    <input autoComplete="off"
                       type="number"
                       value={cashGiven || ''}
                       onChange={(e) => setCashGiven(Number(e.target.value) || 0)}
-                      placeholder="Nhập số tiền..."
+                      placeholder=""
                       className="w-40 text-right p-2 bg-white border border-slate-200 rounded-xl text-slate-900 font-mono font-bold text-sm focus:outline-none focus:border-emerald-500"
                     />
                   </div>
@@ -1447,9 +1447,9 @@ export default function POSPage() {
             <div className="space-y-2 shrink-0">
               <div className="relative">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
+                <input autoComplete="off"
                   type="text"
-                  placeholder="Gõ số điện thoại, tên khách hàng hoặc địa chỉ để tìm..."
+                  placeholder=""
                   value={customerSearch}
                   onChange={(e) => setCustomerSearch(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-xs sm:text-sm focus:outline-none focus:bg-white focus:border-emerald-500 transition-colors"
@@ -1615,7 +1615,7 @@ export default function POSPage() {
             </div>
 
             {/* Form */}
-            <form onSubmit={handleSaveNewCustomer} className="space-y-3.5 text-xs">
+            <form autoComplete="off" onSubmit={handleSaveNewCustomer} className="space-y-3.5 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-slate-700 font-bold mb-1 block">Loại khách hàng: *</label>
@@ -1651,10 +1651,10 @@ export default function POSPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-slate-700 font-bold mb-1 block">Tên Khách Hàng: *</label>
-                  <input
+                  <input autoComplete="off"
                     type="text"
                     required
-                    placeholder="VD: Anh Hoàng, Chị Mai..."
+                    placeholder=""
                     value={formCustName}
                     onChange={(e) => setFormCustName(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:outline-none focus:border-amber-500 font-medium"
@@ -1663,10 +1663,10 @@ export default function POSPage() {
 
                 <div>
                   <label className="text-slate-700 font-bold mb-1 block">Điện thoại (kích hoạt BH): *</label>
-                  <input
+                  <input autoComplete="off"
                     type="tel"
                     required
-                    placeholder="VD: 0909 123 456"
+                    placeholder=""
                     value={formCustPhone}
                     onChange={(e) => setFormCustPhone(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-amber-700 font-mono font-bold focus:bg-white focus:outline-none focus:border-amber-500"
@@ -1677,9 +1677,9 @@ export default function POSPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-slate-700 font-bold mb-1 block">Thư điện tử (Email):</label>
-                  <input
+                  <input autoComplete="off"
                     type="email"
-                    placeholder="khachhang@gmail.com"
+                    placeholder=""
                     value={formCustEmail}
                     onChange={(e) => setFormCustEmail(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:outline-none focus:border-amber-500 font-medium"
@@ -1688,7 +1688,7 @@ export default function POSPage() {
 
                 <div>
                   <label className="text-slate-700 font-bold mb-1 block">Điểm tích lũy ban đầu:</label>
-                  <input
+                  <input autoComplete="off"
                     type="number"
                     value={formCustPoints}
                     onChange={(e) => setFormCustPoints(Number(e.target.value))}
@@ -1701,7 +1701,7 @@ export default function POSPage() {
                 <label className="text-slate-700 font-bold mb-1 block">Địa chỉ:</label>
                 <textarea
                   rows={2}
-                  placeholder="Số nhà, tên đường, phường/xã..."
+                  placeholder=""
                   value={formCustAddress}
                   onChange={(e) => setFormCustAddress(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:outline-none focus:border-amber-500 font-medium"
@@ -1711,7 +1711,7 @@ export default function POSPage() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="text-slate-700 font-bold mb-1 block">Tỉnh/Thành phố:</label>
-                  <input
+                  <input autoComplete="off"
                     type="text"
                     value={formCustCity}
                     onChange={(e) => setFormCustCity(e.target.value)}
@@ -1721,9 +1721,9 @@ export default function POSPage() {
 
                 <div>
                   <label className="text-slate-700 font-bold mb-1 block">Mã số thuế (nếu có):</label>
-                  <input
+                  <input autoComplete="off"
                     type="text"
-                    placeholder="MST doanh nghiệp"
+                    placeholder=""
                     value={formCustTaxCode}
                     onChange={(e) => setFormCustTaxCode(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:outline-none focus:border-amber-500 font-mono font-medium"
@@ -1732,7 +1732,7 @@ export default function POSPage() {
 
                 <div>
                   <label className="text-slate-700 font-bold mb-1 block">Sinh nhật:</label>
-                  <input
+                  <input autoComplete="off"
                     type="date"
                     value={formCustBirthday}
                     onChange={(e) => setFormCustBirthday(e.target.value)}
@@ -1745,7 +1745,7 @@ export default function POSPage() {
                 <label className="text-slate-700 font-bold mb-1 block">Ghi chú thêm:</label>
                 <textarea
                   rows={2}
-                  placeholder="Yêu cầu riêng, thói quen mua hàng, v.v..."
+                  placeholder=""
                   value={formCustNotes}
                   onChange={(e) => setFormCustNotes(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:outline-none focus:border-amber-500 font-medium"
@@ -1795,7 +1795,7 @@ export default function POSPage() {
             </div>
 
             {/* Edit Form */}
-            <form onSubmit={handleUpdateCustomer} className="space-y-3.5 text-xs">
+            <form autoComplete="off" onSubmit={handleUpdateCustomer} className="space-y-3.5 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-slate-700 font-bold mb-1 block">Loại khách hàng:</label>
@@ -1831,7 +1831,7 @@ export default function POSPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-slate-700 font-bold mb-1 block">Tên Khách Hàng: *</label>
-                  <input
+                  <input autoComplete="off"
                     type="text"
                     required
                     value={formCustName}
@@ -1842,7 +1842,7 @@ export default function POSPage() {
 
                 <div>
                   <label className="text-slate-700 font-bold mb-1 block">Điện thoại (kích hoạt BH): *</label>
-                  <input
+                  <input autoComplete="off"
                     type="tel"
                     required
                     value={formCustPhone}
@@ -1855,7 +1855,7 @@ export default function POSPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-slate-700 font-bold mb-1 block">Thư điện tử (Email):</label>
-                  <input
+                  <input autoComplete="off"
                     type="email"
                     value={formCustEmail}
                     onChange={(e) => setFormCustEmail(e.target.value)}
@@ -1865,7 +1865,7 @@ export default function POSPage() {
 
                 <div>
                   <label className="text-slate-700 font-bold mb-1 block">Điểm tích lũy:</label>
-                  <input
+                  <input autoComplete="off"
                     type="number"
                     value={formCustPoints}
                     onChange={(e) => setFormCustPoints(Number(e.target.value))}
@@ -1887,7 +1887,7 @@ export default function POSPage() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="text-slate-700 font-bold mb-1 block">Tỉnh/Thành phố:</label>
-                  <input
+                  <input autoComplete="off"
                     type="text"
                     value={formCustCity}
                     onChange={(e) => setFormCustCity(e.target.value)}
@@ -1897,7 +1897,7 @@ export default function POSPage() {
 
                 <div>
                   <label className="text-slate-700 font-bold mb-1 block">Mã số thuế:</label>
-                  <input
+                  <input autoComplete="off"
                     type="text"
                     value={formCustTaxCode}
                     onChange={(e) => setFormCustTaxCode(e.target.value)}
@@ -1907,7 +1907,7 @@ export default function POSPage() {
 
                 <div>
                   <label className="text-slate-700 font-bold mb-1 block">Sinh nhật:</label>
-                  <input
+                  <input autoComplete="off"
                     type="date"
                     value={formCustBirthday}
                     onChange={(e) => setFormCustBirthday(e.target.value)}
@@ -2101,7 +2101,7 @@ export default function POSPage() {
             </div>
 
             {/* Form */}
-            <form onSubmit={handleVerifyManagerPin} className="space-y-4 text-xs">
+            <form autoComplete="off" onSubmit={handleVerifyManagerPin} className="space-y-4 text-xs">
               <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-[11px] leading-relaxed">
                 Tài khoản nhân viên hiện tại chưa được cấp quyền chỉnh sửa % chiết khấu tự do. Vui lòng nhờ <strong>Chủ shop hoặc Quản lý</strong> nhập mã PIN để phê duyệt tại quầy.
               </div>
@@ -2110,7 +2110,7 @@ export default function POSPage() {
                 <label className="text-slate-700 font-bold mb-1 block">
                   Mã PIN / Mật khẩu Quản lý phê duyệt: *
                 </label>
-                <input
+                <input autoComplete="off"
                   type="password"
                   required
                   autoFocus
@@ -2119,7 +2119,7 @@ export default function POSPage() {
                     setManagerPinInput(e.target.value);
                     setManagerPinError(null);
                   }}
-                  placeholder="Nhập mã PIN (Mặc định: 1807)..."
+                  placeholder=""
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono font-bold text-center tracking-widest text-base focus:bg-white focus:outline-none focus:border-amber-500"
                 />
                 {managerPinError && (
@@ -2127,9 +2127,6 @@ export default function POSPage() {
                     ✕ {managerPinError}
                   </p>
                 )}
-                <p className="text-[10px] text-slate-500 mt-1">
-                  * Gợi ý kiểm tra: PIN quản lý <strong>1807</strong> hoặc <strong>admin</strong>.
-                </p>
               </div>
 
               {/* Action Buttons */}

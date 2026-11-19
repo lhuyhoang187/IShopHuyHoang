@@ -433,9 +433,9 @@ export default function AdminSettingsPage() {
           {/* Search */}
           <div className="lg:col-span-4 relative">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
+            <input autoComplete="off"
               type="text"
-              placeholder="Tìm phân hệ chức năng..."
+              placeholder=""
               value={rbacSearch}
               onChange={(e) => setRbacSearch(e.target.value)}
               className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-amber-500 focus:bg-white"
@@ -672,13 +672,13 @@ export default function AdminSettingsPage() {
                 </button>
               </div>
 
-              <form onSubmit={handleAddNewPermission} className="space-y-4 text-xs">
+              <form autoComplete="off" onSubmit={handleAddNewPermission} className="space-y-4 text-xs">
                 <div>
                   <label className="text-slate-700 font-bold mb-1 block">Tên Phân Hệ Chức Năng:</label>
-                  <input
+                  <input autoComplete="off"
                     type="text"
                     required
-                    placeholder="VD: Xuất File Báo Cáo Doanh Thu Excel..."
+                    placeholder=""
                     value={newModuleName}
                     onChange={(e) => setNewModuleName(e.target.value)}
                     className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:outline-none focus:border-amber-500 focus:bg-white"
@@ -704,7 +704,7 @@ export default function AdminSettingsPage() {
                   <label className="text-slate-700 font-bold mb-1 block">Mô Tả Chi Tiết:</label>
                   <textarea
                     rows={2}
-                    placeholder="Mô tả phạm vi quyền hạn và tác động..."
+                    placeholder=""
                     value={newModuleDesc}
                     onChange={(e) => setNewModuleDesc(e.target.value)}
                     className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:outline-none focus:border-amber-500 focus:bg-white"
@@ -716,7 +716,7 @@ export default function AdminSettingsPage() {
                     Cấp Quyền Ban Đầu:
                   </span>
                   <label className="flex items-center gap-2 cursor-pointer text-slate-800 font-medium">
-                    <input
+                    <input autoComplete="off"
                       type="checkbox"
                       checked={newModuleTech}
                       onChange={(e) => setNewModuleTech(e.target.checked)}
@@ -725,7 +725,7 @@ export default function AdminSettingsPage() {
                     <span>Cho phép Kỹ Thuật Viên truy cập</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer text-slate-800 font-medium">
-                    <input
+                    <input autoComplete="off"
                       type="checkbox"
                       checked={newModuleCashier}
                       onChange={(e) => setNewModuleCashier(e.target.checked)}
@@ -757,7 +757,7 @@ export default function AdminSettingsPage() {
       </div>
 
       {/* 3. Receipt Template Customization */}
-      <form onSubmit={handleSaveStoreInfo} className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-4 text-xs">
+      <form autoComplete="off" onSubmit={handleSaveStoreInfo} className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-4 text-xs">
         <div className="flex items-center justify-between pb-3 border-b border-slate-100">
           <h2 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
             <Printer className="w-4 h-4 text-emerald-600" />
@@ -773,7 +773,7 @@ export default function AdminSettingsPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="text-slate-700 font-bold mb-1 block">Tên cửa hàng in trên bill:</label>
-            <input
+            <input autoComplete="off"
               type="text"
               value={storeInfo.name}
               onChange={(e) => setStoreInfo({ ...storeInfo, name: e.target.value })}
@@ -782,7 +782,7 @@ export default function AdminSettingsPage() {
           </div>
           <div>
             <label className="text-slate-700 font-bold mb-1 block">Hotline in trên bill:</label>
-            <input
+            <input autoComplete="off"
               type="text"
               value={storeInfo.hotline}
               onChange={(e) => setStoreInfo({ ...storeInfo, hotline: e.target.value })}
@@ -793,7 +793,7 @@ export default function AdminSettingsPage() {
 
         <div>
           <label className="text-slate-700 font-bold mb-1 block">Địa chỉ showroom in trên bill:</label>
-          <input
+          <input autoComplete="off"
             type="text"
             value={storeInfo.address}
             onChange={(e) => setStoreInfo({ ...storeInfo, address: e.target.value })}
@@ -804,7 +804,7 @@ export default function AdminSettingsPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="text-slate-700 font-bold mb-1 block">Chính sách bảo hành / Đổi trả:</label>
-            <input
+            <input autoComplete="off"
               type="text"
               value={storeInfo.returnPolicy}
               onChange={(e) => setStoreInfo({ ...storeInfo, returnPolicy: e.target.value })}
@@ -813,7 +813,7 @@ export default function AdminSettingsPage() {
           </div>
           <div>
             <label className="text-slate-700 font-bold mb-1 block">Lời cảm ơn chân trang:</label>
-            <input
+            <input autoComplete="off"
               type="text"
               value={storeInfo.receiptFooter}
               onChange={(e) => setStoreInfo({ ...storeInfo, receiptFooter: e.target.value })}
@@ -918,7 +918,7 @@ export default function AdminSettingsPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
             <div>
               <label className="text-slate-300 font-medium block mb-1">Số tiền khách chuyển (VNĐ):</label>
-              <input
+              <input autoComplete="off"
                 type="number"
                 value={testAmount}
                 onChange={(e) => setTestAmount(e.target.value)}
@@ -927,7 +927,7 @@ export default function AdminSettingsPage() {
             </div>
             <div>
               <label className="text-slate-300 font-medium block mb-1">Nội dung chuyển khoản (có chứa mã đơn):</label>
-              <input
+              <input autoComplete="off"
                 type="text"
                 value={testContent}
                 onChange={(e) => setTestContent(e.target.value)}

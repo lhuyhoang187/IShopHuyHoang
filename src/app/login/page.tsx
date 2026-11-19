@@ -405,7 +405,7 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
                           required={mode === 'signup'}
                           value={firstName}
                           onChange={(e) => setFirstName(e.target.value)}
-                          placeholder="Trần Minh Quân"
+                          placeholder=""
                           className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-medium text-slate-900 placeholder:text-slate-400 hover:border-slate-300 focus:bg-white focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all"
                         />
                       </div>
@@ -430,7 +430,7 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="quan.tran@apple.vip"
+                      placeholder=""
                       className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-medium text-slate-900 placeholder:text-slate-400 hover:border-slate-300 focus:bg-white focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all"
                     />
                   </div>
@@ -453,7 +453,7 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
+                      placeholder=""
                       className="w-full pl-10 pr-11 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-medium text-slate-900 placeholder:text-slate-400 hover:border-slate-300 focus:bg-white focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all"
                     />
                     <button
@@ -472,7 +472,7 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
                 {mode === 'login' ? (
                   <div className="flex items-center justify-between pt-1">
                     <label className="flex items-center gap-2 cursor-pointer select-none">
-                      <input
+                      <input autoComplete="off"
                         type="checkbox"
                         checked={rememberMe}
                         onChange={(e) => setRememberMe(e.target.checked)}
@@ -905,7 +905,7 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
                     Nhập email tài khoản iShop của bạn. Hệ thống sẽ gửi đường dẫn khôi phục mật khẩu bảo mật trong vòng vài giây.
                   </p>
 
-                  <form onSubmit={handleForgotPasswordSubmit} className="space-y-4">
+                  <form autoComplete="off" onSubmit={handleForgotPasswordSubmit} className="space-y-4">
                     <div className="space-y-1.5">
                       <label className="block text-xs font-bold text-slate-700">
                         Email address
@@ -914,12 +914,12 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
                         <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-amber-600">
                           <Mail className="w-4 h-4" />
                         </div>
-                        <input
+                        <input autoComplete="off"
                           type="email"
                           required
                           value={forgotEmail}
                           onChange={(e) => setForgotEmail(e.target.value)}
-                          placeholder="quan.tran@apple.vip"
+                          placeholder=""
                           className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all"
                         />
                       </div>

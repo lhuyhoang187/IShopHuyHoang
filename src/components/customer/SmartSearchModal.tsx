@@ -78,15 +78,6 @@ export default function SmartSearchModal({ isOpen, onClose }: Props) {
     };
   }, [query, phones, accessories, repairCatalog]);
 
-  const quickSuggestions = useMemo(() => {
-    const items = [
-      ...phones.slice(0, 4).map((p) => p.name),
-      ...accessories.slice(0, 3).map((a) => a.name),
-      ...repairCatalog.slice(0, 2).map((r) => r.name),
-    ];
-    return Array.from(new Set(items));
-  }, [phones, accessories, repairCatalog]);
-
   if (!isOpen) return null;
 
   return (
@@ -97,9 +88,10 @@ export default function SmartSearchModal({ isOpen, onClose }: Props) {
           <Search className="w-5 h-5 text-amber-600 shrink-0" />
           <input
             type="text"
+            autoComplete="off"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Tìm điện thoại (iPhone 18 Pro Max, iPhone Duo...), phụ kiện sạc, dịch vụ sửa chữa..."
+            placeholder=""
             className="w-full bg-transparent text-slate-900 placeholder-slate-400 focus:outline-none text-base sm:text-lg font-medium"
             autoFocus
           />
@@ -122,27 +114,8 @@ export default function SmartSearchModal({ isOpen, onClose }: Props) {
         {/* Results Body */}
         <div className="max-h-[70vh] overflow-y-auto p-4 space-y-4">
           {!query.trim() ? (
-            <div>
-              <p className="text-xs uppercase tracking-wider text-slate-500 font-bold mb-2.5">
-                {quickSuggestions.length > 0 ? 'Gợi ý sản phẩm & dịch vụ hiện có' : 'Nhập từ khóa để tìm kiếm'}
-              </p>
-              {quickSuggestions.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {quickSuggestions.map((item) => (
-                    <button
-                      key={item}
-                      onClick={() => setQuery(item)}
-                      className="px-3 py-1.5 rounded-full text-xs bg-slate-100 hover:bg-amber-100 hover:text-amber-800 text-slate-700 transition-colors border border-slate-200 font-medium"
-                    >
-                      {item}
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs text-slate-500">
-                  Cửa hàng hiện chưa có sản phẩm nào được đăng bán. Vui lòng thêm sản phẩm trong trang quản trị.
-                </p>
-              )}
+            <div className="py-4 text-center text-xs text-slate-400">
+              Nhập từ khóa để tìm kiếm
             </div>
           ) : (
             <>
@@ -281,8 +254,7 @@ export default function SmartSearchModal({ isOpen, onClose }: Props) {
         </div>
 
         {/* Footer shortcuts */}
-        <div className="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
-          <span>Gợi ý: Tìm theo tên máy hoặc từ khóa linh kiện sửa chữa</span>
+        <div className="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-end text-xs text-slate-500">
           <span className="hidden sm:inline">Nhấn ESC để đóng</span>
         </div>
       </div>

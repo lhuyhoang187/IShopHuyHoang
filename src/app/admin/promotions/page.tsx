@@ -766,11 +766,11 @@ export default function AdminPromotionsPage() {
               {/* Search input */}
               <div className="relative flex-1 max-w-md">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
+                <input autoComplete="off"
                   type="text"
                   value={phoneSearch}
                   onChange={(e) => setPhoneSearch(e.target.value)}
-                  placeholder="Tìm dòng máy (iPhone 18 Pro Max, iPhone Duo, S24 Ultra)..."
+                  placeholder=""
                   className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-amber-500 focus:bg-white"
                 />
               </div>
@@ -883,7 +883,7 @@ export default function AdminPromotionsPage() {
                 <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 uppercase text-[10px] font-bold">
                   <tr>
                     <th className="p-3.5 w-10 text-center">
-                      <input
+                      <input autoComplete="off"
                         type="checkbox"
                         checked={
                           filteredPhones.length > 0 &&
@@ -930,7 +930,7 @@ export default function AdminPromotionsPage() {
                       >
                         {/* Checkbox */}
                         <td className="p-3.5 text-center">
-                          <input
+                          <input autoComplete="off"
                             type="checkbox"
                             checked={isSelected}
                             onChange={() => handleToggleSelectPhone(phone.id)}
@@ -1117,11 +1117,11 @@ export default function AdminPromotionsPage() {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
               <div className="relative flex-1 max-w-md">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
+                <input autoComplete="off"
                   type="text"
                   value={accSearch}
                   onChange={(e) => setAccSearch(e.target.value)}
-                  placeholder="Tìm phụ kiện (Củ sạc GaN, Kính KingKong, Barcode)..."
+                  placeholder=""
                   className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white"
                 />
               </div>
@@ -1209,7 +1209,7 @@ export default function AdminPromotionsPage() {
                 <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 uppercase text-[10px] font-bold">
                   <tr>
                     <th className="p-3.5 w-10 text-center">
-                      <input
+                      <input autoComplete="off"
                         type="checkbox"
                         checked={
                           filteredAccessories.length > 0 &&
@@ -1245,7 +1245,7 @@ export default function AdminPromotionsPage() {
                         }`}
                       >
                         <td className="p-3.5 text-center">
-                          <input
+                          <input autoComplete="off"
                             type="checkbox"
                             checked={isSelected}
                             onChange={() => {
@@ -1704,7 +1704,7 @@ export default function AdminPromotionsPage() {
                                 {preset}p
                               </button>
                             ))}
-                            <input
+                            <input autoComplete="off"
                               type="number"
                               step="10"
                               min="10"
@@ -1821,7 +1821,7 @@ export default function AdminPromotionsPage() {
                           {/* Original Price Input */}
                           <td className="p-3.5">
                             <div className="space-y-1">
-                              <input
+                              <input autoComplete="off"
                                 type="number"
                                 step="50000"
                                 value={cap.originalPrice}
@@ -1862,7 +1862,7 @@ export default function AdminPromotionsPage() {
                           {/* Promo Selling Price Input */}
                           <td className="p-3.5">
                             <div className="space-y-1">
-                              <input
+                              <input autoComplete="off"
                                 type="number"
                                 step="50000"
                                 value={cap.price}
@@ -1948,15 +1948,15 @@ export default function AdminPromotionsPage() {
               </button>
             </div>
 
-            <form onSubmit={handleSaveCampaign} className="p-6 space-y-4 text-xs">
+            <form autoComplete="off" onSubmit={handleSaveCampaign} className="p-6 space-y-4 text-xs">
               <div>
                 <label className="font-bold text-slate-700 block mb-1">Tên chương trình:</label>
-                <input
+                <input autoComplete="off"
                   type="text"
                   required
                   value={campaignTitle}
                   onChange={(e) => setCampaignTitle(e.target.value)}
-                  placeholder="VD: Flash Sale Giờ Vàng Giáng Sinh 2026..."
+                  placeholder=""
                   className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-medium focus:bg-white focus:border-amber-500 focus:outline-none"
                 />
               </div>
@@ -1967,7 +1967,7 @@ export default function AdminPromotionsPage() {
                   rows={2}
                   value={campaignDesc}
                   onChange={(e) => setCampaignDesc(e.target.value)}
-                  placeholder="VD: Giảm ngay 15% cho toàn bộ iPhone và phụ kiện..."
+                  placeholder=""
                   className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:bg-white focus:border-amber-500 focus:outline-none"
                 />
               </div>
@@ -1987,13 +1987,13 @@ export default function AdminPromotionsPage() {
 
                 <div>
                   <label className="font-bold text-slate-700 block mb-1">Giá trị giảm:</label>
-                  <input
+                  <input autoComplete="off"
                     type="number"
                     required
                     value={campaignValue}
                     onChange={(e) => setCampaignValue(Number(e.target.value))}
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono font-bold text-slate-900"
-                    placeholder="VD: 15 hoặc 500000"
+                    placeholder=""
                   />
                   {campaignType === 'fixed_amount' && (
                     <span className="text-[10px] text-slate-500 mt-0.5 block">
@@ -2006,7 +2006,7 @@ export default function AdminPromotionsPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="font-bold text-slate-700 block mb-1">Thời gian bắt đầu:</label>
-                  <input
+                  <input autoComplete="off"
                     type="datetime-local"
                     required
                     value={campaignStart}
@@ -2017,7 +2017,7 @@ export default function AdminPromotionsPage() {
 
                 <div>
                   <label className="font-bold text-slate-700 block mb-1">Thời gian kết thúc:</label>
-                  <input
+                  <input autoComplete="off"
                     type="datetime-local"
                     required
                     value={campaignEnd}
@@ -2044,12 +2044,12 @@ export default function AdminPromotionsPage() {
 
                 <div>
                   <label className="font-bold text-slate-700 block mb-1">Huy hiệu (Badge):</label>
-                  <input
+                  <input autoComplete="off"
                     type="text"
                     value={campaignBadge}
                     onChange={(e) => setCampaignBadge(e.target.value)}
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900"
-                    placeholder="VD: FLASH SALE, HOT..."
+                    placeholder=""
                   />
                 </div>
               </div>
@@ -2093,23 +2093,23 @@ export default function AdminPromotionsPage() {
               </button>
             </div>
 
-            <form onSubmit={handleSavePromoQR} className="p-6 space-y-4 text-xs">
+            <form autoComplete="off" onSubmit={handleSavePromoQR} className="p-6 space-y-4 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="font-bold text-slate-700 block mb-1">Mã Code:</label>
-                  <input
+                  <input autoComplete="off"
                     type="text"
                     required
                     value={qrCode}
                     onChange={(e) => setQrCode(e.target.value.toUpperCase())}
-                    placeholder="VD: TECHFEST-10"
+                    placeholder=""
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono font-black text-slate-900 uppercase"
                   />
                 </div>
 
                 <div>
                   <label className="font-bold text-slate-700 block mb-1">Đơn tối thiểu (VNĐ):</label>
-                  <input
+                  <input autoComplete="off"
                     type="number"
                     value={qrMinOrder}
                     onChange={(e) => setQrMinOrder(Number(e.target.value))}
@@ -2120,12 +2120,12 @@ export default function AdminPromotionsPage() {
 
               <div>
                 <label className="font-bold text-slate-700 block mb-1">Tiêu đề khuyến mãi:</label>
-                <input
+                <input autoComplete="off"
                   type="text"
                   required
                   value={qrTitle}
                   onChange={(e) => setQrTitle(e.target.value)}
-                  placeholder="VD: Khuyến Mãi Khách Thân Thiết - Giảm 200K..."
+                  placeholder=""
                   className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900"
                 />
               </div>
@@ -2145,7 +2145,7 @@ export default function AdminPromotionsPage() {
 
                 <div>
                   <label className="font-bold text-slate-700 block mb-1">Giá trị giảm:</label>
-                  <input
+                  <input autoComplete="off"
                     type="number"
                     required
                     value={qrDiscountVal}
@@ -2158,7 +2158,7 @@ export default function AdminPromotionsPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="font-bold text-slate-700 block mb-1">Hiệu lực từ:</label>
-                  <input
+                  <input autoComplete="off"
                     type="datetime-local"
                     required
                     value={qrStart}
@@ -2169,7 +2169,7 @@ export default function AdminPromotionsPage() {
 
                 <div>
                   <label className="font-bold text-slate-700 block mb-1">Hết hạn vào lúc:</label>
-                  <input
+                  <input autoComplete="off"
                     type="datetime-local"
                     required
                     value={qrEnd}

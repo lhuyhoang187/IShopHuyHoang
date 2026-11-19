@@ -533,7 +533,7 @@ export default function AdminRestockPage() {
       )}
 
       {/* Main Import Form Layout */}
-      <form onSubmit={handleImport} className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <form autoComplete="off" onSubmit={handleImport} className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left Column: Batch IMEI Input & Supplier Info */}
         <div className="lg:col-span-5 space-y-6">
           {/* Box 1: IMEI input */}
@@ -557,7 +557,7 @@ export default function AdminRestockPage() {
                 required
                 value={imeiListText}
                 onChange={(e) => setImeiListText(e.target.value)}
-                placeholder="358921104888001&#10;358921104888002&#10;358921104888003..."
+                placeholder=""
                 className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs sm:text-sm text-slate-900 font-mono placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:bg-white transition-all"
               />
             </div>
@@ -611,7 +611,7 @@ export default function AdminRestockPage() {
                 <label className="text-slate-700 font-bold block mb-1">
                   Số tiền thanh toán ngay cho NCC (VND):
                 </label>
-                <input
+                <input autoComplete="off"
                   type="number"
                   min={0}
                   step={100000}
@@ -811,11 +811,11 @@ export default function AdminRestockPage() {
               ) : (
                 <div className="space-y-2">
                   <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
-                    <input
+                    <input autoComplete="off"
                       type="text"
                       value={modelSearchQuery}
                       onChange={(e) => setModelSearchQuery(e.target.value)}
-                      placeholder="🔍 Gõ tìm nhanh model (VD: iPhone 18, Duo, S24)..."
+                      placeholder=""
                       className="sm:col-span-5 p-3 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 text-xs font-medium focus:outline-none focus:border-blue-500 focus:bg-white"
                     />
                     <select
@@ -956,7 +956,7 @@ export default function AdminRestockPage() {
                 <label className="text-slate-700 font-bold block mb-1">
                   Giá vốn nhập/cây (VND) *:
                 </label>
-                <input
+                <input autoComplete="off"
                   type="number"
                   min={1000}
                   step={10000}
@@ -973,7 +973,7 @@ export default function AdminRestockPage() {
                 <label className="text-slate-700 font-bold block mb-1">
                   Giá bán lẻ niêm yết (VND) *:
                 </label>
-                <input
+                <input autoComplete="off"
                   type="number"
                   min={1000}
                   step={10000}
@@ -1049,7 +1049,7 @@ export default function AdminRestockPage() {
               </button>
             </div>
 
-            <form onSubmit={handleSaveNewBrand} className="space-y-4 text-xs">
+            <form autoComplete="off" onSubmit={handleSaveNewBrand} className="space-y-4 text-xs">
               <div>
                 <label className="text-slate-700 font-bold mb-1 block">
                   Tên Hãng Máy (Thương hiệu) *:
@@ -1057,38 +1057,12 @@ export default function AdminRestockPage() {
                 <input
                   type="text"
                   required
+                  autoComplete="off"
                   value={newBrandName}
                   onChange={(e) => setNewBrandName(e.target.value)}
-                  placeholder="Ví dụ: Google Pixel, Sony, Vivo, Asus..."
+                  placeholder=""
                   className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:border-blue-500"
                 />
-                {/* Gợi ý nhanh các hãng phổ biến */}
-                <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                  <span className="text-[10px] text-slate-400 font-semibold">Gợi ý nhanh:</span>
-                  {[
-                    { name: 'Google Pixel', country: 'Mỹ (Hoa Kỳ)', emoji: '🌐' },
-                    { name: 'Sony', country: 'Nhật Bản', emoji: '🇯🇵' },
-                    { name: 'Vivo', country: 'Trung Quốc', emoji: '🔵' },
-                    { name: 'Realme', country: 'Trung Quốc', emoji: '🟡' },
-                    { name: 'OnePlus', country: 'Trung Quốc', emoji: '🔴' },
-                    { name: 'Asus ROG', country: 'Đài Loan', emoji: '⚡' },
-                    { name: 'Nokia', country: 'Châu Âu (Phần Lan)', emoji: '📱' },
-                    { name: 'Nothing Phone', country: 'Châu Âu (Anh)', emoji: '💎' },
-                  ].map((s) => (
-                    <button
-                      key={s.name}
-                      type="button"
-                      onClick={() => {
-                        setNewBrandName(s.name);
-                        setNewBrandCountry(s.country);
-                        setNewBrandLogoEmoji(s.emoji);
-                      }}
-                      className="px-2 py-0.5 rounded-lg bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-600 text-[11px] font-semibold border border-slate-200 transition-colors cursor-pointer"
-                    >
-                      {s.name}
-                    </button>
-                  ))}
-                </div>
               </div>
 
               <div>
@@ -1098,33 +1072,12 @@ export default function AdminRestockPage() {
                 <input
                   type="text"
                   required
+                  autoComplete="off"
                   value={newBrandCountry}
                   onChange={(e) => setNewBrandCountry(e.target.value)}
-                  placeholder="Ví dụ: Nhật Bản, Mỹ, Hàn Quốc, Trung Quốc..."
+                  placeholder=""
                   className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
                 />
-                {/* Gợi ý quốc gia nhanh */}
-                <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                  <span className="text-[10px] text-slate-400 font-semibold">Chọn nhanh:</span>
-                  {[
-                    '🇯🇵 Nhật Bản',
-                    '🇺🇸 Mỹ (Hoa Kỳ)',
-                    '🇰🇷 Hàn Quốc',
-                    '🇨🇳 Trung Quốc',
-                    '🇹🇼 Đài Loan',
-                    '🇻🇳 Việt Nam',
-                    '🇪🇺 Châu Âu',
-                  ].map((c) => (
-                    <button
-                      key={c}
-                      type="button"
-                      onClick={() => setNewBrandCountry(c)}
-                      className="px-2 py-0.5 rounded-lg bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-slate-600 text-[11px] font-semibold border border-slate-200 transition-colors cursor-pointer"
-                    >
-                      {c}
-                    </button>
-                  ))}
-                </div>
               </div>
 
               <div>
@@ -1150,12 +1103,12 @@ export default function AdminRestockPage() {
                       )
                     )}
                   </div>
-                  <input
+                  <input autoComplete="off"
                     type="number"
                     value={newBrandDisplayOrder}
                     onChange={(e) => setNewBrandDisplayOrder(Number(e.target.value) || 10)}
                     title="Thứ tự hiển thị"
-                    placeholder="Thứ tự"
+                    placeholder=""
                     className="w-16 p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold text-center focus:outline-none focus:border-blue-500"
                   />
                 </div>
@@ -1169,7 +1122,7 @@ export default function AdminRestockPage() {
                   rows={2}
                   value={newBrandDescription}
                   onChange={(e) => setNewBrandDescription(e.target.value)}
-                  placeholder="Thông tin tổng quan về hãng máy, chính sách phân phối, hệ điều hành..."
+                  placeholder=""
                   className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-normal focus:outline-none focus:border-blue-500 resize-none"
                 />
               </div>
@@ -1225,7 +1178,7 @@ export default function AdminRestockPage() {
               </button>
             </div>
 
-            <form onSubmit={handleSaveNewModel} className="space-y-4 text-xs">
+            <form autoComplete="off" onSubmit={handleSaveNewModel} className="space-y-4 text-xs">
               <div>
                 <label className="text-slate-700 font-bold mb-1 block">
                   Hãng Máy (Thương hiệu) *:
@@ -1247,12 +1200,12 @@ export default function AdminRestockPage() {
                 <label className="text-slate-700 font-bold mb-1 block">
                   Tên Dòng Máy (Model) *:
                 </label>
-                <input
+                <input autoComplete="off"
                   type="text"
                   required
                   value={newModelName}
                   onChange={(e) => setNewModelName(e.target.value)}
-                  placeholder="Ví dụ: Xperia 1 VI, ROG Phone 8, Galaxy S24 Ultra, Pixel 9 Pro..."
+                  placeholder=""
                   className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-semibold focus:outline-none focus:border-emerald-500"
                 />
               </div>
@@ -1280,17 +1233,17 @@ export default function AdminRestockPage() {
                     Màu sắc ban đầu:
                   </label>
                   <div className="flex items-center gap-2">
-                    <input
+                    <input autoComplete="off"
                       type="color"
                       value={newModelColorHex}
                       onChange={(e) => setNewModelColorHex(e.target.value)}
                       className="w-9 h-9 rounded-xl cursor-pointer border border-slate-300 p-0.5 bg-white shrink-0"
                     />
-                    <input
+                    <input autoComplete="off"
                       type="text"
                       value={newModelColorName}
                       onChange={(e) => setNewModelColorName(e.target.value)}
-                      placeholder="VD: Đen Titan, Xanh Bạc..."
+                      placeholder=""
                       className="flex-1 p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-semibold focus:outline-none focus:border-emerald-500"
                     />
                   </div>
@@ -1301,7 +1254,7 @@ export default function AdminRestockPage() {
                 <label className="text-slate-700 font-bold mb-1 block">
                   Giá bán lẻ niêm yết (VND) *:
                 </label>
-                <input
+                <input autoComplete="off"
                   type="number"
                   min={1000000}
                   step={100000}
@@ -1366,17 +1319,17 @@ export default function AdminRestockPage() {
               </button>
             </div>
 
-            <form onSubmit={handleSaveNewColor} className="space-y-4 text-xs">
+            <form autoComplete="off" onSubmit={handleSaveNewColor} className="space-y-4 text-xs">
               <div>
                 <label className="text-slate-700 font-bold mb-1 block">
                   Tên màu sắc mới *:
                 </label>
-                <input
+                <input autoComplete="off"
                   type="text"
                   required
                   value={newColorName}
                   onChange={(e) => setNewColorName(e.target.value)}
-                  placeholder="Ví dụ: Titan Sa Mạc, Xanh Cực Quang..."
+                  placeholder=""
                   className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-semibold focus:outline-none focus:border-emerald-500"
                 />
               </div>
@@ -1386,13 +1339,13 @@ export default function AdminRestockPage() {
                   Mã màu hiển thị (Hex):
                 </label>
                 <div className="flex items-center gap-3">
-                  <input
+                  <input autoComplete="off"
                     type="color"
                     value={newColorHex}
                     onChange={(e) => setNewColorHex(e.target.value)}
                     className="w-10 h-10 rounded-xl cursor-pointer border border-slate-300 p-0.5 bg-white"
                   />
-                  <input
+                  <input autoComplete="off"
                     type="text"
                     value={newColorHex}
                     onChange={(e) => setNewColorHex(e.target.value)}

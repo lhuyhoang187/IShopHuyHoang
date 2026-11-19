@@ -394,7 +394,7 @@ export default function PhoneVariantStockModal({
                             >
                               <Minus className="w-3.5 h-3.5" />
                             </button>
-                            <input
+                            <input autoComplete="off"
                               type="number"
                               min="0"
                               value={cap.stock ?? 0}
@@ -517,7 +517,7 @@ export default function PhoneVariantStockModal({
                             >
                               <Minus className="w-3.5 h-3.5" />
                             </button>
-                            <input
+                            <input autoComplete="off"
                               type="number"
                               min="0"
                               value={col.stock ?? 0}
@@ -634,7 +634,7 @@ export default function PhoneVariantStockModal({
                             >
                               <Minus className="w-3 h-3" />
                             </button>
-                            <input
+                            <input autoComplete="off"
                               type="number"
                               min="0"
                               value={conf.stock ?? 0}

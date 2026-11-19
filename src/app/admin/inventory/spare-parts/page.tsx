@@ -463,11 +463,11 @@ export default function InventorySparePartsPage() {
       <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="relative flex-1 w-full">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
+          <input autoComplete="off"
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Tìm theo mã linh kiện, tên linh kiện, dòng máy (iPhone 15, S24 Ultra, Pisen...)..."
+            placeholder=""
             className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-amber-500 focus:bg-white transition-all"
           />
         </div>
@@ -589,7 +589,7 @@ export default function InventorySparePartsPage() {
                     <td className="p-4 text-right font-bold text-emerald-600 whitespace-nowrap">
                       {quickEditPriceId === part.id ? (
                         <div className="flex items-center justify-end gap-1.5">
-                          <input
+                          <input autoComplete="off"
                             type="number"
                             value={quickTempPrice}
                             onChange={(e) => setQuickTempPrice(Number(e.target.value))}
@@ -739,11 +739,11 @@ export default function InventorySparePartsPage() {
                   <label className="block text-xs font-bold text-slate-700 mb-1.5">
                     Tên linh kiện <span className="text-rose-500">*</span>
                   </label>
-                  <input
+                  <input autoComplete="off"
                     type="text"
                     value={formState.name || ''}
                     onChange={(e) => setFormState({ ...formState, name: e.target.value })}
-                    placeholder="VD: Màn Hình Zin Bóc Máy iPhone 15 Pro Max, Pin Pisen..."
+                    placeholder=""
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-semibold text-slate-900 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
                   />
                 </div>
@@ -754,11 +754,11 @@ export default function InventorySparePartsPage() {
                     Mã linh kiện (Barcode) <span className="text-rose-500">*</span>
                   </label>
                   <div className="relative">
-                    <input
+                    <input autoComplete="off"
                       type="text"
                       value={formState.barcode || ''}
                       onChange={(e) => setFormState({ ...formState, barcode: e.target.value })}
-                      placeholder="VD: LK8930192801"
+                      placeholder=""
                       className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-mono font-bold text-slate-900 focus:outline-none focus:border-amber-500"
                     />
                     <Barcode className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -806,14 +806,12 @@ export default function InventorySparePartsPage() {
                   </label>
                   <input
                     type="text"
+                    autoComplete="off"
                     value={compatibleInput}
                     onChange={(e) => setCompatibleInput(e.target.value)}
-                    placeholder="VD: iPhone 15 Pro Max, iPhone 15 Pro, iPhone 14 Pro Max"
+                    placeholder=""
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-900 focus:outline-none focus:border-amber-500"
                   />
-                  <span className="text-[11px] text-slate-400 mt-1 block">
-                    Gợi ý: Nhập danh sách model máy mà linh kiện này có thể lắp vừa và hoạt động hoàn hảo.
-                  </span>
                 </div>
 
                 {/* Giá vốn nhập */}
@@ -821,7 +819,7 @@ export default function InventorySparePartsPage() {
                   <label className="block text-xs font-bold text-slate-700 mb-1.5">
                     Giá vốn nhập gốc (VNĐ)
                   </label>
-                  <input
+                  <input autoComplete="off"
                     type="number"
                     step={10000}
                     value={formState.costPrice || 0}
@@ -840,7 +838,7 @@ export default function InventorySparePartsPage() {
                   <label className="block text-xs font-bold text-slate-700 mb-1.5">
                     Giá thay cho khách (VNĐ) <span className="text-rose-500">*</span>
                   </label>
-                  <input
+                  <input autoComplete="off"
                     type="number"
                     step={10000}
                     value={formState.retailRepairPrice || 0}
@@ -859,7 +857,7 @@ export default function InventorySparePartsPage() {
                   <label className="block text-xs font-bold text-slate-700 mb-1.5">
                     Số lượng tồn kho
                   </label>
-                  <input
+                  <input autoComplete="off"
                     type="number"
                     min={0}
                     value={formState.stock ?? 0}
@@ -912,11 +910,11 @@ export default function InventorySparePartsPage() {
                     <label className="block text-xs font-bold text-slate-700 mb-1.5">
                       Đơn vị tính
                     </label>
-                    <input
+                    <input autoComplete="off"
                       type="text"
                       value={formState.unit || 'cái'}
                       onChange={(e) => setFormState({ ...formState, unit: e.target.value })}
-                      placeholder="cái / bộ"
+                      placeholder=""
                       className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold text-slate-900 focus:outline-none focus:border-amber-500"
                     />
                   </div>
@@ -924,7 +922,7 @@ export default function InventorySparePartsPage() {
                     <label className="block text-xs font-bold text-slate-700 mb-1.5">
                       Bảo hành (tháng)
                     </label>
-                    <input
+                    <input autoComplete="off"
                       type="number"
                       min={0}
                       value={formState.warrantyMonths || 6}
@@ -1005,11 +1003,11 @@ export default function InventorySparePartsPage() {
                   + Thêm danh mục linh kiện mới:
                 </label>
                 <div className="flex gap-2">
-                  <input
+                  <input autoComplete="off"
                     type="text"
                     value={newCatName}
                     onChange={(e) => setNewCatName(e.target.value)}
-                    placeholder="VD: Cáp Loa Trong & Cảm Biến, Khay SIM..."
+                    placeholder=""
                     className="flex-1 px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-amber-500"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') handleAddCategory();
@@ -1042,7 +1040,7 @@ export default function InventorySparePartsPage() {
                         <div className="flex-1 mr-2">
                           {isEditing ? (
                             <div className="flex items-center gap-1.5">
-                              <input
+                              <input autoComplete="off"
                                 type="text"
                                 value={editingCatName}
                                 onChange={(e) => setEditingCatName(e.target.value)}

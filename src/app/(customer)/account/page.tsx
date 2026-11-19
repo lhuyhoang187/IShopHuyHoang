@@ -369,7 +369,7 @@ export default function AccountPage() {
             </div>
 
             {/* Login Form */}
-            <form onSubmit={handleLoginSubmit} className="space-y-4 text-xs">
+            <form autoComplete="off" onSubmit={handleLoginSubmit} className="space-y-4 text-xs">
               {loginError && (
                 <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
@@ -381,12 +381,12 @@ export default function AccountPage() {
                 <label className="text-slate-700 font-semibold mb-1 block">Số điện thoại khách hàng:</label>
                 <div className="relative">
                   <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                  <input
+                  <input autoComplete="off"
                     type="tel"
                     required
                     value={loginPhone}
                     onChange={(e) => setLoginPhone(e.target.value)}
-                    placeholder="09xx xxx xxx (Số đã mua hàng)"
+                    placeholder=""
                     className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 font-mono font-bold text-xs focus:outline-none focus:border-amber-600 focus:bg-white shadow-inner transition-colors"
                   />
                 </div>
@@ -396,11 +396,11 @@ export default function AccountPage() {
                 <label className="text-slate-700 font-semibold mb-1 block">Mật khẩu (nếu có):</label>
                 <div className="relative">
                   <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                  <input
+                  <input autoComplete="off"
                     type="password"
                     value={loginPass}
                     onChange={(e) => setLoginPass(e.target.value)}
-                    placeholder="Nhập mật khẩu (hoặc để trống nếu chưa tạo)..."
+                    placeholder=""
                     className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-xs focus:outline-none focus:border-amber-600 focus:bg-white shadow-inner transition-colors"
                   />
                 </div>
@@ -643,28 +643,28 @@ export default function AccountPage() {
               </button>
             </div>
 
-            <form onSubmit={handleSaveProfile} className="space-y-4 text-xs">
+            <form autoComplete="off" onSubmit={handleSaveProfile} className="space-y-4 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-slate-700 font-semibold mb-1 block">Họ và Tên Khách Hàng: *</label>
-                  <input
+                  <input autoComplete="off"
                     type="text"
                     required
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    placeholder="Nguyễn Văn A"
+                    placeholder=""
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 font-medium focus:outline-none focus:border-amber-600 focus:bg-white shadow-inner transition-colors"
                   />
                 </div>
 
                 <div>
                   <label className="text-slate-700 font-semibold mb-1 block">Số Điện Thoại (Kích hoạt BH): *</label>
-                  <input
+                  <input autoComplete="off"
                     type="tel"
                     required
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    placeholder="09xx xxx xxx"
+                    placeholder=""
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-amber-800 font-mono font-bold focus:outline-none focus:border-amber-600 focus:bg-white shadow-inner transition-colors"
                   />
                 </div>
@@ -673,18 +673,18 @@ export default function AccountPage() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="text-slate-700 font-semibold mb-1 block">Thư Điện Tử (Email):</label>
-                  <input
+                  <input autoComplete="off"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="example@gmail.com"
+                    placeholder=""
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 focus:outline-none focus:border-amber-600 focus:bg-white shadow-inner transition-colors"
                   />
                 </div>
 
                 <div>
                   <label className="text-slate-700 font-semibold mb-1 block">Ngày Sinh Nhật:</label>
-                  <input
+                  <input autoComplete="off"
                     type="date"
                     value={birthday}
                     onChange={(e) => setBirthday(e.target.value)}
@@ -709,22 +709,22 @@ export default function AccountPage() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="text-slate-700 font-semibold mb-1 block">Tỉnh / Thành Phố:</label>
-                  <input
+                  <input autoComplete="off"
                     type="text"
                     value={city}
                     onChange={(e) => setCity(e.target.value)}
-                    placeholder="TP. Hồ Chí Minh"
+                    placeholder=""
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 focus:outline-none focus:border-amber-600 focus:bg-white shadow-inner transition-colors"
                   />
                 </div>
 
                 <div className="sm:col-span-2">
                   <label className="text-slate-700 font-semibold mb-1 block">Địa Chỉ Giao Hàng &amp; Nhận Máy:</label>
-                  <input
+                  <input autoComplete="off"
                     type="text"
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
-                    placeholder="Số nhà, tên đường, phường/xã, quận/huyện..."
+                    placeholder=""
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 focus:outline-none focus:border-amber-600 focus:bg-white shadow-inner transition-colors"
                   />
                 </div>
@@ -774,15 +774,15 @@ export default function AccountPage() {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
               {/* Form Đổi Mật Khẩu */}
               <div className="lg:col-span-7 space-y-4 text-xs">
-                <form onSubmit={handleChangePassword} className="space-y-4">
+                <form autoComplete="off" onSubmit={handleChangePassword} className="space-y-4">
                   <div>
                     <label className="text-slate-700 font-semibold mb-1 block">Mật khẩu hiện tại:</label>
                     <div className="relative">
-                      <input
+                      <input autoComplete="off"
                         type={showCurrentPass ? 'text' : 'password'}
                         value={currentPassword}
                         onChange={(e) => setCurrentPassword(e.target.value)}
-                        placeholder="Nhập mật khẩu hiện tại..."
+                        placeholder=""
                         className="w-full px-3.5 py-2.5 pr-10 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 focus:outline-none focus:border-amber-600 focus:bg-white shadow-inner transition-colors"
                       />
                       <button
@@ -798,12 +798,12 @@ export default function AccountPage() {
                   <div>
                     <label className="text-slate-700 font-semibold mb-1 block">Mật khẩu mới: *</label>
                     <div className="relative">
-                      <input
+                      <input autoComplete="off"
                         type={showNewPass ? 'text' : 'password'}
                         required
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
-                        placeholder="Ít nhất 6 ký tự..."
+                        placeholder=""
                         className="w-full px-3.5 py-2.5 pr-10 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 focus:outline-none focus:border-amber-600 focus:bg-white shadow-inner transition-colors"
                       />
                       <button
@@ -840,12 +840,12 @@ export default function AccountPage() {
                   <div>
                     <label className="text-slate-700 font-semibold mb-1 block">Xác nhận mật khẩu mới: *</label>
                     <div className="relative">
-                      <input
+                      <input autoComplete="off"
                         type={showConfirmPass ? 'text' : 'password'}
                         required
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
-                        placeholder="Nhập lại mật khẩu mới..."
+                        placeholder=""
                         className="w-full px-3.5 py-2.5 pr-10 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 focus:outline-none focus:border-amber-600 focus:bg-white shadow-inner transition-colors"
                       />
                       <button
@@ -883,7 +883,7 @@ export default function AccountPage() {
                       <p className="font-bold text-slate-900 text-xs">Xác Thực 2 Bước (2FA)</p>
                       <p className="text-[10px] text-slate-500">Gửi mã OTP khi đăng nhập trên thiết bị lạ</p>
                     </div>
-                    <input
+                    <input autoComplete="off"
                       type="checkbox"
                       checked={isTwoFactorEnabled}
                       onChange={(e) => setIsTwoFactorEnabled(e.target.checked)}
@@ -896,7 +896,7 @@ export default function AccountPage() {
                       <p className="font-bold text-slate-900 text-xs">Sinh Trắc Học (Face ID / Touch ID)</p>
                       <p className="text-[10px] text-slate-500">Đăng nhập nhanh không cần nhập mật khẩu</p>
                     </div>
-                    <input
+                    <input autoComplete="off"
                       type="checkbox"
                       checked={isBiometricEnabled}
                       onChange={(e) => setIsBiometricEnabled(e.target.checked)}

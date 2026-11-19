@@ -454,7 +454,7 @@ export default function CheckoutPage() {
         </h1>
       </div>
 
-      <form onSubmit={handleSubmitOrder} className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <form autoComplete="off" onSubmit={handleSubmitOrder} className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Form Inputs */}
         <div className="lg:col-span-7 space-y-6">
           {!customerUser ? (
@@ -477,23 +477,23 @@ export default function CheckoutPage() {
               <div className="max-w-md mx-auto space-y-3 text-xs text-left pt-2">
                 <div>
                   <label className="text-slate-700 font-bold mb-1 block">Họ và tên người nhận hàng *:</label>
-                  <input
+                  <input autoComplete="off"
                     type="text"
                     required
                     value={quickCustName}
                     onChange={(e) => setQuickCustName(e.target.value)}
-                    placeholder="VD: Nguyễn Huy Hoàng"
+                    placeholder=""
                     className="w-full p-3 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-amber-500 shadow-sm placeholder:text-slate-400"
                   />
                 </div>
                 <div>
                   <label className="text-slate-700 font-bold mb-1 block">Số điện thoại liên hệ *:</label>
-                  <input
+                  <input autoComplete="off"
                     type="tel"
                     required
                     value={quickCustPhone}
                     onChange={(e) => setQuickCustPhone(e.target.value)}
-                    placeholder="VD: 0988888999"
+                    placeholder=""
                     className="w-full p-3 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-amber-500 shadow-sm placeholder:text-slate-400"
                   />
                 </div>
@@ -537,23 +537,23 @@ export default function CheckoutPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
               <div>
                 <label className="text-slate-700 font-bold mb-1 block">Họ và tên người nhận *:</label>
-                <input
+                <input autoComplete="off"
                   type="text"
                   required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="VD: Nguyễn Huy Hoàng"
+                  placeholder=""
                   className="w-full p-3 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-blue-500 shadow-sm placeholder:text-slate-400"
                 />
               </div>
               <div>
                 <label className="text-slate-700 font-bold mb-1 block">Số điện thoại liên hệ *:</label>
-                <input
+                <input autoComplete="off"
                   type="tel"
                   required
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  placeholder="VD: 0988888999"
+                  placeholder=""
                   className="w-full p-3 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-blue-500 shadow-sm placeholder:text-slate-400"
                 />
               </div>
@@ -561,12 +561,12 @@ export default function CheckoutPage() {
 
             <div className="text-xs">
               <label className="text-slate-700 font-bold mb-1 block">Địa chỉ nhận hàng chi tiết *:</label>
-              <input
+              <input autoComplete="off"
                 type="text"
                 required
                 value={formData.address}
                 onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                placeholder="Số nhà, tên đường, phường/xã, quận/huyện..."
+                placeholder=""
                 className="w-full p-3 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-blue-500 shadow-sm placeholder:text-slate-400"
               />
             </div>
@@ -575,12 +575,12 @@ export default function CheckoutPage() {
               <label className="text-slate-700 font-bold mb-1 block">
                 Email nhận hóa đơn điện tử &amp; phiếu bảo hành *:
               </label>
-              <input
+              <input autoComplete="off"
                 type="email"
                 required
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="VD: huyhoang@gmail.com"
+                placeholder=""
                 className="w-full p-3 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-blue-500 shadow-sm placeholder:text-slate-400"
               />
               <p className="text-[11px] text-slate-500 mt-1">
@@ -594,7 +594,7 @@ export default function CheckoutPage() {
                 rows={2}
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                placeholder="Giao giờ hành chính, gọi trước khi đến..."
+                placeholder=""
                 className="w-full p-3 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-blue-500 shadow-sm placeholder:text-slate-400"
               />
             </div>
@@ -610,7 +610,7 @@ export default function CheckoutPage() {
                 </h3>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
-                <input
+                <input autoComplete="off"
                   type="checkbox"
                   checked={isPreOrder}
                   onChange={(e) => setIsPreOrder(e.target.checked)}

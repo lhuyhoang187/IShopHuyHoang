@@ -117,7 +117,7 @@ function RepairTrackingContent() {
 
       {/* Search Bar */}
       <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-lg space-y-4">
-        <form
+        <form autoComplete="off"
           onSubmit={(e) => {
             e.preventDefault();
             handleSearch();
@@ -125,11 +125,11 @@ function RepairTrackingContent() {
           className="flex flex-col sm:flex-row items-center gap-3"
         >
           <div className="relative flex-1 w-full">
-            <input
+            <input autoComplete="off"
               type="text"
               value={inputQuery}
               onChange={(e) => setInputQuery(e.target.value)}
-              placeholder="Nhập mã phiếu (SC-2608-001) hoặc số điện thoại (0912345678)..."
+              placeholder=""
               className="w-full pl-4 pr-10 py-3.5 bg-slate-50 border border-slate-300 rounded-2xl text-slate-900 placeholder-slate-400 focus:outline-none focus:border-amber-600 focus:bg-white font-mono text-sm sm:text-base shadow-inner transition-colors"
             />
             {inputQuery && (

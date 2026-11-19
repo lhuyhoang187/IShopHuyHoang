@@ -510,11 +510,11 @@ export default function InventoryAccessoriesPage() {
       <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3">
         <div className="relative flex-1 min-w-[240px]">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
+          <input autoComplete="off"
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Tìm theo mã vạch Barcode, tên phụ kiện, hãng (Apple, Baseus, Anker)..."
+            placeholder=""
             className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white font-mono transition-colors"
           />
         </div>
@@ -667,7 +667,7 @@ export default function InventoryAccessoriesPage() {
                       <td className="p-4 text-right font-black text-emerald-700 font-mono text-sm whitespace-nowrap">
                         {isQuickEditing ? (
                           <div className="flex items-center justify-end gap-1">
-                            <input
+                            <input autoComplete="off"
                               type="number"
                               step="10000"
                               value={quickTempPrice}
@@ -829,11 +829,11 @@ export default function InventoryAccessoriesPage() {
                     <label className="font-bold text-slate-700 text-xs">
                       Tên Phụ Kiện <span className="text-rose-500">*</span>
                     </label>
-                    <input
+                    <input autoComplete="off"
                       type="text"
                       value={formState.name || ''}
                       onChange={(e) => setFormState({ ...formState, name: e.target.value })}
-                      placeholder="VD: Củ Sạc Nhanh Apple 20W USB-C Chính Hãng (A2305)..."
+                      placeholder=""
                       className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-emerald-500 focus:bg-white font-bold"
                     />
                   </div>
@@ -859,11 +859,11 @@ export default function InventoryAccessoriesPage() {
                     </div>
                     <div className="relative">
                       <Barcode className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <input
+                      <input autoComplete="off"
                         type="text"
                         value={formState.barcode || ''}
                         onChange={(e) => setFormState({ ...formState, barcode: e.target.value })}
-                        placeholder="VD: 194252157008"
+                        placeholder=""
                         className="w-full pl-9 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-emerald-500 focus:bg-white font-mono font-bold"
                       />
                     </div>
@@ -874,11 +874,11 @@ export default function InventoryAccessoriesPage() {
                     <label className="font-bold text-slate-700 text-xs">
                       Hãng / Thương Hiệu <span className="text-rose-500">*</span>
                     </label>
-                    <input
+                    <input autoComplete="off"
                       type="text"
                       value={formState.brand || ''}
                       onChange={(e) => setFormState({ ...formState, brand: e.target.value })}
-                      placeholder="Apple, Baseus, Anker, KingKong, Ugreen..."
+                      placeholder=""
                       className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-emerald-500 focus:bg-white font-bold"
                     />
                   </div>
@@ -921,11 +921,11 @@ export default function InventoryAccessoriesPage() {
                   <div className="space-y-1">
                     <label className="font-bold text-slate-700 text-xs">Link Hình Ảnh (URL)</label>
                     <div className="flex gap-2">
-                      <input
+                      <input autoComplete="off"
                         type="text"
                         value={formState.imageUrl || ''}
                         onChange={(e) => setFormState({ ...formState, imageUrl: e.target.value })}
-                        placeholder="https://..."
+                        placeholder=""
                         className="flex-1 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-emerald-500 focus:bg-white font-mono text-xs"
                       />
                       {formState.imageUrl && (
@@ -978,7 +978,7 @@ export default function InventoryAccessoriesPage() {
                         -1
                       </button>
 
-                      <input
+                      <input autoComplete="off"
                         type="number"
                         min="0"
                         value={formState.stock ?? 0}
@@ -1043,7 +1043,7 @@ export default function InventoryAccessoriesPage() {
                     <label className="font-bold text-slate-800 text-xs">
                       Mức Cảnh Báo Tồn Kho Tối Thiểu
                     </label>
-                    <input
+                    <input autoComplete="off"
                       type="number"
                       min="1"
                       value={formState.minStockAlert ?? 5}
@@ -1075,7 +1075,7 @@ export default function InventoryAccessoriesPage() {
                     <label className="font-bold text-slate-700 text-xs">
                       Giá Vốn Nhập <span className="text-slate-400 font-normal">(VNĐ)</span>
                     </label>
-                    <input
+                    <input autoComplete="off"
                       type="number"
                       step="5000"
                       value={formState.costPrice || 0}
@@ -1094,7 +1094,7 @@ export default function InventoryAccessoriesPage() {
                     <label className="font-bold text-emerald-700 text-xs">
                       Giá Bán Lẻ <span className="text-slate-400 font-normal">(VNĐ)</span>
                     </label>
-                    <input
+                    <input autoComplete="off"
                       type="number"
                       step="5000"
                       value={formState.sellingPrice || 0}
@@ -1116,7 +1116,7 @@ export default function InventoryAccessoriesPage() {
                     <label className="font-bold text-slate-700 text-xs">
                       Giá Niêm Yết Gốc <span className="text-slate-400 font-normal">(Gạch ngang)</span>
                     </label>
-                    <input
+                    <input autoComplete="off"
                       type="number"
                       step="5000"
                       value={formState.originalPrice || 0}
@@ -1171,11 +1171,11 @@ export default function InventoryAccessoriesPage() {
                   {/* Thông số kỹ thuật */}
                   <div className="space-y-1">
                     <label className="font-bold text-slate-700 text-xs">Thông Số Kỹ Thuật Tóm Tắt</label>
-                    <input
+                    <input autoComplete="off"
                       type="text"
                       value={formState.specs || ''}
                       onChange={(e) => setFormState({ ...formState, specs: e.target.value })}
-                      placeholder="VD: 20W, Cổng Type-C, Chân cắm tròn/dẹt EU/US..."
+                      placeholder=""
                       className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-emerald-500 focus:bg-white"
                     />
                   </div>
@@ -1183,11 +1183,11 @@ export default function InventoryAccessoriesPage() {
                   {/* Thiết bị tương thích */}
                   <div className="space-y-1">
                     <label className="font-bold text-slate-700 text-xs">Thiết Bị Tương Thích</label>
-                    <input
+                    <input autoComplete="off"
                       type="text"
                       value={formState.compatibleWith || ''}
                       onChange={(e) => setFormState({ ...formState, compatibleWith: e.target.value })}
-                      placeholder="VD: iPhone 12/13/14/15/16, iPad, AirPods..."
+                      placeholder=""
                       className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-emerald-500 focus:bg-white"
                     />
                   </div>
@@ -1195,7 +1195,7 @@ export default function InventoryAccessoriesPage() {
                   {/* Giảm giá khi mua kèm điện thoại */}
                   <div className="space-y-1">
                     <label className="font-bold text-slate-700 text-xs">% Giảm Giá Khi Mua Kèm Máy Mới</label>
-                    <input
+                    <input autoComplete="off"
                       type="number"
                       min="0"
                       max="100"
@@ -1214,7 +1214,7 @@ export default function InventoryAccessoriesPage() {
                   {/* Điểm thưởng đổi quà */}
                   <div className="space-y-1">
                     <label className="font-bold text-slate-700 text-xs">Điểm Thưởng Cần Đổi Quà (Points)</label>
-                    <input
+                    <input autoComplete="off"
                       type="number"
                       min="0"
                       value={formState.pointsToRedeem ?? 0}
@@ -1235,7 +1235,7 @@ export default function InventoryAccessoriesPage() {
                       rows={2}
                       value={formState.description || ''}
                       onChange={(e) => setFormState({ ...formState, description: e.target.value })}
-                      placeholder="Mô tả công nghệ, tính năng, bảo hành 12 tháng 1 đổi 1..."
+                      placeholder=""
                       className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-emerald-500 focus:bg-white text-xs"
                     />
                   </div>
@@ -1356,14 +1356,14 @@ export default function InventoryAccessoriesPage() {
                   + Thêm Danh Mục Mới
                 </label>
                 <div className="flex items-center gap-2">
-                  <input
+                  <input autoComplete="off"
                     type="text"
                     value={newCatName}
                     onChange={(e) => setNewCatName(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') handleAddCategory();
                     }}
-                    placeholder="VD: Bút Cảm Ứng, Bàn Phím iPad, Củ Sạc Ô Tô..."
+                    placeholder=""
                     className="flex-1 px-3.5 py-2.5 bg-white border border-emerald-300 rounded-xl text-xs sm:text-sm text-slate-900 font-bold focus:outline-none focus:border-emerald-600 shadow-2xs"
                   />
                   <button
@@ -1397,7 +1397,7 @@ export default function InventoryAccessoriesPage() {
                       >
                         {isEditing ? (
                           <div className="flex-1 flex items-center gap-2">
-                            <input
+                            <input autoComplete="off"
                               type="text"
                               value={editingCatName}
                               onChange={(e) => setEditingCatName(e.target.value)}

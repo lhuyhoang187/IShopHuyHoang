@@ -348,7 +348,7 @@ export function AvatarPickerModal({
         {/* Tab 1: Upload from local device */}
         {activeTab === 'upload' && (
           <div className="space-y-3">
-            <input
+            <input autoComplete="off"
               ref={fileInputRef}
               type="file"
               accept="image/*"
@@ -435,11 +435,11 @@ export function AvatarPickerModal({
               Dán đường dẫn ảnh trực tuyến (URL):
             </label>
             <div className="flex gap-2">
-              <input
+              <input autoComplete="off"
                 type="url"
                 value={customUrl}
                 onChange={(e) => setCustomUrl(e.target.value)}
-                placeholder="https://images.unsplash.com/... hoặc link ảnh online"
+                placeholder=""
                 className="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:bg-white focus:outline-none focus:border-amber-500 font-medium"
               />
               <button
