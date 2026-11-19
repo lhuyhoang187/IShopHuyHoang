@@ -215,10 +215,6 @@ export default function AboutPage() {
               <span className="px-3.5 py-1.5 rounded-full bg-amber-100 text-amber-800 font-black text-xs border border-amber-300">
                 Chi Nhánh 1 (Quận 10)
               </span>
-              <span className="flex items-center gap-2 text-emerald-600 text-xs font-bold">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                Đang mở cửa
-              </span>
             </div>
 
             <div>
@@ -261,10 +257,6 @@ export default function AboutPage() {
             <div className="flex items-center justify-between">
               <span className="px-3.5 py-1.5 rounded-full bg-blue-100 text-blue-800 font-black text-xs border border-blue-300">
                 Chi Nhánh 2 (TP. Thủ Đức)
-              </span>
-              <span className="flex items-center gap-2 text-emerald-600 text-xs font-bold">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                Đang mở cửa
               </span>
             </div>
 

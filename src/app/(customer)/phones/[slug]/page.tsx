@@ -303,7 +303,6 @@ export default function PhoneDetailPage() {
                     Tiết kiệm {formatVND((selectedCapacity.originalPrice - selectedCapacity.price) * quantity)}
                   </span>
                   <div className="text-[11px] text-emerald-700 mt-2 flex items-center gap-1.5 justify-end font-bold">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
                     <span>Còn {availableStockCount} máy sẵn IMEI</span>
                   </div>
                 </div>

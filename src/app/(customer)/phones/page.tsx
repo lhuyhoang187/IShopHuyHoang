@@ -263,12 +263,10 @@ export default function PhonesPage() {
               <div className="absolute top-4 left-4 z-10">
                 {availableStock > 5 ? (
                   <span className="px-2.5 py-1 rounded-xl text-[10px] font-black bg-emerald-50 text-emerald-800 border border-emerald-300 shadow-sm flex items-center gap-1.5 backdrop-blur-xs">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
                     <span>Còn {availableStock} máy sẵn kho</span>
                   </span>
                 ) : availableStock > 0 ? (
                   <span className="px-2.5 py-1 rounded-xl text-[10px] font-black bg-amber-50 text-amber-900 border border-amber-300 shadow-sm flex items-center gap-1.5 backdrop-blur-xs">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
                     <span>Chỉ còn {availableStock} máy</span>
                   </span>
                 ) : (

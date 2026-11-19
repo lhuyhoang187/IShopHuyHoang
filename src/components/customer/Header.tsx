@@ -134,7 +134,6 @@ export default function Header() {
                     iShop <span className="text-gradient-gold">Huy Hoàng</span>
                   </span>
                   <span className="text-[10px] tracking-wider uppercase text-slate-500 font-semibold flex items-center gap-1.5 mt-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                     Apple Flagship &amp; iCare
                   </span>
                 </div>

@@ -925,9 +925,6 @@ export default function AdminProfilePage() {
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-slate-900">Phiên đăng nhập hiện tại</span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold">
-                      Online
-                    </span>
                   </div>
                   <p className="text-slate-500 text-[11px] mt-0.5">
                     Trình duyệt Chrome trên Windows • Địa chỉ IP: 192.168.1.102 (Mạng nội bộ shop)

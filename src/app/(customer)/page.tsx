@@ -496,7 +496,6 @@ export default function CustomerHomePage() {
         {/* Bottom Trust Line */}
         <div className="hero-trust-line relative z-20 w-full px-6 sm:px-12 py-4 flex flex-col sm:flex-row items-center justify-between text-xs sm:text-sm text-gray-300 border-t border-white/10 backdrop-blur-md font-medium">
           <div className="flex items-center gap-2.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
             <span>Hệ Thống Phân Phối Apple & Dịch Vụ iCare Chính Hãng 2026</span>
           </div>
 
@@ -629,7 +628,6 @@ export default function CustomerHomePage() {
                 <div className="p-3.5 rounded-xl bg-amber-50/50 border border-amber-300/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
                       <span className="text-[11px] font-extrabold text-emerald-700 uppercase tracking-wider">
                         Kho Sẵn Hàng • Giao Hỏa Tốc 1H
                       </span>
@@ -690,7 +688,6 @@ export default function CustomerHomePage() {
                 <div className="flex items-center justify-between text-xs pb-2 border-b border-slate-200">
                   <div className="flex items-center gap-2">
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-800 font-bold text-[11px]">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
                       <span>ĐANG THAO TÁC TRỰC TIẾP</span>
                     </span>
                     <span className="font-mono font-extrabold text-slate-700">#iCare-9824</span>
@@ -723,7 +720,7 @@ export default function CustomerHomePage() {
                       <CheckCircle2 className="w-3 h-3 text-emerald-600" /> 2. Ký linh kiện
                     </span>
                     <span className="text-amber-700 font-bold flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" /> 3. Ép kính vô trùng
+                      3. Ép kính vô trùng
                     </span>
                     <span className="text-slate-400">4. Trả máy</span>
                   </div>
@@ -1064,12 +1061,10 @@ export default function CustomerHomePage() {
                     <div className="absolute top-3 right-3">
                       {availableStock > 5 ? (
                         <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-800 border border-emerald-300 shadow-sm flex items-center gap-1.5 backdrop-blur-xs">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
                           Còn {availableStock} máy
                         </span>
                       ) : availableStock > 0 ? (
                         <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-amber-50 text-amber-900 border border-amber-300 shadow-sm flex items-center gap-1.5 backdrop-blur-xs">
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
                           Chỉ còn {availableStock} máy
                         </span>
                       ) : (
@@ -1083,7 +1078,6 @@ export default function CustomerHomePage() {
                   <div className="flex items-center justify-between text-sm mb-1.5">
                     <span className="text-slate-500 font-bold">{phone.brand}</span>
                     <span className={`font-mono font-bold flex items-center gap-1.5 ${availableStock > 0 ? (availableStock <= 3 ? 'text-amber-800' : 'text-emerald-700') : 'text-rose-600'}`}>
-                      <span className={`w-2 h-2 rounded-full ${availableStock > 0 ? (availableStock <= 3 ? 'bg-amber-500 animate-ping' : 'bg-emerald-600 animate-pulse') : 'bg-rose-500'}`} />
                       {availableStock > 0 ? `Kho sẵn: ${availableStock} máy` : 'Tạm hết hàng'}
                     </span>
                   </div>
@@ -1329,7 +1323,6 @@ export default function CustomerHomePage() {
             <div className="lg:col-span-6 bg-white rounded-3xl p-7 border border-amber-200/80 shadow-xl space-y-5 text-slate-800 reveal-fly-right">
               <div className="flex items-center justify-between pb-4 border-b border-slate-200 text-sm">
                 <div className="flex items-center gap-2.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 animate-ping" />
                   <span className="font-extrabold text-slate-900">Phiếu Tiếp Nhận: SC-2608-001</span>
                 </div>
                 <span className="px-3 py-1 rounded-full bg-blue-50 text-blue-700 font-bold text-xs border border-blue-200">
@@ -1543,7 +1536,6 @@ export default function CustomerHomePage() {
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 p-2 rounded-full bg-white/95 border border-amber-200/80 backdrop-blur-2xl shadow-xl animate-in slide-in-from-bottom-5 duration-300 text-slate-800">
           {/* Scroll percentage badge */}
           <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-xs font-mono font-bold">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
             <span>{scrollProgress}%</span>
           </div>
 

@@ -869,7 +869,6 @@ export default function RevenueAnalyticsSection({
                 <>
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                       <span>
                         {chartData[hoveredBarData.index].label} • {hoveredBarData.stageName}
                       </span>
@@ -913,7 +912,6 @@ export default function RevenueAnalyticsSection({
             <div className="text-right">
               {hoveredBarData !== null && chartData[hoveredBarData.index] ? (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-100/80 text-emerald-800 font-bold text-xs border border-emerald-200 shadow-2xs">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-ping" />
                   Đang xem: {chartData[hoveredBarData.index].label} ({hoveredBarData.stageName})
                 </span>
               ) : (
@@ -1147,7 +1145,6 @@ export default function RevenueAnalyticsSection({
           <div className="flex items-center justify-between text-[11px] text-slate-500 pt-2 border-t border-slate-200">
             {hoveredBarData !== null && chartData[hoveredBarData.index] ? (
               <span className="text-emerald-700 font-bold flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
                 <span>
                   {chartData[hoveredBarData.index].label} ({hoveredBarData.stageName}):{' '}
                   <strong className="text-emerald-800 font-mono">{formatVND(hoveredBarData.revenue)}</strong> /{' '}
@@ -1652,7 +1649,6 @@ export default function RevenueAnalyticsSection({
             {/* Trend summary labels */}
             <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-200">
               <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 <span>Rê chuột dọc đường cong để theo dõi biến thiên thời gian thực</span>
               </span>
               <span className="font-bold text-slate-800 font-mono tabular-nums">
