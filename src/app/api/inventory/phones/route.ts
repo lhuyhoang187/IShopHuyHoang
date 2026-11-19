@@ -174,3 +174,38 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const imei = searchParams.get('imei')?.trim();
+
+    if (!imei) {
+      return NextResponse.json(
+        { error: 'Vui lòng cung cấp số IMEI cần xóa' },
+        { status: 400 }
+      );
+    }
+
+    const existing = await db.queryOne('SELECT imei, status FROM phonestock WHERE imei = ?', [imei]);
+    if (!existing) {
+      return NextResponse.json(
+        { error: 'Không tìm thấy máy có số IMEI này trong kho' },
+        { status: 404 }
+      );
+    }
+
+    await db.execute('DELETE FROM phonestock WHERE imei = ?', [imei]);
+
+    return NextResponse.json({
+      success: true,
+      message: `Đã xóa số IMEI ${imei} khỏi kho CSDL thành công`,
+    });
+  } catch (error: any) {
+    console.error('Phone stock DELETE error:', error);
+    return NextResponse.json(
+      { error: 'Lỗi xóa IMEI khỏi kho: ' + (error?.message || '') },
+      { status: 500 }
+    );
+  }
+}

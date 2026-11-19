@@ -24,6 +24,7 @@ import {
   Check,
   X,
   ChevronDown,
+  Trash2,
 } from 'lucide-react';
 import { IShopStore } from '@/lib/store';
 import { PhoneProduct, PhoneStockItem, Role } from '@/lib/types';
@@ -50,6 +51,67 @@ export default function InventoryPhonesPage() {
   // Stock edit modal state
   const [selectedPhoneForEdit, setSelectedPhoneForEdit] = useState<PhoneProduct | null>(null);
   const [isStockModalOpen, setIsStockModalOpen] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+  const handleDeletePhone = async (phone: PhoneProduct) => {
+    const confirmed = window.confirm(
+      `Bạn có chắc chắn muốn xóa sản phẩm "${phone.name}" và toàn bộ số IMEI thuộc dòng máy này khỏi CSDL?`
+    );
+    if (!confirmed) return;
+
+    setDeletingId(phone.id);
+    try {
+      const res = await fetch(`/api/phones?id=${encodeURIComponent(phone.id)}`, {
+        method: 'DELETE',
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        alert(json.error || 'Không thể xóa sản phẩm khỏi CSDL MySQL!');
+        return;
+      }
+
+      setPhones((prev) => prev.filter((p) => p.id !== phone.id));
+      setStock((prev) => prev.filter((s) => s.phoneId !== phone.id));
+      await IShopStore.hydrateFromDatabase(true);
+      loadData();
+      setToastMsg(`✓ Đã xóa sản phẩm "${phone.name}" khỏi CSDL thành công!`);
+      setTimeout(() => setToastMsg(null), 3500);
+    } catch (err: any) {
+      alert('Lỗi kết nối khi xóa sản phẩm: ' + (err?.message || ''));
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleDeleteImei = async (unit: PhoneStockItem) => {
+    const confirmed = window.confirm(
+      `Bạn có chắc chắn muốn xóa số IMEI "${unit.imei}" (${unit.phoneName}) khỏi kho CSDL?`
+    );
+    if (!confirmed) return;
+
+    setDeletingId(unit.imei);
+    try {
+      const res = await fetch(`/api/inventory/phones?imei=${encodeURIComponent(unit.imei)}`, {
+        method: 'DELETE',
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        alert(json.error || 'Không thể xóa số IMEI khỏi CSDL!');
+        return;
+      }
+
+      setStock((prev) => prev.filter((s) => s.imei !== unit.imei));
+      await IShopStore.hydrateFromDatabase(true);
+      loadData();
+      setToastMsg(`✓ Đã xóa số IMEI "${unit.imei}" khỏi kho thành công!`);
+      setTimeout(() => setToastMsg(null), 3500);
+    } catch (err: any) {
+      alert('Lỗi kết nối khi xóa IMEI: ' + (err?.message || ''));
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const loadData = () => {
     const localPhones = IShopStore.getPhones();
@@ -184,6 +246,12 @@ export default function InventoryPhonesPage() {
 
   return (
     <div className="space-y-6">
+      {toastMsg && (
+        <div className="fixed top-20 right-6 z-50 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl border border-emerald-500/40 text-xs font-bold flex items-center gap-2.5 animate-in fade-in">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>{toastMsg}</span>
+        </div>
+      )}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
         <div>
@@ -508,11 +576,18 @@ export default function InventoryPhonesPage() {
                         <td className="py-4 px-4 align-top">
                           <div className="flex flex-col gap-1.5">
                             {phone.capacities.map((cap) => {
-                              const isOut = Boolean(cap.isOutOfStock || cap.stock === 0);
+                              const capNorm = cap.size.toLowerCase().replace(/\s+/g, '');
+                              const realCapCount = stock.filter(
+                                (s) =>
+                                  s.phoneId === phone.id &&
+                                  s.status === 'in_stock' &&
+                                  s.capacity.toLowerCase().replace(/\s+/g, '') === capNorm
+                              ).length;
+                              const stockVal = cap.stock !== undefined ? cap.stock : realCapCount;
+                              const isOut = Boolean(cap.isOutOfStock || stockVal === 0);
                               const isHighlight =
                                 capacityFilter !== 'all' &&
-                                cap.size.toLowerCase().replace(/\s+/g, '') === capacityFilter.toLowerCase().replace(/\s+/g, '');
-                              const stockVal = cap.stock !== undefined ? cap.stock : 5;
+                                capNorm === capacityFilter.toLowerCase().replace(/\s+/g, '');
 
                               return (
                                 <div
@@ -540,7 +615,7 @@ export default function InventoryPhonesPage() {
                                       </span>
                                     ) : (
                                       <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 whitespace-nowrap shrink-0">
-                                        ● Còn {stockVal} máy
+                                        Còn {stockVal} máy
                                       </span>
                                     )}
                                   </div>
@@ -554,8 +629,15 @@ export default function InventoryPhonesPage() {
                         <td className="py-4 px-4 align-top">
                           <div className="flex flex-col gap-1.5">
                             {phone.colors.map((c) => {
-                              const isOut = Boolean(c.isOutOfStock || c.stock === 0);
-                              const stockVal = c.stock !== undefined ? c.stock : 5;
+                              const colNorm = c.name.toLowerCase().trim();
+                              const realColCount = stock.filter(
+                                (s) =>
+                                  s.phoneId === phone.id &&
+                                  s.status === 'in_stock' &&
+                                  s.color.toLowerCase().trim() === colNorm
+                              ).length;
+                              const stockVal = c.stock !== undefined ? c.stock : realColCount;
+                              const isOut = Boolean(c.isOutOfStock || stockVal === 0);
                               // Clean color name (remove english subtitle inside parentheses for clean display)
                               const cleanColorName = c.name.replace(/\s*\([^)]*\)/g, '').trim() || c.name;
 
@@ -587,7 +669,7 @@ export default function InventoryPhonesPage() {
                                       </span>
                                     ) : (
                                       <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 whitespace-nowrap shrink-0">
-                                        ● Còn {stockVal} máy
+                                        Còn {stockVal} máy
                                       </span>
                                     )}
                                   </div>
@@ -613,17 +695,29 @@ export default function InventoryPhonesPage() {
                           </span>
                         </td>
 
-                        {/* 5. Action button - Keeps on one single clean line */}
+                        {/* 5. Action buttons */}
                         <td className="py-4 px-4 align-top text-right">
-                          <button
-                            type="button"
-                            onClick={() => handleOpenStockEdit(phone)}
-                            className="px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-bold text-xs shadow-sm shadow-amber-500/25 flex items-center justify-center gap-1.5 transition-transform hover:scale-[1.02] cursor-pointer ml-auto whitespace-nowrap shrink-0"
-                            title="Điều chỉnh số lượng và trạng thái Còn/Hết hàng"
-                          >
-                            <Sliders className="w-3.5 h-3.5 shrink-0" />
-                            <span className="whitespace-nowrap">Chỉnh Sửa Tồn Kho</span>
-                          </button>
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenStockEdit(phone)}
+                              className="px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-bold text-xs shadow-sm shadow-amber-500/25 flex items-center justify-center gap-1.5 transition-transform hover:scale-[1.02] cursor-pointer whitespace-nowrap shrink-0"
+                              title="Điều chỉnh số lượng và trạng thái Còn/Hết hàng"
+                            >
+                              <Sliders className="w-3.5 h-3.5 shrink-0" />
+                              <span className="whitespace-nowrap">Chỉnh Sửa Tồn Kho</span>
+                            </button>
+                            <button
+                              type="button"
+                              disabled={deletingId === phone.id}
+                              onClick={() => handleDeletePhone(phone)}
+                              className="px-3 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap shrink-0 disabled:opacity-50"
+                              title={`Xóa sản phẩm ${phone.name}`}
+                            >
+                              <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                              <span>Xóa</span>
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -706,6 +800,7 @@ export default function InventoryPhonesPage() {
                     <th className="p-4 text-right whitespace-nowrap bg-slate-100">Giá Bán Niêm Yết</th>
                     <th className="p-4 whitespace-nowrap bg-slate-100">Trạng Thái</th>
                     <th className="p-4 whitespace-nowrap bg-slate-100">Thông Tin Xuất Bán</th>
+                    <th className="p-4 text-right whitespace-nowrap bg-slate-100">Thao Tác</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs">
@@ -719,7 +814,7 @@ export default function InventoryPhonesPage() {
                       <td className="p-4">
                         <span className="font-bold text-slate-900 block">{unit.phoneName}</span>
                         <span className="text-[11px] text-slate-500 font-medium">
-                          NCC: {unit.supplierName}
+                          {unit.capacity} • NCC: {unit.supplierName}
                         </span>
                       </td>
 
@@ -740,7 +835,7 @@ export default function InventoryPhonesPage() {
                       <td className="p-4">
                         {unit.status === 'in_stock' ? (
                           <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 whitespace-nowrap">
-                            ● Còn hàng
+                            Còn hàng
                           </span>
                         ) : (
                           <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200 whitespace-nowrap">
@@ -768,12 +863,25 @@ export default function InventoryPhonesPage() {
                           <span className="text-slate-400 italic">Sẵn sàng tại quầy POS</span>
                         )}
                       </td>
+
+                      <td className="p-4 text-right">
+                        <button
+                          type="button"
+                          disabled={deletingId === unit.imei}
+                          onClick={() => handleDeleteImei(unit)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs transition-colors cursor-pointer disabled:opacity-50"
+                          title={`Xóa IMEI ${unit.imei}`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Xóa</span>
+                        </button>
+                      </td>
                     </tr>
                   ))}
 
                   {filteredImeiStock.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="p-8 text-center text-slate-500 text-xs">
+                      <td colSpan={8} className="p-8 text-center text-slate-500 text-xs">
                         Không tìm thấy số IMEI nào phù hợp.
                       </td>
                     </tr>
