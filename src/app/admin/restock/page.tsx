@@ -865,47 +865,18 @@ export default function AdminRestockPage() {
                   </button>
                 </div>
               ) : (
-                <div className="space-y-2">
-                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
-                    <input autoComplete="off"
-                      type="text"
-                      value={modelSearchQuery}
-                      onChange={(e) => setModelSearchQuery(e.target.value)}
-                      placeholder=""
-                      className="sm:col-span-5 p-3 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 text-xs font-medium focus:outline-none focus:border-blue-500 focus:bg-white"
-                    />
-                    <select
-                      value={selectedPhoneId}
-                      onChange={(e) => setSelectedPhoneId(e.target.value)}
-                      className="sm:col-span-7 w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-bold text-xs sm:text-sm focus:outline-none focus:border-blue-500 transition-all cursor-pointer"
-                    >
-                      {filteredPhonesByBrand.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {selectedBrand === 'all' ? `[${p.brand}] ` : ''}
-                          {p.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Quick Model Chips (Top 4 models) */}
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {filteredPhonesByBrand.slice(0, 5).map((p) => (
-                      <button
-                        key={p.id}
-                        type="button"
-                        onClick={() => setSelectedPhoneId(p.id)}
-                        className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all cursor-pointer ${
-                          selectedPhoneId === p.id
-                            ? 'bg-blue-50 border-blue-600 text-blue-800'
-                            : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-600'
-                        }`}
-                      >
-                        {p.name.split(' - ')[0]}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                <select
+                  value={selectedPhoneId}
+                  onChange={(e) => setSelectedPhoneId(e.target.value)}
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-bold text-xs sm:text-sm focus:outline-none focus:border-blue-500 transition-all cursor-pointer"
+                >
+                  {filteredPhonesByBrand.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {selectedBrand === 'all' ? `[${p.brand}] ` : ''}
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
               )}
             </div>
 
