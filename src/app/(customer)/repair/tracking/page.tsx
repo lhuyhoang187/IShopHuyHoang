@@ -108,10 +108,10 @@ function RepairTrackingContent() {
           <span>TRA CỨU TIẾN ĐỘ THỜI GIAN THỰC</span>
         </div>
         <h1 className="text-2xl sm:text-4xl font-extrabold text-slate-900">
-          Theo Dõi Tiến Độ Sửa Chữa Bằng Mã QR
+          Nhập số điện thoại để theo dõi tiến độ sửa chữa
         </h1>
         <p className="text-xs sm:text-sm text-slate-600 max-w-xl mx-auto">
-          Nhập mã phiếu biên nhận (VD: <strong className="text-slate-900">SC-2608-001</strong>), Số điện thoại khách hàng hoặc quét mã QR in trên phiếu để xem trực tiếp các bước xử lý kỹ thuật.
+          Nhập mã phiếu biên nhận, Số điện thoại khách hàng hoặc quét mã QR in trên phiếu để xem trực tiếp các bước xử lý kỹ thuật.
         </p>
       </div>
 
