@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import {
   Headphones,
@@ -24,6 +24,8 @@ import {
   FolderPlus,
   Settings,
   FolderEdit,
+  Upload,
+  Loader2,
 } from 'lucide-react';
 import { IShopStore } from '@/lib/store';
 import { AccessoryProduct, AccessoryCategoryItem, Role } from '@/lib/types';
@@ -44,6 +46,45 @@ export default function InventoryAccessoriesPage() {
   const [formState, setFormState] = useState<Partial<AccessoryProduct>>({});
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [uploadImageError, setUploadImageError] = useState<string | null>(null);
+  const imageFileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleUploadAccessoryImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    if (!file.type.startsWith('image/')) {
+      setUploadImageError('Vui lòng chọn tập tin hình ảnh hợp lệ (JPG, PNG, WebP, GIF)!');
+      return;
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      setUploadImageError('Ảnh vượt quá 15MB. Vui lòng chọn ảnh dung lượng nhỏ hơn!');
+      return;
+    }
+
+    setUploadImageError(null);
+    setIsUploadingImage(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: fd,
+      });
+      const json = await res.json();
+      if (res.ok && json.success && json.url) {
+        setFormState((prev) => ({ ...prev, imageUrl: json.url }));
+      } else {
+        setUploadImageError(json.error || 'Tải ảnh lên thất bại!');
+      }
+    } catch (err: any) {
+      setUploadImageError('Lỗi kết nối khi tải ảnh: ' + (err?.message || ''));
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
 
   // Modal Quản Lý Danh Mục
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
@@ -147,13 +188,14 @@ export default function InventoryAccessoriesPage() {
       originalPrice: 400000,
       stock: 10,
       minStockAlert: 5,
-      imageUrl: 'https://images.unsplash.com/photo-1583863788434-e58a36330cf0?w=600&q=80',
-      specs: 'Công suất cao, hỗ trợ sạc nhanh',
-      description: 'Phụ kiện chính hãng bảo hành 12 tháng 1 đổi 1',
-      compatibleWith: 'iPhone, iPad, AirPods',
+      imageUrl: '',
+      specs: '',
+      description: '',
+      compatibleWith: '',
       discountWhenBoughtWithPhone: 15,
       pointsToRedeem: 350,
     });
+    setUploadImageError(null);
   };
 
   // Lưu thông tin chỉnh sửa / thêm mới
@@ -917,25 +959,58 @@ export default function InventoryAccessoriesPage() {
                     </select>
                   </div>
 
-                  {/* Link ảnh hình ảnh */}
-                  <div className="space-y-1">
-                    <label className="font-bold text-slate-700 text-xs">Link Hình Ảnh (URL)</label>
-                    <div className="flex gap-2">
-                      <input autoComplete="off"
-                        type="text"
-                        value={formState.imageUrl || ''}
-                        onChange={(e) => setFormState({ ...formState, imageUrl: e.target.value })}
-                        placeholder=""
-                        className="flex-1 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-emerald-500 focus:bg-white font-mono text-xs"
-                      />
+                  {/* Tải hình ảnh từ máy tính */}
+                  <div className="space-y-1.5">
+                    <label className="font-bold text-slate-700 text-xs block">Hình Ảnh Sản Phẩm (Tải Từ Máy Lên)</label>
+                    <input
+                      ref={imageFileInputRef}
+                      type="file"
+                      accept="image/*"
+                      autoComplete="off"
+                      onChange={handleUploadAccessoryImage}
+                      className="hidden"
+                    />
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        disabled={isUploadingImage}
+                        onClick={() => imageFileInputRef.current?.click()}
+                        className="flex-1 px-3.5 py-2.5 bg-slate-50 hover:bg-emerald-50 border border-dashed border-slate-300 hover:border-emerald-500 rounded-xl text-slate-700 hover:text-emerald-800 font-bold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
+                      >
+                        {isUploadingImage ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+                            <span>Đang tải ảnh lên...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-4 h-4 text-emerald-600" />
+                            <span>{formState.imageUrl ? 'Chọn Ảnh Khác Từ Máy' : 'Tải Ảnh Từ Máy Lên'}</span>
+                          </>
+                        )}
+                      </button>
+
                       {formState.imageUrl && (
-                        <img
-                          src={formState.imageUrl}
-                          alt="preview"
-                          className="w-10 h-10 object-cover rounded-xl border border-slate-200 shrink-0"
-                        />
+                        <div className="relative shrink-0">
+                          <img
+                            src={formState.imageUrl}
+                            alt="preview"
+                            className="w-11 h-11 object-cover rounded-xl border border-slate-200 bg-white"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setFormState((prev) => ({ ...prev, imageUrl: '' }))}
+                            title="Gỡ ảnh"
+                            className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center shadow cursor-pointer hover:bg-rose-600"
+                          >
+                            <X className="w-2.5 h-2.5" />
+                          </button>
+                        </div>
                       )}
                     </div>
+                    {uploadImageError && (
+                      <p className="text-[11px] font-semibold text-rose-600">{uploadImageError}</p>
+                    )}
                   </div>
                 </div>
               </div>
