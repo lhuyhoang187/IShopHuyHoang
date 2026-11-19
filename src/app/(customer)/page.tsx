@@ -278,8 +278,34 @@ export default function CustomerHomePage() {
 
   const displayedHomePhones = showAllHomePhones ? filteredPhones : filteredPhones.slice(0, 6);
 
+  const showcaseFallbackColors = [
+    {
+      id: 'showcase-desert',
+      name: 'Titan Sa Mạc',
+      hex: '#c8a986',
+      imageUrl: '/images/showcase/iphone-18-desert-titanium.jpg',
+    },
+    {
+      id: 'showcase-black',
+      name: 'Titan Đen',
+      hex: '#1f2328',
+      imageUrl: '/images/showcase/iphone-18-black-titanium.jpg',
+    },
+    {
+      id: 'showcase-natural',
+      name: 'Titan Tự Nhiên',
+      hex: '#b8b6b0',
+      imageUrl: '/images/showcase/iphone-18-natural-titanium.jpg',
+    },
+  ];
+
   const heroPhone = phones.find((p) => p.slug === 'iphone-18-pro-max' || p.slug === 'iphone-duo') || phones[0];
-  const activeHeroColor = heroPhone?.colors[heroColorIdx] || heroPhone?.colors[0];
+  const heroColors = heroPhone?.colors && heroPhone.colors.length > 0 ? heroPhone.colors : showcaseFallbackColors;
+  const activeHeroColor = heroColors[heroColorIdx] || heroColors[0];
+  const heroDisplayName = heroPhone?.name || 'iPhone 18 Pro Max';
+  const heroDisplayStorage = heroPhone?.capacities?.[0]?.size || '256GB';
+  const heroDisplayPrice = heroPhone?.capacities?.[0]?.price || 34990000;
+  const heroDisplayOriginalPrice = heroPhone?.capacities?.[0]?.originalPrice || 36990000;
 
   return (
     <div className="space-y-28 pb-28 relative">
@@ -783,7 +809,7 @@ export default function CustomerHomePage() {
 
             <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 pt-3">
               <Link
-                href="/phones/iphone-18-pro-max"
+                href={heroPhone ? `/phones/${heroPhone.slug}` : '/phones'}
                 className="btn-gold px-8 py-4 rounded-2xl text-sm sm:text-base flex items-center gap-2.5 font-black shadow-xl hover:scale-105 transition-all text-white"
               >
                 <span className="text-white">Xem Cấu Hình & Mua Ngay</span>
@@ -814,12 +840,12 @@ export default function CustomerHomePage() {
                 className="rounded-3xl transition-all duration-500"
               >
                 <div className="glass-card rounded-3xl p-7 border border-amber-200/80 relative overflow-hidden backdrop-blur-2xl shadow-xl">
-                  <div className="relative aspect-square rounded-2xl overflow-hidden mb-6 bg-gradient-to-b from-slate-100 to-slate-200 border border-slate-200/80 p-5 flex items-center justify-center">
+                  <div className="relative aspect-square rounded-2xl overflow-hidden mb-6 bg-slate-100 border border-slate-200/80 flex items-center justify-center">
                     <img
                       key={activeHeroColor?.imageUrl}
                       src={activeHeroColor?.imageUrl}
-                      alt={heroPhone?.name}
-                      className="w-full h-full object-contain hover:scale-105 transition-all duration-500 animate-in fade-in"
+                      alt={heroDisplayName}
+                      className="w-full h-full object-cover hover:scale-105 transition-all duration-500 animate-in fade-in"
                     />
                     <div className="absolute top-3 left-3 px-3 py-1.5 rounded-full text-xs font-black bg-gradient-to-r from-amber-400 to-amber-500 text-white shadow-md">
                       HOT NHẤT 2026
@@ -828,14 +854,18 @@ export default function CustomerHomePage() {
 
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-xl font-black text-slate-900">{heroPhone?.name}</h3>
+                      <h3 className="text-xl font-black text-slate-900">{heroDisplayName}</h3>
                       <p className="text-sm text-amber-700 font-bold mt-0.5">
-                        {activeHeroColor?.name} • 256GB
+                        {activeHeroColor?.name} • {heroDisplayStorage}
                       </p>
                     </div>
                     <div className="text-right">
-                      <span className="text-xs sm:text-sm text-slate-400 line-through block">36.990.000đ</span>
-                      <span className="text-2xl font-black text-amber-700">34.990.000đ</span>
+                      <span className="text-xs sm:text-sm text-slate-400 line-through block">
+                        {formatVND(heroDisplayOriginalPrice)}
+                      </span>
+                      <span className="text-2xl font-black text-amber-700">
+                        {formatVND(heroDisplayPrice)}
+                      </span>
                     </div>
                   </div>
 
@@ -843,13 +873,13 @@ export default function CustomerHomePage() {
                   <div className="mt-6 pt-4 border-t border-slate-200 flex items-center justify-between text-sm">
                     <span className="text-xs sm:text-sm text-slate-600 font-bold">Bấm chọn màu vỏ máy:</span>
                     <div className="flex items-center gap-2.5">
-                      {heroPhone?.colors.map((c, idx) => (
+                      {heroColors.map((c, idx) => (
                         <button
                           key={c.id}
                           onClick={() => setHeroColorIdx(idx)}
                           title={c.name}
                           style={{ backgroundColor: c.hex }}
-                          className={`w-7 h-7 rounded-full border transition-all ${
+                          className={`w-7 h-7 rounded-full border transition-all cursor-pointer ${
                             heroColorIdx === idx
                               ? 'border-amber-600 scale-125 shadow-[0_0_12px_rgba(217,119,6,0.5)] ring-2 ring-amber-400/40'
                               : 'border-slate-300 opacity-80 hover:opacity-100'
