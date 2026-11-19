@@ -2853,7 +2853,6 @@ export default function AdminRepairsPage() {
                       <input autoComplete="off"
                         type="number"
                         min="0"
-                        step="10000"
                         required
                         value={newServicePrice}
                         onChange={(e) => setNewServicePrice(Number(e.target.value))}

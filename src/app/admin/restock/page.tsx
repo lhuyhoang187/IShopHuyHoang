@@ -734,7 +734,6 @@ export default function AdminRestockPage() {
                 <input autoComplete="off"
                   type="number"
                   min={0}
-                  step={100000}
                   value={paidAmount}
                   onChange={(e) => setPaidAmount(Number(e.target.value) || 0)}
                   className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-emerald-700 font-black text-sm font-mono focus:outline-none focus:border-emerald-500"
@@ -1002,8 +1001,7 @@ export default function AdminRestockPage() {
                 <input autoComplete="off"
                   type="number"
                   required
-                  min={1000}
-                  step={10000}
+                  min={0}
                   value={costPrice}
                   onChange={(e) => setCostPrice(e.target.value)}
                   className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-black text-sm font-mono focus:outline-none focus:border-blue-500"
@@ -1020,8 +1018,7 @@ export default function AdminRestockPage() {
                 <input autoComplete="off"
                   type="number"
                   required
-                  min={1000}
-                  step={10000}
+                  min={0}
                   value={sellingPrice}
                   onChange={(e) => setSellingPrice(e.target.value)}
                   className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-emerald-700 font-black text-sm font-mono focus:outline-none focus:border-emerald-500"

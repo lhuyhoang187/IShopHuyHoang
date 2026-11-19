@@ -1481,8 +1481,7 @@ export default function AdminUnifiedPage() {
                 <input autoComplete="off"
                   type="number"
                   required
-                  min={1000}
-                  step={1000}
+                  min={0}
                   value={amount}
                   onChange={(e) => setAmount(Number(e.target.value) || 0)}
                   className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-amber-800 font-black text-base font-mono focus:outline-none focus:border-amber-500"

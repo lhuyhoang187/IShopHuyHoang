@@ -821,7 +821,6 @@ export default function InventorySparePartsPage() {
                   </label>
                   <input autoComplete="off"
                     type="number"
-                    step={10000}
                     value={formState.costPrice || 0}
                     onChange={(e) =>
                       setFormState({ ...formState, costPrice: Number(e.target.value) })
@@ -840,7 +839,6 @@ export default function InventorySparePartsPage() {
                   </label>
                   <input autoComplete="off"
                     type="number"
-                    step={10000}
                     value={formState.retailRepairPrice || 0}
                     onChange={(e) =>
                       setFormState({ ...formState, retailRepairPrice: Number(e.target.value) })

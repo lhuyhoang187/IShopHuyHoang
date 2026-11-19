@@ -1130,7 +1130,6 @@ export default function InventoryAccessoriesPage() {
                     </label>
                     <input autoComplete="off"
                       type="number"
-                      step="5000"
                       value={formState.costPrice || 0}
                       onChange={(e) =>
                         setFormState({ ...formState, costPrice: Math.max(0, Number(e.target.value)) })
@@ -1149,7 +1148,6 @@ export default function InventoryAccessoriesPage() {
                     </label>
                     <input autoComplete="off"
                       type="number"
-                      step="5000"
                       value={formState.sellingPrice || 0}
                       onChange={(e) =>
                         setFormState({
