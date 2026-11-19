@@ -69,33 +69,33 @@ export default function Header() {
   // 7 Danh mục cốt lõi của cửa hàng - Vừa vặn 100% trên một hàng, không bao giờ phải cuộn
   const navLinks = [
     {
-      name: 'Điện Thoại iPhone',
+      name: 'Điện Thoại',
       href: '/phones',
       icon: Smartphone,
       badge: null,
     },
     {
-      name: 'Phụ Kiện Chính Hãng',
+      name: 'Phụ Kiện',
       href: '/accessories',
       icon: Headphones,
       badge: null,
     },
     {
-      name: 'So Sánh Máy',
+      name: 'So Sánh',
       href: '/compare',
       icon: Scale,
       badge: compareCount > 0 ? `${compareCount}` : null,
       badgeColor: 'bg-amber-400 text-black font-black',
     },
     {
-      name: 'Bảng Giá Sửa iCare',
+      name: 'Đặt Lịch Sửa Chữa',
       href: '/repair',
       icon: Wrench,
       badge: '30 Phút',
       badgeColor: 'bg-emerald-100 text-emerald-800 border border-emerald-300',
     },
     {
-      name: 'Tiến Độ Sửa (QR)',
+      name: 'Tra Cứu Tiến Độ Sửa Chữa',
       href: '/repair/tracking',
       icon: Zap,
       badge: null,
