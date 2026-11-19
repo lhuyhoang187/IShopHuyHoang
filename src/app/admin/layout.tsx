@@ -437,7 +437,6 @@ export default function AdminLayout({
     { name: 'Khuyến Mãi', href: '/admin/promotions', icon: Tag, permissionKey: 'promotions' },
     { name: 'Sửa Chữa', href: '/admin/repairs', icon: Wrench, permissionKey: 'repairs' },
     { name: 'Kho Hàng', href: '/admin/inventory/phones', icon: Package },
-    { name: 'Mua Nhập Hàng', href: '/admin/restock', icon: Truck, permissionKey: 'restock' },
     { name: 'Đối Tác', href: '/admin/partners', icon: Users, permissionKey: 'partners' },
     { name: 'Nhân Sự', href: '/admin/staff', icon: UserCheck, permissionKey: 'staff_management', adminOnly: true },
     { name: 'Cấu Hình', href: '/admin/settings', icon: Settings, permissionKey: 'settings' },
@@ -632,6 +631,8 @@ export default function AdminLayout({
                 const isActive =
                   item.href === '/admin'
                     ? pathname === '/admin'
+                    : item.href === '/admin/inventory/phones'
+                    ? pathname.startsWith('/admin/inventory') || pathname.startsWith('/admin/restock')
                     : pathname.startsWith(item.href.split('?')[0]);
 
                 return (
