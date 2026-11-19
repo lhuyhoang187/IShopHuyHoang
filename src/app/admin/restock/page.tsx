@@ -66,7 +66,7 @@ export default function AdminRestockPage() {
   const [capacity, setCapacity] = useState<string>('256GB');
 
   // 4. Color selection
-  const [color, setColor] = useState<string>('Titan Sa Mạc (Desert Titanium)');
+  const [color, setColor] = useState<string>('Đen (Black)');
 
   // Pricing
   const [costPrice, setCostPrice] = useState<number>(32500000);
@@ -172,18 +172,21 @@ export default function AdminRestockPage() {
     }
   };
 
+  // Default fallback colors when no phone model is selected yet
+  const [defaultColors, setDefaultColors] = useState([
+    { id: 'c-default', name: 'Đen (Black)', hex: '#222222', imageUrl: '' },
+    { id: 'c-white', name: 'Trắng (White)', hex: '#f0f0f0', imageUrl: '' },
+  ]);
+
   // Get distinct colors for current phone
   const availableColors = useMemo(() => {
     if (!currentPhone || !currentPhone.colors || currentPhone.colors.length === 0) {
-      return [
-        { id: 'c-default', name: 'Đen (Black)', hex: '#222222', imageUrl: '' },
-        { id: 'c-white', name: 'Trắng (White)', hex: '#f0f0f0', imageUrl: '' },
-      ];
+      return defaultColors;
     }
     return currentPhone.colors;
-  }, [currentPhone]);
+  }, [currentPhone, defaultColors]);
 
-  // When selected phone changes, sync capacity & color
+  // When selected phone or available colors change, sync capacity & color
   useEffect(() => {
     if (currentPhone) {
       // Find matching capacity or fallback
@@ -192,12 +195,12 @@ export default function AdminRestockPage() {
         setSellingPrice(matchedCap.price);
         setCostPrice(Math.round((matchedCap.price * 0.92) / 10000) * 10000);
       }
+    }
 
-      // Find matching color or fallback
-      const matchedColor = availableColors.find((c) => c.name === color);
-      if (!matchedColor && availableColors.length > 0) {
-        setColor(availableColors[0].name);
-      }
+    // Find matching color or fallback
+    const matchedColor = availableColors.find((c) => c.name === color);
+    if (!matchedColor && availableColors.length > 0) {
+      setColor(availableColors[0].name);
     }
   }, [selectedPhoneId, currentPhone, availableColors]);
 
@@ -402,34 +405,92 @@ export default function AdminRestockPage() {
   };
 
   // Add new Color to current phone
-  const handleSaveNewColor = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!currentPhone) return;
+  const syncPhoneColorsToDb = async (phoneObj: PhoneProduct, updatedColors: PhoneProduct['colors']) => {
+    try {
+      await fetch('/api/phones', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: phoneObj.id,
+          name: phoneObj.name,
+          slug: phoneObj.slug,
+          brand: phoneObj.brand,
+          description: phoneObj.description,
+          colors: updatedColors,
+          capacities: phoneObj.capacities,
+          specs: phoneObj.specs,
+        }),
+      });
+    } catch (err) {
+      console.warn('Sync phone colors to MySQL notice:', err);
+    }
+  };
 
+  const handleSaveNewColor = async (e: React.FormEvent) => {
+    e.preventDefault();
     const trimmedColor = newColorName.trim();
     if (!trimmedColor) {
       alert('Vui lòng nhập tên màu sắc mới!');
       return;
     }
 
-    let updatedColors = [...currentPhone.colors];
-    const existingColor = updatedColors.find(
-      (c) => c.name.toLowerCase() === trimmedColor.toLowerCase()
-    );
-    if (!existingColor) {
-      updatedColors.push({
-        id: `c-${Date.now()}`,
-        name: trimmedColor,
-        hex: newColorHex,
-        imageUrl: currentPhone.colors[0]?.imageUrl || '',
+    if (currentPhone) {
+      const updatedColors = [...currentPhone.colors];
+      const existingColor = updatedColors.find(
+        (c) => c.name.toLowerCase() === trimmedColor.toLowerCase()
+      );
+      if (!existingColor) {
+        updatedColors.push({
+          id: `c-${Date.now()}`,
+          name: trimmedColor,
+          hex: newColorHex,
+          imageUrl: currentPhone.colors[0]?.imageUrl || '',
+        });
+        IShopStore.updatePhone(currentPhone.id, { colors: updatedColors });
+        await syncPhoneColorsToDb(currentPhone, updatedColors);
+      }
+    } else {
+      setDefaultColors((prev) => {
+        if (prev.some((c) => c.name.toLowerCase() === trimmedColor.toLowerCase())) return prev;
+        return [...prev, { id: `c-${Date.now()}`, name: trimmedColor, hex: newColorHex, imageUrl: '' }];
       });
-      IShopStore.updatePhone(currentPhone.id, { colors: updatedColors });
     }
 
     setColor(trimmedColor);
     setIsAddColorModalOpen(false);
     setNewColorName('');
     loadData();
+  };
+
+  const handleDeleteColor = async (colorNameToDelete: string) => {
+    if (availableColors.length <= 1) {
+      alert('Cần giữ lại ít nhất 1 màu sắc trong danh sách!');
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Bạn có chắc chắn muốn xóa màu "${colorNameToDelete}" khỏi danh sách màu sắc?`
+    );
+    if (!confirmed) return;
+
+    const remaining = availableColors.filter(
+      (c) => c.name.toLowerCase() !== colorNameToDelete.toLowerCase()
+    );
+
+    if (currentPhone) {
+      IShopStore.updatePhone(currentPhone.id, { colors: remaining });
+      await syncPhoneColorsToDb(currentPhone, remaining);
+      loadData();
+    } else {
+      setDefaultColors(remaining);
+    }
+
+    if (color.toLowerCase() === colorNameToDelete.toLowerCase() && remaining.length > 0) {
+      setColor(remaining[0].name);
+    }
+
+    setSuccessMessage(`✓ Đã xóa màu "${colorNameToDelete}" thành công!`);
+    setTimeout(() => setSuccessMessage(null), 3500);
   };
 
   // Parse raw IMEI text into array of clean 15-digit numbers
@@ -891,19 +952,32 @@ export default function AdminRestockPage() {
             {/* 4. CHỌN MÀU SẮC (CHỈ CHỌN MÀU, KHÔNG HIỂN THỊ GIÁ)       */}
             {/* ======================================================== */}
             <div className="space-y-2 text-xs">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <label className="text-slate-700 font-bold block flex items-center gap-1.5">
                   <Palette className="w-3.5 h-3.5 text-emerald-600" />
                   <span>4. Chọn Màu Sắc Máy *:</span>
                 </label>
-                <button
-                  type="button"
-                  onClick={() => setIsAddColorModalOpen(true)}
-                  className="inline-flex items-center gap-1 text-xs text-emerald-700 font-bold hover:underline"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>+ Thêm Màu Mới</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  {color && availableColors.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteColor(color)}
+                      title={`Xóa màu ${color}`}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs transition-colors cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Xóa Màu "{color}"</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setIsAddColorModalOpen(true)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-bold text-xs transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>+ Thêm Màu Mới</span>
+                  </button>
+                </div>
               </div>
 
               {/* Smart Color Dropdown Selector + Visual Color Chips */}
@@ -914,7 +988,7 @@ export default function AdminRestockPage() {
               >
                 {availableColors.map((col) => (
                   <option key={col.id} value={col.name}>
-                    🎨 {col.name}
+                    {col.name}
                   </option>
                 ))}
               </select>
@@ -923,25 +997,43 @@ export default function AdminRestockPage() {
                 {availableColors.map((col) => {
                   const isColorSelected = color === col.name;
                   return (
-                    <button
+                    <div
                       key={col.id}
-                      type="button"
-                      onClick={() => setColor(col.name)}
-                      className={`px-3.5 py-2.5 rounded-xl border text-left flex items-center gap-2 transition-all cursor-pointer ${
+                      className={`inline-flex items-center rounded-xl border transition-all ${
                         isColorSelected
                           ? 'bg-blue-50 border-2 border-blue-600 text-blue-900 shadow-sm font-bold'
                           : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-800 font-medium'
                       }`}
                     >
-                      <span
-                        className="w-4 h-4 rounded-full border border-slate-300 shadow-2xs shrink-0"
-                        style={{ backgroundColor: col.hex }}
-                      />
-                      <span className="text-xs">{col.name}</span>
-                      {isColorSelected && (
-                        <Check className="w-3.5 h-3.5 text-blue-600 stroke-[3] shrink-0" />
+                      <button
+                        type="button"
+                        onClick={() => setColor(col.name)}
+                        className="pl-3 pr-2 py-2 text-left flex items-center gap-2 cursor-pointer"
+                      >
+                        <span
+                          className="w-4 h-4 rounded-full border border-slate-300 shadow-2xs shrink-0"
+                          style={{ backgroundColor: col.hex }}
+                        />
+                        <span className="text-xs">{col.name}</span>
+                        {isColorSelected && (
+                          <Check className="w-3.5 h-3.5 text-blue-600 stroke-[3] shrink-0" />
+                        )}
+                      </button>
+
+                      {availableColors.length > 1 && (
+                        <button
+                          type="button"
+                          title={`Xóa màu ${col.name}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteColor(col.name);
+                          }}
+                          className="pr-2.5 pl-1 py-2 text-slate-400 hover:text-rose-600 cursor-pointer transition-colors"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
                       )}
-                    </button>
+                    </div>
                   );
                 })}
               </div>

@@ -455,6 +455,15 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      // Remove deleted colors (and their cascaded variants) from MySQL 3NF phonecolor table
+      if (activeColorIds.length > 0) {
+        const placeholders = activeColorIds.map(() => '?').join(',');
+        await conn.execute(
+          `DELETE FROM phonecolor WHERE phoneId = ? AND id NOT IN (${placeholders})`,
+          [targetId, ...activeColorIds]
+        );
+      }
+
       // Sync in_stock PhoneStock sellingPrice per capacity
       for (const cap of normalizedCaps) {
         await conn.execute(
