@@ -1081,20 +1081,6 @@ export default function AdminRestockPage() {
 
               <div>
                 <label className="text-slate-700 font-bold mb-1 block">
-                  Thứ tự hiển thị:
-                </label>
-                <input autoComplete="off"
-                  type="number"
-                  value={newBrandDisplayOrder}
-                  onChange={(e) => setNewBrandDisplayOrder(Number(e.target.value) || 10)}
-                  title="Thứ tự hiển thị"
-                  placeholder=""
-                  className="w-24 p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold text-center focus:outline-none focus:border-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="text-slate-700 font-bold mb-1 block">
                   Mô Tả / Giới Thiệu Thương Hiệu:
                 </label>
                 <textarea
