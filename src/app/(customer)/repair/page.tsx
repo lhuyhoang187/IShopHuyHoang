@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Wrench,
   CheckCircle2,
@@ -37,6 +38,7 @@ import {
 } from '@/lib/types';
 
 export default function RepairPriceListPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'all' | 'iphone' | 'samsung'>('iphone');
   const [priceCategoryFilter, setPriceCategoryFilter] = useState<string>('all');
   const [priceSearchQuery, setPriceSearchQuery] = useState<string>('');
@@ -256,6 +258,7 @@ export default function RepairPriceListPage() {
   const handleLogoutCustomer = () => {
     IShopStore.logoutCustomer();
     setCustomerUser(null);
+    router.push('/');
   };
 
   const defaultIphonePrices = [

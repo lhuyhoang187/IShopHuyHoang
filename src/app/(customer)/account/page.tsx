@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   User,
   Lock,
@@ -47,6 +48,7 @@ import { EmailHubSection } from '@/components/loyalty/EmailHubSection';
 import { isStrictVietnamPhone } from '@/lib/validation';
 
 export default function AccountPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'loyalty' | 'orders' | 'repairs' | 'devices' | 'emails'>('profile');
   const [customerUser, setCustomerUser] = useState<CustomerUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -556,6 +558,7 @@ export default function AccountPage() {
               onClick={() => {
                 IShopStore.logoutCustomer();
                 setCustomerUser(null);
+                router.push('/');
               }}
               className="p-3 rounded-2xl bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 border border-slate-200 hover:border-rose-300 transition-all cursor-pointer"
               title="Đăng xuất khỏi tài khoản"

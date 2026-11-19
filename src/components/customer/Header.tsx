@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   Smartphone,
   Headphones,
@@ -30,6 +30,7 @@ import SmartSearchModal from './SmartSearchModal';
 
 export default function Header() {
   const pathname = usePathname();
+  const router = useRouter();
   const [cartCount, setCartCount] = useState(0);
   const [compareCount, setCompareCount] = useState(0);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -279,6 +280,7 @@ export default function Header() {
                               IShopStore.logoutCustomer();
                               setCustomerUser(null);
                               setIsCustomerMenuOpen(false);
+                              router.push('/');
                             }}
                             className="w-full flex items-center gap-2 px-2.5 py-2 rounded-xl text-rose-600 hover:text-rose-700 hover:bg-rose-50 font-bold transition-colors text-left"
                           >
@@ -489,6 +491,7 @@ export default function Header() {
                         IShopStore.logoutCustomer();
                         setCustomerUser(null);
                         setIsMobileMenuOpen(false);
+                        router.push('/');
                       }}
                       className="flex items-center justify-center gap-1.5 p-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 text-xs font-bold"
                     >
