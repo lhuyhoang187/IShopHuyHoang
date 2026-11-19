@@ -292,12 +292,19 @@ export default function PhonesPage() {
 
               {/* Image */}
               <Link href={`/phones/${phone.slug}`} className="block my-4 text-center">
-                <div className="relative aspect-square max-w-[220px] mx-auto rounded-2xl overflow-hidden bg-gradient-to-b from-slate-100 to-slate-200 border border-slate-200/80 p-3">
-                  <img
-                    src={phone.colors[0]?.imageUrl}
-                    alt={phone.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
+                <div className="relative aspect-square max-w-[220px] mx-auto rounded-2xl overflow-hidden bg-gradient-to-b from-slate-100 to-slate-200 border border-slate-200/80 p-3 flex items-center justify-center">
+                  {(phone.colors.find((c) => c.imageUrl)?.imageUrl) ? (
+                    <img
+                      src={phone.colors.find((c) => c.imageUrl)?.imageUrl}
+                      alt={phone.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center gap-2 text-slate-400">
+                      <Smartphone className="w-12 h-12" />
+                      <span className="text-[11px] font-semibold">Chưa có ảnh sản phẩm</span>
+                    </div>
+                  )}
                 </div>
               </Link>
 

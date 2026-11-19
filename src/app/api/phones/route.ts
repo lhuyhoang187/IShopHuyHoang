@@ -38,7 +38,7 @@ function normalizeColorsInput(rawColors: any) {
       id: c.id || `c-${idx + 1}`,
       name: sanitizeString(c.name || 'Đen Titan', 100),
       hex: sanitizeString(c.hex || '#2B2B2B', 30),
-      imageUrl: c.imageUrl || DEFAULT_PHONE_IMAGE,
+      imageUrl: typeof c.imageUrl === 'string' ? c.imageUrl.trim() : '',
       stock: c.stock as number | undefined,
       isOutOfStock: Boolean(c.isOutOfStock),
     }));
@@ -46,9 +46,9 @@ function normalizeColorsInput(rawColors: any) {
   return [
     {
       id: 'c-default',
-      name: 'Đen Titan',
-      hex: '#2B2B2B',
-      imageUrl: DEFAULT_PHONE_IMAGE,
+      name: 'Đen (Black)',
+      hex: '#222222',
+      imageUrl: '',
       stock: undefined as number | undefined,
       isOutOfStock: false,
     },
@@ -149,22 +149,30 @@ export async function GET(request: NextRequest) {
       const capMap = new Map<string, { size: string; price: number; originalPrice: number; isOutOfStock: boolean }>();
       for (const v of variants) {
         const key = String(v.capacity || '256GB').trim();
+        const vPrice = Number(v.price || 0);
+        const vOrig = v.originalPrice != null && Number(v.originalPrice) > 0 ? Number(v.originalPrice) : vPrice;
         const existing = capMap.get(key);
         if (!existing) {
           capMap.set(key, {
             size: key,
-            price: Number(v.price || 25990000),
-            originalPrice: Number(v.originalPrice || Math.round(Number(v.price || 25990000) * 1.08)),
+            price: vPrice,
+            originalPrice: vOrig,
             isOutOfStock: Boolean(v.isOutOfStock),
           });
-        } else if (!v.isOutOfStock) {
-          existing.isOutOfStock = false;
+        } else {
+          if (vPrice > 0 && (existing.price === 0 || vPrice < existing.price)) {
+            existing.price = vPrice;
+            existing.originalPrice = vOrig;
+          }
+          if (!v.isOutOfStock) {
+            existing.isOutOfStock = false;
+          }
         }
       }
       const capacities =
         capMap.size > 0
           ? Array.from(capMap.values())
-          : [{ size: '256GB', price: 25990000, originalPrice: 27990000, isOutOfStock: false }];
+          : [{ size: '256GB', price: 0, originalPrice: 0, isOutOfStock: false }];
 
       // Reconstruct colors list from 3NF phonecolor table
       const colors =
@@ -175,20 +183,12 @@ export async function GET(request: NextRequest) {
               return {
                 id: c.id,
                 name: c.name,
-                hex: c.hex || '#2B2B2B',
-                imageUrl: c.imageUrl || DEFAULT_PHONE_IMAGE,
+                hex: c.hex || '#222222',
+                imageUrl: c.imageUrl || '',
                 isOutOfStock: allOut,
               };
             })
-          : [
-              {
-                id: 'c-default',
-                name: 'Đen Titan',
-                hex: '#2B2B2B',
-                imageUrl: DEFAULT_PHONE_IMAGE,
-                isOutOfStock: false,
-              },
-            ];
+          : [];
 
       const specs = normalizeSpecs(
         {
@@ -290,6 +290,7 @@ export async function POST(request: NextRequest) {
       capacities,
       specs,
       warrantyInfo,
+      syncDeleteColors,
     } = body;
 
     if (!name || !name.trim()) {
@@ -408,26 +409,27 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Upsert 3NF PhoneColor rows
+      // Upsert 3NF PhoneColor rows (case-insensitive match on color name so we never duplicate)
       const activeColorIds: string[] = [];
       for (let idx = 0; idx < normalizedColors.length; idx++) {
         const col = normalizedColors[idx];
         const [exCols]: any = await conn.query(
-          'SELECT id FROM phonecolor WHERE phoneId = ? AND name = ?',
+          'SELECT id, imageUrl FROM phonecolor WHERE phoneId = ? AND LOWER(name) = LOWER(?) LIMIT 1',
           [targetId, col.name]
         );
         let colorId = exCols[0]?.id;
         if (colorId) {
+          const finalImg = col.imageUrl !== '' ? col.imageUrl : (exCols[0]?.imageUrl || '');
           await conn.execute(
-            `UPDATE phonecolor SET hex = ?, imageUrl = ?, displayOrder = ?, updatedAt = NOW() WHERE id = ?`,
-            [col.hex, col.imageUrl, idx, colorId]
+            `UPDATE phonecolor SET name = ?, hex = ?, imageUrl = ?, displayOrder = ?, updatedAt = NOW() WHERE id = ?`,
+            [col.name, col.hex, finalImg, idx, colorId]
           );
         } else {
           colorId = 'pc_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
           await conn.execute(
             `INSERT INTO phonecolor (id, phoneId, name, hex, imageUrl, displayOrder, createdAt, updatedAt)
              VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-            [colorId, targetId, col.name, col.hex, col.imageUrl, idx]
+            [colorId, targetId, col.name, col.hex, col.imageUrl || '', idx]
           );
         }
         activeColorIds.push(colorId);
@@ -439,13 +441,15 @@ export async function POST(request: NextRequest) {
           const isOut = col.isOutOfStock || cap.isOutOfStock || col.stock === 0 || cap.stock === 0 ? 1 : 0;
 
           const [exVars]: any = await conn.query(
-            'SELECT id FROM phonevariant WHERE colorId = ? AND capacity = ?',
+            'SELECT id, price, originalPrice FROM phonevariant WHERE colorId = ? AND capacity = ?',
             [colorId, capSize]
           );
           if (exVars[0]?.id) {
+            const nextPrice = capPrice > 0 ? capPrice : Number(exVars[0].price || 0);
+            const nextOrig = cap.originalPrice ? Number(cap.originalPrice) : (Number(exVars[0].originalPrice || 0) || nextPrice);
             await conn.execute(
               `UPDATE phonevariant SET price = ?, originalPrice = ?, isOutOfStock = ?, updatedAt = NOW() WHERE id = ?`,
-              [capPrice, cap.originalPrice ? Number(cap.originalPrice) : capPrice, isOut, exVars[0].id]
+              [nextPrice, nextOrig, isOut, exVars[0].id]
             );
           } else {
             const varId = 'var_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
@@ -458,8 +462,8 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Remove deleted colors (and their cascaded variants) from MySQL 3NF phonecolor table
-      if (activeColorIds.length > 0) {
+      // Only delete removed colors when explicitly requested (syncDeleteColors: true)
+      if (syncDeleteColors && activeColorIds.length > 0) {
         const placeholders = activeColorIds.map(() => '?').join(',');
         await conn.execute(
           `DELETE FROM phonecolor WHERE phoneId = ? AND id NOT IN (${placeholders})`,

@@ -56,6 +56,8 @@ export async function POST(request: NextRequest) {
       phoneId,
       phoneName,
       color,
+      colorHex,
+      imageUrl,
       capacity,
       costPrice,
       sellingPrice,
@@ -145,30 +147,25 @@ export async function POST(request: NextRequest) {
     const orderCode = `NH-2608-${String(orderCount + 1).padStart(3, '0')}`;
 
     const result = await db.transaction(async (conn) => {
-      // 0. Ensure imported color & capacity variant exist in phonecolor / phonevariant
+      // 0. Ensure imported color & capacity variant exist in phonecolor / phonevariant (additive — never deletes other colors/capacities)
       const cleanColorName = sanitizeString(color || 'Đen (Black)', 100);
       const cleanCapacity = sanitizeString(capacity || '256GB', 50);
+      const uploadedImageUrl = typeof imageUrl === 'string' ? imageUrl.trim() : '';
+
       const [exColRows]: any = await conn.query(
-        'SELECT id FROM phonecolor WHERE phoneId = ? AND LOWER(name) = LOWER(?) LIMIT 1',
+        'SELECT id, imageUrl FROM phonecolor WHERE phoneId = ? AND LOWER(name) = LOWER(?) LIMIT 1',
         [resolvedPhoneId, cleanColorName]
       );
       let variantColorId = exColRows[0]?.id;
       if (!variantColorId) {
-        let colorHex = '#222222';
+        let resolvedHex = typeof colorHex === 'string' && colorHex.trim() ? sanitizeString(colorHex.trim(), 30) : '#222222';
         try {
           const [catRows]: any = await conn.query(
             'SELECT hex FROM phonecolorcatalog WHERE LOWER(name) = LOWER(?) LIMIT 1',
             [cleanColorName]
           );
-          if (catRows[0]?.hex) colorHex = catRows[0].hex;
+          if (catRows[0]?.hex) resolvedHex = catRows[0].hex;
         } catch {}
-        const [firstColRows]: any = await conn.query(
-          'SELECT imageUrl FROM phonecolor WHERE phoneId = ? ORDER BY displayOrder ASC LIMIT 1',
-          [resolvedPhoneId]
-        );
-        const fallbackImg =
-          firstColRows[0]?.imageUrl ||
-          'https://images.unsplash.com/photo-1580910051074-3eb694886505?w=800&auto=format&fit=crop&q=80';
         const [cntCols]: any = await conn.query(
           'SELECT COUNT(*) AS cnt FROM phonecolor WHERE phoneId = ?',
           [resolvedPhoneId]
@@ -177,7 +174,12 @@ export async function POST(request: NextRequest) {
         await conn.execute(
           `INSERT INTO phonecolor (id, phoneId, name, hex, imageUrl, displayOrder, createdAt, updatedAt)
            VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-          [variantColorId, resolvedPhoneId, cleanColorName, colorHex, fallbackImg, Number(cntCols[0]?.cnt || 0)]
+          [variantColorId, resolvedPhoneId, cleanColorName, resolvedHex, uploadedImageUrl, Number(cntCols[0]?.cnt || 0)]
+        );
+      } else if (uploadedImageUrl) {
+        await conn.execute(
+          `UPDATE phonecolor SET imageUrl = ?, updatedAt = NOW() WHERE id = ?`,
+          [uploadedImageUrl, variantColorId]
         );
       }
 

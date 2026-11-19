@@ -17,6 +17,7 @@ import {
   Plus,
   Minus,
   AlertCircle,
+  Smartphone,
 } from 'lucide-react';
 import { IShopStore } from '@/lib/store';
 import { PhoneProduct, PhoneColor, PhoneCapacity, AccessoryProduct } from '@/lib/types';
@@ -184,12 +185,19 @@ export default function PhoneDetailPage() {
 
             {/* Product Active Image */}
             <div className="relative aspect-square max-w-md mx-auto rounded-3xl overflow-hidden my-4 bg-gradient-to-b from-slate-100 to-slate-200/80 border border-slate-200 p-6 flex items-center justify-center">
-              <img
-                key={selectedColor.imageUrl}
-                src={selectedColor.imageUrl}
-                alt={`${phone.name} ${selectedColor.name}`}
-                className="w-full h-full object-contain transition-all duration-500 animate-in fade-in"
-              />
+              {selectedColor.imageUrl ? (
+                <img
+                  key={selectedColor.imageUrl}
+                  src={selectedColor.imageUrl}
+                  alt={`${phone.name} ${selectedColor.name}`}
+                  className="w-full h-full object-contain transition-all duration-500 animate-in fade-in"
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center gap-3 text-slate-400">
+                  <Smartphone className="w-16 h-16" />
+                  <span className="text-xs font-semibold">Chưa có ảnh cho phiên bản màu này</span>
+                </div>
+              )}
             </div>
 
             <div className="text-xs text-slate-500 flex items-center justify-center gap-2">

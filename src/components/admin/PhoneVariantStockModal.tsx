@@ -18,6 +18,8 @@ import {
   Check,
   ShieldCheck,
   Info,
+  Upload,
+  Loader2,
 } from 'lucide-react';
 import { PhoneProduct, PhoneColor, PhoneCapacity } from '@/lib/types';
 import { IShopStore } from '@/lib/store';
@@ -41,6 +43,7 @@ export default function PhoneVariantStockModal({
   const [colors, setColors] = useState<PhoneColor[]>([]);
   const [variantStocks, setVariantStocks] = useState<Record<string, { stock: number; isOutOfStock?: boolean }>>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [uploadingColorId, setUploadingColorId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Initialize state from phone
@@ -152,6 +155,36 @@ export default function PhoneVariantStockModal({
     setColors((prev) =>
       prev.map((c) => (c.id === id ? { ...c, stock: stockVal, isOutOfStock: stockVal === 0 } : c))
     );
+  };
+
+  const handleUploadColorImage = async (colorId: string, file: File) => {
+    if (!file.type.startsWith('image/')) {
+      setFeedback({ type: 'error', message: 'Vui lòng chỉ chọn tệp hình ảnh (JPG, PNG, WEBP, GIF)!' });
+      return;
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      setFeedback({ type: 'error', message: 'Ảnh vượt quá 15MB!' });
+      return;
+    }
+    setUploadingColorId(colorId);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/api/upload', { method: 'POST', body: fd });
+      const json = await res.json();
+      if (!res.ok || !json.success || !json.url) {
+        setFeedback({ type: 'error', message: json.error || 'Tải ảnh lên thất bại!' });
+        return;
+      }
+      setColors((prev) =>
+        prev.map((c) => (c.id === colorId ? { ...c, imageUrl: json.url } : c))
+      );
+      setFeedback({ type: 'success', message: '✓ Đã tải ảnh mới lên! Nhấn "Lưu & Đồng Bộ" để lưu vào CSDL.' });
+    } catch (err: any) {
+      setFeedback({ type: 'error', message: 'Lỗi tải ảnh: ' + (err?.message || '') });
+    } finally {
+      setUploadingColorId(null);
+    }
   };
 
   // Handlers for Matrix Combinations
@@ -469,10 +502,20 @@ export default function PhoneVariantStockModal({
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         {/* Color Preview & Name */}
                         <div className="flex items-center gap-3.5 min-w-0">
-                          <div
-                            style={{ backgroundColor: col.hex }}
-                            className="w-8 h-8 rounded-full border-2 border-slate-300 shadow-sm shrink-0"
-                          />
+                          <div className="relative shrink-0">
+                            {col.imageUrl && !col.imageUrl.includes('images.unsplash.com') ? (
+                              <img
+                                src={col.imageUrl}
+                                alt={col.name}
+                                className="w-11 h-11 rounded-xl object-cover border border-slate-200 bg-white shadow-xs"
+                              />
+                            ) : (
+                              <div
+                                style={{ backgroundColor: col.hex }}
+                                className="w-11 h-11 rounded-xl border-2 border-slate-300 shadow-sm"
+                              />
+                            )}
+                          </div>
                           <div>
                             <div className="flex items-center gap-2">
                               <span className={`text-sm font-bold ${isOut ? 'line-through text-slate-400' : 'text-slate-900'}`}>
@@ -488,7 +531,33 @@ export default function PhoneVariantStockModal({
                                 </span>
                               )}
                             </div>
-                            <span className="text-[11px] text-slate-500 font-mono">Mã màu: {col.hex}</span>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-[11px] text-slate-500 font-mono">Mã màu: {col.hex}</span>
+                              <label className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-[10px] font-bold cursor-pointer transition-colors">
+                                {uploadingColorId === col.id ? (
+                                  <>
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                    <span>Đang tải...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Upload className="w-3 h-3" />
+                                    <span>Tải Ảnh</span>
+                                  </>
+                                )}
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  disabled={uploadingColorId === col.id}
+                                  onChange={(e) => {
+                                    const f = e.target.files?.[0];
+                                    e.target.value = '';
+                                    if (f) handleUploadColorImage(col.id, f);
+                                  }}
+                                />
+                              </label>
+                            </div>
                           </div>
                         </div>
 

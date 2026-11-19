@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import {
   Truck,
@@ -24,6 +24,9 @@ import {
   Cpu,
   Trash2,
   Globe,
+  Upload,
+  Loader2,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { IShopStore } from '@/lib/store';
 import { Supplier, PhoneProduct, PhoneColor, PhoneCapacity } from '@/lib/types';
@@ -91,10 +94,102 @@ export default function AdminRestockPage() {
   const [isAddColorModalOpen, setIsAddColorModalOpen] = useState(false);
   const [newColorName, setNewColorName] = useState('');
   const [newColorHex, setNewColorHex] = useState('#2563EB');
+  const [newColorImageUrl, setNewColorImageUrl] = useState('');
+  const [isUploadingModalColorImage, setIsUploadingModalColorImage] = useState(false);
+  const modalColorFileInputRef = useRef<HTMLInputElement>(null);
+
+  // 5. Product Image per Color (Local File Upload)
+  const [productImageUrl, setProductImageUrl] = useState<string>('');
+  const [isUploadingImage, setIsUploadingImage] = useState<boolean>(false);
+  const [uploadImageError, setUploadImageError] = useState<string | null>(null);
+  const imageFileInputRef = useRef<HTMLInputElement>(null);
 
   // Batch IMEI and Payment
   const [imeiListText, setImeiListText] = useState<string>('');
   const [paidAmount, setPaidAmount] = useState<number>(0);
+
+  const uploadLocalImageFile = async (file: File): Promise<string> => {
+    if (!file.type.startsWith('image/')) {
+      throw new Error('Vui lòng chỉ chọn tệp hình ảnh (JPG, PNG, WEBP, GIF)!');
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      throw new Error('Ảnh vượt quá 15MB. Vui lòng chọn ảnh dung lượng nhỏ hơn!');
+    }
+    const fd = new FormData();
+    fd.append('file', file);
+    const res = await fetch('/api/upload', { method: 'POST', body: fd });
+    const json = await res.json();
+    if (!res.ok || !json.success || !json.url) {
+      throw new Error(json.error || 'Tải ảnh lên thất bại!');
+    }
+    return json.url as string;
+  };
+
+  const handleUploadProductImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    setUploadImageError(null);
+    setIsUploadingImage(true);
+    try {
+      const uploadedUrl = await uploadLocalImageFile(file);
+      setProductImageUrl(uploadedUrl);
+
+      // Nếu đang chọn 1 dòng máy và màu đã tồn tại trên dòng máy đó, lưu ngay ảnh mới vào MySQL
+      if (currentPhone) {
+        const currentColors = currentPhone.colors || [];
+        const matchedIdx = currentColors.findIndex(
+          (c) => c.name.toLowerCase() === color.toLowerCase()
+        );
+        const colorObjFromList = availableColors.find(
+          (c) => c.name.toLowerCase() === color.toLowerCase()
+        );
+        const updatedColors =
+          matchedIdx >= 0
+            ? currentColors.map((c, idx) =>
+                idx === matchedIdx ? { ...c, imageUrl: uploadedUrl } : c
+              )
+            : [
+                ...currentColors,
+                {
+                  id: colorObjFromList?.id || `c-${Date.now()}`,
+                  name: color,
+                  hex: colorObjFromList?.hex || '#222222',
+                  imageUrl: uploadedUrl,
+                },
+              ];
+
+        await syncPhoneColorsToDb(currentPhone, updatedColors, false);
+        setPhones((prev) =>
+          prev.map((p) => (p.id === currentPhone.id ? { ...p, colors: updatedColors } : p))
+        );
+        IShopStore.updatePhone(currentPhone.id, { colors: updatedColors });
+        setSuccessMessage(`✓ Đã tải và lưu ảnh cho "${currentPhone.name} - ${color}" vào CSDL!`);
+        setTimeout(() => setSuccessMessage(null), 3500);
+      }
+    } catch (err: any) {
+      setUploadImageError(err?.message || 'Lỗi tải ảnh lên!');
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
+  const handleUploadModalColorImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    setIsUploadingModalColorImage(true);
+    try {
+      const uploadedUrl = await uploadLocalImageFile(file);
+      setNewColorImageUrl(uploadedUrl);
+    } catch (err: any) {
+      alert(err?.message || 'Lỗi tải ảnh lên!');
+    } finally {
+      setIsUploadingModalColorImage(false);
+    }
+  };
 
   const loadData = async () => {
     setSuppliers(IShopStore.getSuppliers());
@@ -187,12 +282,38 @@ export default function AdminRestockPage() {
     { id: 'c-white', name: 'Trắng (White)', hex: '#f0f0f0', imageUrl: '' },
   ]);
 
-  // Get distinct colors for current phone
+  // Always merge currentPhone.colors + defaultColors (phonecolorcatalog) so user can pick/add ANY color for 1 model
   const availableColors = useMemo(() => {
-    if (!currentPhone || !currentPhone.colors || currentPhone.colors.length === 0) {
-      return defaultColors;
-    }
-    return currentPhone.colors;
+    const merged: { id: string; name: string; hex: string; imageUrl: string }[] = [];
+    const seen = new Set<string>();
+
+    (currentPhone?.colors || []).forEach((c) => {
+      const key = c.name.trim().toLowerCase();
+      if (key && !seen.has(key)) {
+        seen.add(key);
+        merged.push({
+          id: c.id,
+          name: c.name,
+          hex: c.hex || '#222222',
+          imageUrl: c.imageUrl || '',
+        });
+      }
+    });
+
+    defaultColors.forEach((c) => {
+      const key = c.name.trim().toLowerCase();
+      if (key && !seen.has(key)) {
+        seen.add(key);
+        merged.push({
+          id: c.id,
+          name: c.name,
+          hex: c.hex || '#222222',
+          imageUrl: c.imageUrl || '',
+        });
+      }
+    });
+
+    return merged;
   }, [currentPhone, defaultColors]);
 
   // Auto-sync selectedSupplierId to first valid supplier from MySQL
@@ -209,13 +330,29 @@ export default function AdminRestockPage() {
     }
   }, [currentPhone, selectedPhoneId]);
 
-  // When selected phone or available colors change, sync color
+  // When available colors change, only reset color if current selection no longer exists
   useEffect(() => {
-    const matchedColor = availableColors.find((c) => c.name === color);
+    const matchedColor = availableColors.find(
+      (c) => c.name.toLowerCase() === color.toLowerCase()
+    );
     if (!matchedColor && availableColors.length > 0) {
       setColor(availableColors[0].name);
     }
-  }, [selectedPhoneId, currentPhone, availableColors]);
+  }, [selectedPhoneId, availableColors]);
+
+  // Sync productImageUrl preview with currentPhone + selected color (ignore legacy auto Unsplash links)
+  useEffect(() => {
+    const matched = currentPhone?.colors?.find(
+      (c) => c.name.toLowerCase() === color.toLowerCase()
+    );
+    const existingImg = matched?.imageUrl?.trim() || '';
+    if (existingImg && !existingImg.includes('images.unsplash.com')) {
+      setProductImageUrl(existingImg);
+    } else {
+      setProductImageUrl('');
+    }
+    setUploadImageError(null);
+  }, [currentPhone?.id, color]);
 
   // Handle capacity selection (Standard list: 128GB -> 2TB, NO 64GB)
   const handleSelectCapacity = (capSize: string) => {
@@ -319,13 +456,17 @@ export default function AdminRestockPage() {
     const newId = `p-${Date.now()}`;
     const initialCapacity = capacity || '256GB';
     const initialPrice = Number(sellingPrice) > 0 ? Number(sellingPrice) : 0;
-    const baseColors = availableColors.length > 0 ? availableColors : defaultColors;
-    const initialColors = baseColors.map((col, idx) => ({
-      id: `c-${Date.now()}-${idx}`,
-      name: col.name,
-      hex: col.hex || '#222222',
-      imageUrl: col.imageUrl || 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=800&auto=format&fit=crop&q=80',
-    }));
+    const selectedColorMeta = availableColors.find(
+      (c) => c.name.toLowerCase() === color.toLowerCase()
+    ) || defaultColors[0];
+    const initialColors = [
+      {
+        id: `c-${Date.now()}`,
+        name: selectedColorMeta?.name || color || 'Đen (Black)',
+        hex: selectedColorMeta?.hex || '#222222',
+        imageUrl: productImageUrl || '',
+      },
+    ];
 
     const newPhoneItem: PhoneProduct = {
       id: newId,
@@ -403,7 +544,11 @@ export default function AdminRestockPage() {
   };
 
   // Sync phone colors to MySQL /api/phones
-  const syncPhoneColorsToDb = async (phoneObj: PhoneProduct, updatedColors: PhoneProduct['colors']) => {
+  const syncPhoneColorsToDb = async (
+    phoneObj: PhoneProduct,
+    updatedColors: PhoneProduct['colors'],
+    syncDeleteColors = false
+  ) => {
     const res = await fetch('/api/phones', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -416,6 +561,7 @@ export default function AdminRestockPage() {
         colors: updatedColors,
         capacities: phoneObj.capacities,
         specs: phoneObj.specs,
+        syncDeleteColors,
       }),
     });
     const json = await res.json();
@@ -445,39 +591,58 @@ export default function AdminRestockPage() {
         return;
       }
 
-      const savedColorObj = colJson.data || {
-        id: `c-${Date.now()}`,
+      const savedColorObj = {
+        id: colJson.data?.id || `c-${Date.now()}`,
         name: trimmedColor,
         hex: newColorHex,
-        imageUrl: '',
+        imageUrl: newColorImageUrl || '',
       };
 
       setDefaultColors((prev) => {
-        if (prev.some((c) => c.name.toLowerCase() === trimmedColor.toLowerCase())) return prev;
-        return [...prev, savedColorObj];
+        if (prev.some((c) => c.name.toLowerCase() === trimmedColor.toLowerCase())) {
+          return prev.map((c) =>
+            c.name.toLowerCase() === trimmedColor.toLowerCase() ? { ...c, hex: newColorHex } : c
+          );
+        }
+        return [...prev, { ...savedColorObj, imageUrl: '' }];
       });
 
-      // 2. Nếu đang chọn một dòng máy, đồng bộ thêm màu vào bảng phonecolor của dòng máy đó
+      // 2. Nếu đang chọn một dòng máy, đồng bộ THÊM màu mới (không xóa các màu cũ) vào bảng phonecolor
       if (currentPhone) {
-        const updatedColors = [...currentPhone.colors];
-        const existingColor = updatedColors.find(
+        const updatedColors = [...(currentPhone.colors || [])];
+        const existingIdx = updatedColors.findIndex(
           (c) => c.name.toLowerCase() === trimmedColor.toLowerCase()
         );
-        if (!existingColor) {
+        if (existingIdx >= 0) {
+          updatedColors[existingIdx] = {
+            ...updatedColors[existingIdx],
+            hex: newColorHex,
+            imageUrl: newColorImageUrl || updatedColors[existingIdx].imageUrl || '',
+          };
+        } else {
           updatedColors.push({
-            id: savedColorObj.id || `c-${Date.now()}`,
+            id: savedColorObj.id,
             name: trimmedColor,
             hex: newColorHex,
-            imageUrl: currentPhone.colors[0]?.imageUrl || '',
+            imageUrl: newColorImageUrl || '',
           });
-          await syncPhoneColorsToDb(currentPhone, updatedColors);
-          IShopStore.updatePhone(currentPhone.id, { colors: updatedColors });
         }
+        await syncPhoneColorsToDb(currentPhone, updatedColors, false);
+        setPhones((prev) =>
+          prev.map((p) => (p.id === currentPhone.id ? { ...p, colors: updatedColors } : p))
+        );
+        IShopStore.updatePhone(currentPhone.id, { colors: updatedColors });
       }
 
       setColor(trimmedColor);
+      if (newColorImageUrl) {
+        setProductImageUrl(newColorImageUrl);
+      } else {
+        setProductImageUrl('');
+      }
       setIsAddColorModalOpen(false);
       setNewColorName('');
+      setNewColorImageUrl('');
       setSuccessMessage(`✓ Đã lưu màu "${trimmedColor}" vào CSDL MySQL thành công!`);
       setTimeout(() => setSuccessMessage(null), 3500);
       await loadData();
@@ -497,7 +662,7 @@ export default function AdminRestockPage() {
     );
     if (!confirmed) return;
 
-    const remaining = availableColors.filter(
+    const remainingAll = availableColors.filter(
       (c) => c.name.toLowerCase() !== colorNameToDelete.toLowerCase()
     );
 
@@ -508,23 +673,32 @@ export default function AdminRestockPage() {
       });
       const delJson = await delRes.json();
       if (!delRes.ok && delRes.status !== 404) {
-        // Nếu xóa ở catalog lỗi do còn 1 màu nhưng đang xóa trên phone riêng thì vẫn cho tiếp tục nếu có currentPhone
         if (!currentPhone) {
           alert(delJson.error || 'Không thể xóa màu khỏi CSDL MySQL!');
           return;
         }
       }
 
-      // 2. Nếu đang chọn một dòng máy, đồng bộ xóa khỏi bảng phonecolor của dòng máy đó
+      setDefaultColors((prev) =>
+        prev.filter((c) => c.name.toLowerCase() !== colorNameToDelete.toLowerCase())
+      );
+
+      // 2. Nếu đang chọn một dòng máy và màu này thuộc dòng máy đó, xóa khỏi phonecolor của dòng máy
       if (currentPhone) {
-        await syncPhoneColorsToDb(currentPhone, remaining);
-        IShopStore.updatePhone(currentPhone.id, { colors: remaining });
-      } else {
-        setDefaultColors(remaining);
+        const remainingPhoneColors = (currentPhone.colors || []).filter(
+          (c) => c.name.toLowerCase() !== colorNameToDelete.toLowerCase()
+        );
+        if (remainingPhoneColors.length > 0 && remainingPhoneColors.length !== (currentPhone.colors || []).length) {
+          await syncPhoneColorsToDb(currentPhone, remainingPhoneColors, true);
+          setPhones((prev) =>
+            prev.map((p) => (p.id === currentPhone.id ? { ...p, colors: remainingPhoneColors } : p))
+          );
+          IShopStore.updatePhone(currentPhone.id, { colors: remainingPhoneColors });
+        }
       }
 
-      if (color.toLowerCase() === colorNameToDelete.toLowerCase() && remaining.length > 0) {
-        setColor(remaining[0].name);
+      if (color.toLowerCase() === colorNameToDelete.toLowerCase() && remainingAll.length > 0) {
+        setColor(remainingAll[0].name);
       }
 
       setSuccessMessage(`✓ Đã xóa màu "${colorNameToDelete}" khỏi CSDL MySQL thành công!`);
@@ -568,6 +742,9 @@ export default function AdminRestockPage() {
     }
 
     // 1. Post to live MySQL Database via /api/restock
+    const activeColorObj = availableColors.find(
+      (c) => c.name.toLowerCase() === color.toLowerCase()
+    );
     try {
       const res = await fetch('/api/restock', {
         method: 'POST',
@@ -577,6 +754,8 @@ export default function AdminRestockPage() {
           phoneId: currentPhone.id,
           phoneName: currentPhone.name,
           color,
+          colorHex: activeColorObj?.hex || '#222222',
+          imageUrl: productImageUrl || '',
           capacity,
           costPrice: numericCostPrice,
           sellingPrice: numericSellingPrice,
@@ -962,7 +1141,85 @@ export default function AdminRestockPage() {
             </div>
 
             {/* ======================================================== */}
-            {/* 5. GIÁ VỐN & GIÁ BÁN LÔ HÀNG                             */}
+            {/* 5. HÌNH ẢNH SẢN PHẨM THEO MÀU (TẢI TỪ MÁY LÊN)          */}
+            {/* ======================================================== */}
+            <div className="space-y-2 text-xs">
+              <label className="text-slate-700 font-bold block flex items-center gap-1.5">
+                <ImageIcon className="w-3.5 h-3.5 text-blue-600" />
+                <span>5. Hình Ảnh Sản Phẩm Theo Màu "{color}" (Tải Từ Máy Lên):</span>
+              </label>
+
+              <input
+                ref={imageFileInputRef}
+                type="file"
+                accept="image/*"
+                autoComplete="off"
+                onChange={handleUploadProductImage}
+                className="hidden"
+              />
+
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  disabled={isUploadingImage}
+                  onClick={() => imageFileInputRef.current?.click()}
+                  className="flex-1 px-4 py-3 bg-slate-50 hover:bg-blue-50 border border-dashed border-slate-300 hover:border-blue-500 rounded-2xl text-slate-700 hover:text-blue-800 font-bold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  {isUploadingImage ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                      <span>Đang tải ảnh lên...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4 text-blue-600" />
+                      <span>{productImageUrl ? 'Chọn Ảnh Khác Từ Máy' : 'Tải Ảnh Sản Phẩm Từ Máy Lên'}</span>
+                    </>
+                  )}
+                </button>
+
+                {productImageUrl && (
+                  <div className="relative shrink-0">
+                    <img
+                      src={productImageUrl}
+                      alt={`${currentPhone?.name || 'Sản phẩm'} - ${color}`}
+                      className="w-14 h-14 object-cover rounded-2xl border border-slate-200 bg-white shadow-xs"
+                    />
+                    <button
+                      type="button"
+                      title="Gỡ ảnh"
+                      onClick={async () => {
+                        setProductImageUrl('');
+                        if (currentPhone) {
+                          const updatedColors = (currentPhone.colors || []).map((c) =>
+                            c.name.toLowerCase() === color.toLowerCase() ? { ...c, imageUrl: '' } : c
+                          );
+                          try {
+                            await syncPhoneColorsToDb(currentPhone, updatedColors, false);
+                            setPhones((prev) =>
+                              prev.map((p) =>
+                                p.id === currentPhone.id ? { ...p, colors: updatedColors } : p
+                              )
+                            );
+                            IShopStore.updatePhone(currentPhone.id, { colors: updatedColors });
+                          } catch {}
+                        }
+                      }}
+                      className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-rose-500 hover:bg-rose-600 text-white flex items-center justify-center shadow cursor-pointer"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {uploadImageError && (
+                <p className="text-[11px] font-semibold text-rose-600">{uploadImageError}</p>
+              )}
+            </div>
+
+            {/* ======================================================== */}
+            {/* 6. GIÁ VỐN & GIÁ BÁN LÔ HÀNG                             */}
             {/* ======================================================== */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs pt-1">
               <div>
@@ -1272,6 +1529,57 @@ export default function AdminRestockPage() {
                     onChange={(e) => setNewColorHex(e.target.value)}
                     className="flex-1 p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-mono font-bold uppercase focus:outline-none focus:border-emerald-500"
                   />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-slate-700 font-bold mb-1 block">
+                  Ảnh sản phẩm màu này (Tải từ máy lên):
+                </label>
+                <input
+                  ref={modalColorFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  autoComplete="off"
+                  onChange={handleUploadModalColorImage}
+                  className="hidden"
+                />
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    disabled={isUploadingModalColorImage}
+                    onClick={() => modalColorFileInputRef.current?.click()}
+                    className="flex-1 px-3.5 py-2.5 bg-slate-50 hover:bg-emerald-50 border border-dashed border-slate-300 hover:border-emerald-500 rounded-xl text-slate-700 hover:text-emerald-800 font-bold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
+                  >
+                    {isUploadingModalColorImage ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+                        <span>Đang tải ảnh lên...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-4 h-4 text-emerald-600" />
+                        <span>{newColorImageUrl ? 'Chọn Ảnh Khác Từ Máy' : 'Tải Ảnh Từ Máy Lên'}</span>
+                      </>
+                    )}
+                  </button>
+
+                  {newColorImageUrl && (
+                    <div className="relative shrink-0">
+                      <img
+                        src={newColorImageUrl}
+                        alt="preview"
+                        className="w-11 h-11 object-cover rounded-xl border border-slate-200 bg-white"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setNewColorImageUrl('')}
+                        className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center shadow cursor-pointer hover:bg-rose-600"
+                      >
+                        <X className="w-2.5 h-2.5" />
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 

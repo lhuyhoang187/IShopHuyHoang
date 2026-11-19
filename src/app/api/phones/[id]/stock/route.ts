@@ -43,7 +43,7 @@ export async function GET(
         id: c.id,
         name: c.name,
         hex: c.hex,
-        imageUrl: c.imageUrl || DEFAULT_PHONE_IMAGE,
+        imageUrl: c.imageUrl || '',
         isOutOfStock: colVars.length > 0 && colVars.every((v) => Boolean(v.isOutOfStock)),
       };
     });
@@ -150,13 +150,13 @@ export async function POST(
             await conn.execute(
               `INSERT INTO phonecolor (id, phoneId, name, hex, imageUrl, displayOrder, createdAt, updatedAt)
                VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-              [cid, phone.id, col.name.trim(), col.hex || '#2B2B2B', col.imageUrl || DEFAULT_PHONE_IMAGE, idx]
+              [cid, phone.id, col.name.trim(), col.hex || '#2B2B2B', col.imageUrl || '', idx]
             );
             colorIdByName.set(key, cid);
           } else {
             await conn.execute(
               `UPDATE phonecolor SET hex = ?, imageUrl = ?, updatedAt = NOW() WHERE id = ?`,
-              [col.hex || '#2B2B2B', col.imageUrl || DEFAULT_PHONE_IMAGE, cid]
+              [col.hex || '#2B2B2B', col.imageUrl || '', cid]
             );
           }
 
