@@ -411,7 +411,7 @@ export default function POSPage() {
   const addPhoneToOrder = (stockItem: PhoneStockItem) => {
     const isAlreadyIn = posItems.some((i) => i.imei === stockItem.imei);
     if (isAlreadyIn) {
-      alert('Cây máy có số IMEI này đã được thêm vào đơn hàng!');
+      alert('Máy có số IMEI này đã được thêm vào đơn hàng!');
       return;
     }
 
@@ -725,7 +725,7 @@ export default function POSPage() {
 
                 {filteredPhones.length === 0 && (
                   <div className="text-center py-12 text-slate-500 text-xs font-mono">
-                    Không tìm thấy cây máy nào khớp với &quot;{phoneSearch}&quot;
+                    Không tìm thấy máy nào khớp với &quot;{phoneSearch}&quot;
                   </div>
                 )}
               </div>
@@ -1012,7 +1012,7 @@ export default function POSPage() {
                         </div>
                       ) : (
                         <span className="px-2 py-0.5 rounded-lg bg-amber-50 text-amber-800 text-[10px] font-bold border border-amber-200">
-                          1 Cây
+                          1 Máy
                         </span>
                       )}
 

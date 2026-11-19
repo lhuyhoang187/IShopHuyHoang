@@ -81,14 +81,10 @@ export default function AdminRestockPage() {
   const [newBrandDisplayOrder, setNewBrandDisplayOrder] = useState(10);
   const [isSubmittingBrand, setIsSubmittingBrand] = useState(false);
 
-  // Modal 2: Add Model (Specific model for a brand)
+  // Modal 2: Add Model (Brand + Model Name only; capacity, color & pricing are configured below)
   const [isAddModelModalOpen, setIsAddModelModalOpen] = useState(false);
   const [newModelBrand, setNewModelBrand] = useState('Apple');
   const [newModelName, setNewModelName] = useState('');
-  const [newModelCapacity, setNewModelCapacity] = useState('256GB');
-  const [newModelColorName, setNewModelColorName] = useState('Đen Titan');
-  const [newModelColorHex, setNewModelColorHex] = useState('#222222');
-  const [newModelPrice, setNewModelPrice] = useState(29990000);
   const [isSubmittingModel, setIsSubmittingModel] = useState(false);
 
   // Modal 3: Add Color
@@ -312,7 +308,7 @@ export default function AdminRestockPage() {
     }
   };
 
-  // Add new Model for a specific brand
+  // Add new Model for a specific brand (Brand + Name only; capacity/color/price configured in main form)
   const handleSaveNewModel = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmedModel = newModelName.trim();
@@ -324,7 +320,15 @@ export default function AdminRestockPage() {
     setIsSubmittingModel(true);
     const targetBrand = newModelBrand || (selectedBrand !== 'all' ? selectedBrand : (brandList[0] || 'Apple'));
     const newId = `p-${Date.now()}`;
-    const cleanColor = newModelColorName.trim() || 'Đen Titan';
+    const initialCapacity = capacity || '256GB';
+    const initialPrice = sellingPrice > 0 ? sellingPrice : 0;
+    const baseColors = availableColors.length > 0 ? availableColors : defaultColors;
+    const initialColors = baseColors.map((col, idx) => ({
+      id: `c-${Date.now()}-${idx}`,
+      name: col.name,
+      hex: col.hex || '#222222',
+      imageUrl: col.imageUrl || 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=800&auto=format&fit=crop&q=80',
+    }));
 
     const newPhoneItem: PhoneProduct = {
       id: newId,
@@ -341,26 +345,19 @@ export default function AdminRestockPage() {
       reviewCount: 1,
       isNew: true,
       warrantyInfo: 'Bảo hành 12 tháng chính hãng.',
-      colors: [
-        {
-          id: `c-${Date.now()}`,
-          name: cleanColor,
-          hex: newModelColorHex || '#222222',
-          imageUrl: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=800&auto=format&fit=crop&q=80',
-        },
-      ],
+      colors: initialColors,
       capacities: [
         {
-          size: newModelCapacity,
-          price: newModelPrice,
-          originalPrice: Math.round(newModelPrice * 1.08),
+          size: initialCapacity,
+          price: initialPrice,
+          originalPrice: initialPrice > 0 ? Math.round(initialPrice * 1.08) : 0,
         },
       ],
       specs: {
         screen: '6.7 inch Super AMOLED 120Hz',
         chip: 'Chip hiệu năng cao thế hệ mới',
         ram: '8 GB / 12 GB',
-        storage: newModelCapacity,
+        storage: initialCapacity,
         rearCamera: '50 MP OIS + Góc Siêu Rộng',
         frontCamera: '32 MP HDR Chân Dung',
         battery: '5000 mAh',
@@ -389,13 +386,9 @@ export default function AdminRestockPage() {
     // 3. Chọn ngay hãng và dòng máy mới trên giao diện
     setSelectedBrand(targetBrand);
     setSelectedPhoneId(newId);
-    setCapacity(newModelCapacity);
-    setColor(cleanColor);
-    setSellingPrice(newModelPrice);
-    setCostPrice(Math.round((newModelPrice * 0.92) / 10000) * 10000);
 
     setSuccessMessage(
-      `✓ Đã thêm thành công dòng máy "${trimmedModel}" (${targetBrand} • ${newModelCapacity}) vào hệ thống!`
+      `✓ Đã thêm thành công dòng máy "${trimmedModel}" (${targetBrand}) vào hệ thống!`
     );
 
     setIsAddModelModalOpen(false);
@@ -546,7 +539,7 @@ export default function AdminRestockPage() {
     );
 
     setSuccessMessage(
-      `✓ Đã nạp thành công ${parsedImeis.length} cây máy mới [Hãng: ${currentPhone?.brand}] - ${currentPhone?.name} (${color} - ${capacity}) vào kho CSDL! Tự động tạo Phiếu Chi: ${formatVND(
+      `✓ Đã nạp thành công ${parsedImeis.length} máy mới [Hãng: ${currentPhone?.brand}] - ${currentPhone?.name} (${color} - ${capacity}) vào kho CSDL! Tự động tạo Phiếu Chi: ${formatVND(
         paidAmount
       )} và cập nhật công nợ NCC: +${formatVND(debtIncrease)}.`
     );
@@ -731,7 +724,7 @@ export default function AdminRestockPage() {
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 font-bold text-xs transition-colors cursor-pointer"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    <span>+ Thêm Thương Hiệu</span>
+                    <span>Thêm Thương Hiệu</span>
                   </button>
                 </div>
               </div>
@@ -753,68 +746,6 @@ export default function AdminRestockPage() {
                   );
                 })}
               </select>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleBrandChange('all')}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-                    selectedBrand === 'all'
-                      ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                      : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
-                  }`}
-                >
-                  Tất Cả ({phones.length})
-                </button>
-                {brandList.map((b) => {
-                  const isSelected = selectedBrand === b;
-                  const brandObj = dbBrands.find((d) => d.name.toLowerCase() === b.toLowerCase());
-                  return (
-                    <div
-                      key={b}
-                      className={`inline-flex items-center rounded-xl border text-xs font-bold transition-all ${
-                        isSelected
-                          ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                          : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
-                      }`}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => handleBrandChange(b)}
-                        className="px-3 py-2 flex items-center gap-1.5 cursor-pointer"
-                      >
-                        <span>{b}</span>
-                        {brandObj?.country && (
-                          <span
-                            className={`text-[10px] font-normal ${
-                              isSelected ? 'text-blue-100' : 'text-slate-400'
-                            }`}
-                          >
-                            ({brandObj.country})
-                          </span>
-                        )}
-                      </button>
-
-                      {/* Nút xóa thương hiệu trực tiếp */}
-                      <button
-                        type="button"
-                        title={`Xóa thương hiệu ${b}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteBrand(b);
-                        }}
-                        className={`pr-2.5 pl-1 py-2 hover:opacity-100 cursor-pointer transition-colors ${
-                          isSelected
-                            ? 'text-blue-200 hover:text-white'
-                            : 'text-slate-400 hover:text-rose-600'
-                        }`}
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
             </div>
 
             {/* ======================================================== */}
@@ -975,12 +906,12 @@ export default function AdminRestockPage() {
                     className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-bold text-xs transition-colors cursor-pointer"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    <span>+ Thêm Màu Mới</span>
+                    <span>Thêm Màu Mới</span>
                   </button>
                 </div>
               </div>
 
-              {/* Smart Color Dropdown Selector + Visual Color Chips */}
+              {/* Smart Color Dropdown Selector */}
               <select
                 value={color}
                 onChange={(e) => setColor(e.target.value)}
@@ -992,51 +923,6 @@ export default function AdminRestockPage() {
                   </option>
                 ))}
               </select>
-
-              <div className="flex flex-wrap gap-2">
-                {availableColors.map((col) => {
-                  const isColorSelected = color === col.name;
-                  return (
-                    <div
-                      key={col.id}
-                      className={`inline-flex items-center rounded-xl border transition-all ${
-                        isColorSelected
-                          ? 'bg-blue-50 border-2 border-blue-600 text-blue-900 shadow-sm font-bold'
-                          : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-800 font-medium'
-                      }`}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => setColor(col.name)}
-                        className="pl-3 pr-2 py-2 text-left flex items-center gap-2 cursor-pointer"
-                      >
-                        <span
-                          className="w-4 h-4 rounded-full border border-slate-300 shadow-2xs shrink-0"
-                          style={{ backgroundColor: col.hex }}
-                        />
-                        <span className="text-xs">{col.name}</span>
-                        {isColorSelected && (
-                          <Check className="w-3.5 h-3.5 text-blue-600 stroke-[3] shrink-0" />
-                        )}
-                      </button>
-
-                      {availableColors.length > 1 && (
-                        <button
-                          type="button"
-                          title={`Xóa màu ${col.name}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteColor(col.name);
-                          }}
-                          className="pr-2.5 pl-1 py-2 text-slate-400 hover:text-rose-600 cursor-pointer transition-colors"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
             </div>
 
             {/* ======================================================== */}
@@ -1045,7 +931,7 @@ export default function AdminRestockPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs pt-1">
               <div>
                 <label className="text-slate-700 font-bold block mb-1">
-                  Giá vốn nhập/cây (VND) *:
+                  Giá vốn nhập/máy (VND) *:
                 </label>
                 <input autoComplete="off"
                   type="number"
@@ -1082,7 +968,7 @@ export default function AdminRestockPage() {
             <div className="border-t border-slate-200 pt-4 space-y-2 text-xs">
               <div className="flex justify-between items-center">
                 <span className="text-slate-600 font-medium">Số lượng máy nhập:</span>
-                <span className="font-bold text-slate-900">{parsedImeis.length} cây</span>
+                <span className="font-bold text-slate-900">{parsedImeis.length} máy</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-slate-600 font-medium">Tổng giá trị lô hàng:</span>
@@ -1265,64 +1151,6 @@ export default function AdminRestockPage() {
                   placeholder=""
                   className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-semibold focus:outline-none focus:border-emerald-500"
                 />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-slate-700 font-bold mb-1 block">
-                    Dung lượng ban đầu:
-                  </label>
-                  <select
-                    value={newModelCapacity}
-                    onChange={(e) => setNewModelCapacity(e.target.value)}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:border-emerald-500 cursor-pointer"
-                  >
-                    {ALL_STANDARD_CAPACITIES.map((cap) => (
-                      <option key={cap} value={cap}>
-                        {cap}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-slate-700 font-bold mb-1 block">
-                    Màu sắc ban đầu:
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <input autoComplete="off"
-                      type="color"
-                      value={newModelColorHex}
-                      onChange={(e) => setNewModelColorHex(e.target.value)}
-                      className="w-9 h-9 rounded-xl cursor-pointer border border-slate-300 p-0.5 bg-white shrink-0"
-                    />
-                    <input autoComplete="off"
-                      type="text"
-                      value={newModelColorName}
-                      onChange={(e) => setNewModelColorName(e.target.value)}
-                      placeholder=""
-                      className="flex-1 p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-semibold focus:outline-none focus:border-emerald-500"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-slate-700 font-bold mb-1 block">
-                  Giá bán lẻ niêm yết (VND) *:
-                </label>
-                <input autoComplete="off"
-                  type="number"
-                  min={1000000}
-                  step={100000}
-                  required
-                  value={newModelPrice}
-                  onChange={(e) => setNewModelPrice(Number(e.target.value) || 0)}
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-emerald-700 font-black font-mono text-sm focus:outline-none focus:border-emerald-500"
-                />
-                <span className="text-[10px] text-slate-500 mt-1 block">
-                  Giá vốn ước tính: ~{formatVND(Math.round((newModelPrice * 0.92) / 10000) * 10000)} (lãi gộp dự kiến ~8%)
-                </span>
               </div>
 
               <div className="pt-2 flex gap-2.5">

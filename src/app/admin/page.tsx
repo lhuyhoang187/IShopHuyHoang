@@ -772,7 +772,7 @@ export default function AdminUnifiedPage() {
                   {formatVND(phoneRevenue)}
                 </div>
                 <p className="text-xs text-slate-600 font-medium">
-                  Quản lý chính xác từng cây theo IMEI, kích hoạt bảo hành tức thì.
+                  Quản lý chính xác từng máy theo IMEI, kích hoạt bảo hành tức thì.
                 </p>
                 <Link
                   href="/admin/inventory/phones"

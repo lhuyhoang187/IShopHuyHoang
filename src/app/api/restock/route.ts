@@ -178,7 +178,7 @@ export async function POST(request: NextRequest) {
           orderCode,
           supplierId,
           dateStr,
-          `Nhập ${uniqueImeis.length} cây ${resolvedPhoneName} (${color || 'Titan'} - ${capacity || '256GB'})`,
+          `Nhập ${uniqueImeis.length} máy ${resolvedPhoneName} (${color || 'Titan'} - ${capacity || '256GB'})`,
           totalBatchCost,
           paid,
           debtIncrease,

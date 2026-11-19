@@ -200,8 +200,8 @@ export default function InventoryPhonesPage() {
           </h1>
           <p className="text-xs text-slate-600 mt-0.5">
             Tổng tồn kho máy sẵn sàng bán:{' '}
-            <strong className="text-emerald-700 font-bold">{inStockCount} cây</strong> • Đã xuất bán:{' '}
-            <strong className="text-amber-700 font-bold">{soldCount} cây</strong> • Số dòng máy:{' '}
+            <strong className="text-emerald-700 font-bold">{inStockCount} máy</strong> • Đã xuất bán:{' '}
+            <strong className="text-amber-700 font-bold">{soldCount} máy</strong> • Số dòng máy:{' '}
             <strong className="text-slate-900 font-bold">{phones.length} model</strong>
           </p>
         </div>
@@ -287,7 +287,7 @@ export default function InventoryPhonesPage() {
             }`}
           >
             <Smartphone className="w-4 h-4" />
-            <span>Chi Tiết Từng Cây Máy Theo Số IMEI ({stock.length} Cây)</span>
+            <span>Chi Tiết Từng Máy Theo Số IMEI ({stock.length} Máy)</span>
           </button>
         </div>
 
@@ -607,11 +607,11 @@ export default function InventoryPhonesPage() {
                         <td className="py-4 px-4 align-top text-center whitespace-nowrap">
                           {phoneImeisInStock > 0 ? (
                             <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 inline-block shadow-2xs whitespace-nowrap">
-                              ● {phoneImeisInStock} cây sẵn bán
+                              {phoneImeisInStock} máy sẵn bán
                             </span>
                           ) : (
                             <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-200 inline-block whitespace-nowrap">
-                              ✕ 0 cây trong kho
+                              ✕ 0 máy trong kho
                             </span>
                           )}
                           <span className="text-[11px] text-slate-500 font-medium block mt-1">
