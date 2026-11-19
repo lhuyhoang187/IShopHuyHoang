@@ -164,7 +164,7 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
 
     if (digitsOnly.length > 10) {
       setPhone(digitsOnly.slice(0, 10));
-      setPhoneError('Số điện thoại Việt Nam chỉ được nhập tối đa 10 chữ số!');
+      setPhoneError('Số điện thoại sai định dạng quá 10 số');
       return;
     }
 

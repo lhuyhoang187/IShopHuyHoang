@@ -100,7 +100,7 @@ export default function CheckoutPage() {
     const digitsOnly = rawVal.replace(/\D/g, '');
     if (digitsOnly.length > 10) {
       setFormData((prev) => ({ ...prev, phone: digitsOnly.slice(0, 10) }));
-      setPhoneError('Số điện thoại Việt Nam chỉ được nhập tối đa 10 chữ số!');
+      setPhoneError('Số điện thoại sai định dạng quá 10 số');
       return;
     }
     setFormData((prev) => ({ ...prev, phone: digitsOnly }));
