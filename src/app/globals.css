@@ -58,6 +58,11 @@ input[type='password']::-ms-clear {
   display: none !important;
 }
 
+/* Ẩn ký tự mật khẩu bằng CSS để ngăn trình duyệt tự động điền (autofill) lộ thông tin tài khoản admin */
+.password-masked {
+  -webkit-text-security: disc;
+}
+
 /* Ẩn thanh cuộn nhưng vẫn cho phép cuộn mượt */
 .no-scrollbar::-webkit-scrollbar {
   display: none;

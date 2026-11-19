@@ -34,6 +34,7 @@ import confetti from 'canvas-confetti';
 import { IShopStore } from '@/lib/store';
 import { CustomerUser } from '@/lib/types';
 import { isStrictVietnamPhone } from '@/lib/validation';
+import { NoAutofillPasswordInput } from '@/components/common/NoAutofillPasswordInput';
 
 interface TestimonialSlide {
   id: number;
@@ -176,7 +177,7 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
     }
 
     if (digitsOnly.length === 10 && !isStrictVietnamPhone(digitsOnly)) {
-      setPhoneError('Số điện thoại Việt Nam không hợp lệ (phải bắt đầu bằng 03, 05, 07, 08 hoặc 09)!');
+      setPhoneError('Số điện thoại không hợp lệ !');
       return;
     }
 
@@ -194,8 +195,8 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
       if (!isStrictVietnamPhone(phone)) {
         const msg =
           phone.length !== 10
-            ? 'Số điện thoại phải gồm đúng 10 chữ số theo định dạng Việt Nam!'
-            : 'Số điện thoại Việt Nam phải bắt đầu bằng 03, 05, 07, 08 hoặc 09!';
+            ? 'Số điện thoại phải gồm  10 chữ số !'
+            : 'Số điện thoại không hợp lệ !';
         setPhoneError(msg);
         setAuthError(msg);
         return;
@@ -328,7 +329,7 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
       {/* 2. Container chính: Thẻ Split Card phong cách Light Panel */}
       <main className="relative z-10 w-full max-w-[1180px] my-auto">
         <div className="w-full bg-white/95 rounded-3xl sm:rounded-[2.5rem] p-3 sm:p-5 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 border border-slate-200 shadow-xl backdrop-blur-xl transition-all duration-300">
-          
+
           {/* CỘT TRÁI: Form Xác thực (55% trên Desktop / lg:col-span-7) */}
           <div className="lg:col-span-7 flex flex-col justify-between p-4 sm:p-7 md:p-9">
             <div>
@@ -337,10 +338,13 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
                 <div className="relative inline-flex p-1.5 bg-slate-100 rounded-full border border-slate-200 shadow-inner">
                   <button
                     type="button"
-                    onClick={() => setMode('login')}
-                    className={`relative z-10 px-7 py-2 rounded-full text-xs sm:text-sm font-black transition-colors duration-200 ${
-                      mode === 'login' ? 'text-white' : 'text-slate-600 hover:text-slate-900'
-                    }`}
+                    onClick={() => {
+                      setMode('login');
+                      setAuthError(null);
+                      setPhoneError(null);
+                    }}
+                    className={`relative z-10 px-7 py-2 rounded-full text-xs sm:text-sm font-black transition-colors duration-200 ${mode === 'login' ? 'text-white' : 'text-slate-600 hover:text-slate-900'
+                      }`}
                   >
                     {mode === 'login' && (
                       <motion.div
@@ -354,10 +358,15 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
 
                   <button
                     type="button"
-                    onClick={() => setMode('signup')}
-                    className={`relative z-10 px-7 py-2 rounded-full text-xs sm:text-sm font-black transition-colors duration-200 ${
-                      mode === 'signup' ? 'text-white' : 'text-slate-600 hover:text-slate-900'
-                    }`}
+                    onClick={() => {
+                      setMode('signup');
+                      setAuthError(null);
+                      setPhoneError(null);
+                      setEmail('');
+                      setPassword('');
+                    }}
+                    className={`relative z-10 px-7 py-2 rounded-full text-xs sm:text-sm font-black transition-colors duration-200 ${mode === 'signup' ? 'text-white' : 'text-slate-600 hover:text-slate-900'
+                      }`}
                   >
                     {mode === 'signup' && (
                       <motion.div
@@ -480,11 +489,10 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
                             value={phone}
                             onChange={(e) => handlePhoneChange(e.target.value)}
                             placeholder="Số điện thoại (10 số)"
-                            className={`w-full pl-10 pr-4 py-3 rounded-xl bg-slate-50 border text-sm font-mono font-medium text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 transition-all ${
-                              phoneError
-                                ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-500/20'
-                                : 'border-slate-200 hover:border-slate-300 focus:border-amber-500 focus:ring-amber-500/20'
-                            }`}
+                            className={`w-full pl-10 pr-4 py-3 rounded-xl bg-slate-50 border text-sm font-mono font-medium text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 transition-all ${phoneError
+                              ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-500/20'
+                              : 'border-slate-200 hover:border-slate-300 focus:border-amber-500 focus:ring-amber-500/20'
+                              }`}
                           />
                         </div>
                         {phoneError && (
@@ -546,9 +554,12 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
                     </div>
                     <input
                       type="email"
-                      name="ishop_customer_email"
-                      id="ishop_customer_email"
-                      autoComplete="off"
+                      name="ishop_field_contact"
+                      id="ishop_field_contact"
+                      autoComplete="one-time-code"
+                      data-lpignore="true"
+                      data-1p-ignore="true"
+                      data-form-type="other"
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
@@ -567,11 +578,10 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-amber-600">
                       <Lock className="w-4 h-4" />
                     </div>
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      name="ishop_customer_password"
-                      id="ishop_customer_password"
-                      autoComplete="new-password"
+                    <NoAutofillPasswordInput
+                      showPassword={showPassword}
+                      name="ishop_field_sec"
+                      id="ishop_field_sec"
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
@@ -853,11 +863,10 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
                     <button
                       key={item.id}
                       onClick={() => setCurrentSlide(index)}
-                      className={`h-2 rounded-full transition-all duration-300 ${
-                        index === currentSlide
-                          ? 'w-8 bg-gradient-to-r from-amber-400 to-amber-500 shadow-md'
-                          : 'w-2 bg-white/40 hover:bg-white/70'
-                      }`}
+                      className={`h-2 rounded-full transition-all duration-300 ${index === currentSlide
+                        ? 'w-8 bg-gradient-to-r from-amber-400 to-amber-500 shadow-md'
+                        : 'w-2 bg-white/40 hover:bg-white/70'
+                        }`}
                       aria-label={`Slide ${index + 1}`}
                     />
                   ))}

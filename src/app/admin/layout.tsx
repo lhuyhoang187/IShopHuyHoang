@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import { IShopStore, RecentItem } from '@/lib/store';
 import { Role, Invoice, RepairTicket, StaffUser } from '@/lib/types';
+import { NoAutofillPasswordInput } from '@/components/common/NoAutofillPasswordInput';
 
 export default function AdminLayout({
   children,
@@ -233,9 +234,8 @@ export default function AdminLayout({
                 setAuthTab('login');
                 setAuthError(null);
               }}
-              className={`py-2 rounded-lg transition-colors ${
-                authTab === 'login' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
-              }`}
+              className={`py-2 rounded-lg transition-colors ${authTab === 'login' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                }`}
             >
               Đăng Nhập Làm Việc
             </button>
@@ -244,9 +244,8 @@ export default function AdminLayout({
                 setAuthTab('register');
                 setAuthError(null);
               }}
-              className={`py-2 rounded-lg transition-colors ${
-                authTab === 'register' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
-              }`}
+              className={`py-2 rounded-lg transition-colors ${authTab === 'register' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                }`}
             >
               Nhân Viên Mới
             </button>
@@ -338,8 +337,10 @@ export default function AdminLayout({
                 <label className="text-slate-700 font-semibold mb-1 block">Tên đăng nhập mong muốn:</label>
                 <input
                   type="text"
-                  name="ishop_staff_reg_username"
-                  autoComplete="off"
+                  name="ishop_staff_reg_handle"
+                  autoComplete="one-time-code"
+                  data-lpignore="true"
+                  data-form-type="other"
                   required
                   value={regUsername}
                   onChange={(e) => setRegUsername(e.target.value)}
@@ -350,10 +351,8 @@ export default function AdminLayout({
 
               <div>
                 <label className="text-slate-700 font-semibold mb-1 block">Mật khẩu khởi tạo:</label>
-                <input
-                  type="password"
-                  name="ishop_staff_reg_password"
-                  autoComplete="new-password"
+                <NoAutofillPasswordInput
+                  name="ishop_staff_reg_sec"
                   required
                   value={regPassword}
                   onChange={(e) => setRegPassword(e.target.value)}
@@ -433,22 +432,22 @@ export default function AdminLayout({
   }
 
   const navItems: { name: string; href: string; icon: any; permissionKey?: string; adminOnly?: boolean }[] = [
-    { name: 'Tổng Quan & Kế Toán Sổ Quỹ', href: '/admin', icon: Store },
-    { name: 'Bán Hàng (POS)', href: '/admin/pos', icon: ShoppingCart, permissionKey: 'pos' },
-    { name: 'Giá & Khuyến Mãi', href: '/admin/promotions', icon: Tag, permissionKey: 'promotions' },
-    { name: 'Bàn Sửa Chữa (iCare)', href: '/admin/repairs', icon: Wrench, permissionKey: 'repairs' },
+    { name: 'Tổng Quan', href: '/admin', icon: Store },
+    { name: 'Bán Hàng', href: '/admin/pos', icon: ShoppingCart, permissionKey: 'pos' },
+    { name: 'Khuyến Mãi', href: '/admin/promotions', icon: Tag, permissionKey: 'promotions' },
+    { name: 'Sửa Chữa', href: '/admin/repairs', icon: Wrench, permissionKey: 'repairs' },
     { name: 'Kho Hàng', href: '/admin/inventory/phones', icon: Package },
-    { name: 'Mua Hàng NCC', href: '/admin/restock', icon: Truck, permissionKey: 'restock' },
-    { name: 'Đối Tác & Khách Hàng', href: '/admin/partners', icon: Users, permissionKey: 'partners' },
-    { name: 'Nhân Sự & Phân Quyền', href: '/admin/staff', icon: UserCheck, permissionKey: 'staff_management', adminOnly: true },
-    { name: 'Cấu Hình & Webhook', href: '/admin/settings', icon: Settings, permissionKey: 'settings' },
-    { name: 'Tài Khoản & Hồ Sơ', href: '/admin/profile', icon: User },
+    { name: 'Mua Nhập Hàng', href: '/admin/restock', icon: Truck, permissionKey: 'restock' },
+    { name: 'Đối Tác', href: '/admin/partners', icon: Users, permissionKey: 'partners' },
+    { name: 'Nhân Sự', href: '/admin/staff', icon: UserCheck, permissionKey: 'staff_management', adminOnly: true },
+    { name: 'Cấu Hình', href: '/admin/settings', icon: Settings, permissionKey: 'settings' },
+    { name: 'Tài Khoản', href: '/admin/profile', icon: User },
   ];
 
   const roleLabels: Record<Role, { label: string; color: string }> = {
-    admin: { label: 'Chủ Shop (Toàn Quyền)', color: 'badge-glow-gold' },
+    admin: { label: 'Chủ Shop', color: 'badge-glow-gold' },
     technician: { label: 'Kỹ Thuật Viên', color: 'badge-glow-violet' },
-    cashier: { label: 'Thu Ngân (POS)', color: 'badge-glow-cyan' },
+    cashier: { label: 'Thu Ngân', color: 'badge-glow-cyan' },
     pending: { label: 'Chờ Duyệt', color: 'bg-slate-200 text-slate-700' },
   };
 
@@ -639,11 +638,10 @@ export default function AdminLayout({
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`flex items-center gap-1.5 px-2.5 xl:px-3 py-2 rounded-xl font-bold shrink-0 whitespace-nowrap transition-all ${
-                      isActive
+                    className={`flex items-center gap-1.5 px-2.5 xl:px-3 py-2 rounded-xl font-bold shrink-0 whitespace-nowrap transition-all ${isActive
                         ? 'bg-white text-emerald-800 border border-emerald-300 shadow-sm'
                         : 'text-slate-600 hover:text-slate-900 hover:bg-white/70'
-                    }`}
+                      }`}
                   >
                     <Icon className="w-3.5 h-3.5 shrink-0" />
                     <span>{item.name}</span>

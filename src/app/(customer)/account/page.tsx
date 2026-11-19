@@ -41,6 +41,7 @@ import { MEMBERSHIP_TIERS, getTierByPoints, MembershipTierConfig } from '@/lib/l
 import { formatVND } from '@/lib/vietqr';
 import { AvatarPickerModal } from '@/components/common/AvatarPickerModal';
 import { VietnamAddressPicker } from '@/components/common/VietnamAddressPicker';
+import { NoAutofillPasswordInput } from '@/components/common/NoAutofillPasswordInput';
 import { RedeemGiftSection } from '@/components/loyalty/RedeemGiftSection';
 import { PromoQRSection } from '@/components/loyalty/PromoQRSection';
 import { DevicePassportSection } from '@/components/loyalty/DevicePassportSection';
@@ -431,7 +432,11 @@ export default function AccountPage() {
                 <label className="text-slate-700 font-semibold mb-1 block">Số điện thoại khách hàng:</label>
                 <div className="relative">
                   <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                  <input autoComplete="off"
+                  <input
+                    autoComplete="one-time-code"
+                    name="ishop_acc_contact"
+                    data-lpignore="true"
+                    data-form-type="other"
                     type="tel"
                     required
                     value={loginPhone}
@@ -446,8 +451,8 @@ export default function AccountPage() {
                 <label className="text-slate-700 font-semibold mb-1 block">Mật khẩu (nếu có):</label>
                 <div className="relative">
                   <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                  <input autoComplete="off"
-                    type="password"
+                  <NoAutofillPasswordInput
+                    name="ishop_acc_sec"
                     value={loginPass}
                     onChange={(e) => setLoginPass(e.target.value)}
                     placeholder="Nhập mật khẩu"
