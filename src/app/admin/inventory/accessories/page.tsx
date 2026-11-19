@@ -182,7 +182,7 @@ export default function InventoryAccessoriesPage() {
       category: defaultCat.code,
       categoryName: defaultCat.name,
       barcode: `${Math.floor(100000000000 + Math.random() * 900000000000)}`,
-      brand: 'Apple',
+      brand: '',
       costPrice: 200000,
       sellingPrice: 350000,
       originalPrice: 350000,
@@ -206,6 +206,10 @@ export default function InventoryAccessoriesPage() {
     }
     if (!formState.barcode?.trim()) {
       alert('Vui lòng nhập mã Barcode!');
+      return;
+    }
+    if (!formState.brand?.trim()) {
+      alert('Vui lòng nhập hãng / thương hiệu!');
       return;
     }
 
@@ -1041,46 +1045,18 @@ export default function InventoryAccessoriesPage() {
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setFormState({
-                            ...formState,
-                            stock: Math.max(0, (Number(formState.stock) || 0) - 1),
-                          })
-                        }
-                        className="w-9 h-9 rounded-xl bg-white border border-slate-200 font-bold hover:bg-slate-100 flex items-center justify-center text-slate-800"
-                      >
-                        -1
-                      </button>
-
-                      <input autoComplete="off"
-                        type="number"
-                        min="0"
-                        value={formState.stock ?? 0}
-                        onChange={(e) =>
-                          setFormState({
-                            ...formState,
-                            stock: Math.max(0, parseInt(e.target.value) || 0),
-                          })
-                        }
-                        className="flex-1 text-center font-mono font-black text-lg py-1.5 bg-white border-2 border-emerald-300 rounded-xl text-slate-900 focus:outline-none focus:border-emerald-600"
-                      />
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setFormState({
-                            ...formState,
-                            stock: (Number(formState.stock) || 0) + 1,
-                          })
-                        }
-                        className="w-9 h-9 rounded-xl bg-white border border-slate-200 font-bold hover:bg-slate-100 flex items-center justify-center text-slate-800"
-                      >
-                        +1
-                      </button>
-                    </div>
+                    <input autoComplete="off"
+                      type="number"
+                      min="0"
+                      value={formState.stock ?? 0}
+                      onChange={(e) =>
+                        setFormState({
+                          ...formState,
+                          stock: Math.max(0, parseInt(e.target.value) || 0),
+                        })
+                      }
+                      className="w-full text-center font-mono font-black text-lg py-1.5 bg-white border-2 border-emerald-300 rounded-xl text-slate-900 focus:outline-none focus:border-emerald-600"
+                    />
 
                     {/* Phím bấm nhanh */}
                     <div className="flex items-center gap-1.5 flex-wrap">
