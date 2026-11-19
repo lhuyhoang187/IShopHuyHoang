@@ -185,7 +185,7 @@ export default function InventoryAccessoriesPage() {
       brand: 'Apple',
       costPrice: 200000,
       sellingPrice: 350000,
-      originalPrice: 400000,
+      originalPrice: 350000,
       stock: 10,
       minStockAlert: 5,
       imageUrl: '',
@@ -228,7 +228,9 @@ export default function InventoryAccessoriesPage() {
       brand: formState.brand?.trim() || 'Khác',
       costPrice: Number(formState.costPrice) || 0,
       sellingPrice: Number(formState.sellingPrice) || 0,
-      originalPrice: Number(formState.originalPrice) || Number(formState.sellingPrice) || 0,
+      originalPrice: isCreatingNew
+        ? Number(formState.sellingPrice) || 0
+        : Number(formState.originalPrice) || Number(formState.sellingPrice) || 0,
       stock: Math.max(0, Math.floor(Number(formState.stock) || 0)),
       minStockAlert: Math.max(0, Math.floor(Number(formState.minStockAlert) || 5)),
       imageUrl:
@@ -1144,7 +1146,7 @@ export default function InventoryAccessoriesPage() {
                   <span>3. Giá Bán Lẻ, Giá Vốn &amp; Lợi Nhuận</span>
                 </h4>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Giá vốn nhập */}
                   <div className="space-y-1">
                     <label className="font-bold text-slate-700 text-xs">
@@ -1183,28 +1185,6 @@ export default function InventoryAccessoriesPage() {
                     />
                     <span className="text-[11px] text-emerald-700 font-bold block font-mono">
                       {formatVND(Number(formState.sellingPrice) || 0)}
-                    </span>
-                  </div>
-
-                  {/* Giá niêm yết gốc */}
-                  <div className="space-y-1">
-                    <label className="font-bold text-slate-700 text-xs">
-                      Giá Niêm Yết Gốc <span className="text-slate-400 font-normal">(Gạch ngang)</span>
-                    </label>
-                    <input autoComplete="off"
-                      type="number"
-                      step="5000"
-                      value={formState.originalPrice || 0}
-                      onChange={(e) =>
-                        setFormState({
-                          ...formState,
-                          originalPrice: Math.max(0, Number(e.target.value)),
-                        })
-                      }
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-emerald-500 focus:bg-white font-mono font-bold"
-                    />
-                    <span className="text-[11px] text-slate-400 block font-mono line-through">
-                      {formatVND(Number(formState.originalPrice) || 0)}
                     </span>
                   </div>
                 </div>

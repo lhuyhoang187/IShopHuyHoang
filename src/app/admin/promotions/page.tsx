@@ -125,6 +125,11 @@ export default function AdminPromotionsPage() {
   // Realtime clock for countdown
   const [now, setNow] = useState(Date.now());
 
+  // Editable price drafts for accessories in Promotions tab (Giá Niêm Yết Gốc + Giá Bán Khuyến Mãi)
+  const [accPriceDrafts, setAccPriceDrafts] = useState<
+    Record<string, { originalPrice?: number; sellingPrice?: number }>
+  >({});
+
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
@@ -359,7 +364,7 @@ export default function AdminPromotionsPage() {
   // ACCESSORY PRICING LIST HANDLERS
   // =========================================================================
 
-  const handleSaveAccessory = (
+  const handleSaveAccessory = async (
     accId: string,
     data: {
       sellingPrice?: number;
@@ -369,8 +374,20 @@ export default function AdminPromotionsPage() {
     }
   ) => {
     IShopStore.updateAccessory(accId, data);
+    try {
+      await fetch('/api/inventory/accessories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: accId,
+          ...data,
+        }),
+      });
+    } catch (e) {
+      console.warn('Sync accessory promotion price notice:', e);
+    }
     loadData();
-    showToast('✓ Đã cập nhật giá phụ kiện thành công!');
+    showToast('✓ Đã cập nhật & đồng bộ giá niêm yết / khuyến mãi phụ kiện vào MySQL!');
   };
 
   const handleBatchApplyAccDiscountWithPhone = (percent: number) => {
@@ -1227,8 +1244,8 @@ export default function AdminPromotionsPage() {
                     </th>
                     <th className="p-3.5">Phụ Kiện & Barcode</th>
                     <th className="p-3.5">Thương Hiệu</th>
-                    <th className="p-3.5">Giá Niêm Yết Gốc</th>
-                    <th className="p-3.5">Giá Bán Lẻ Hiện Tại</th>
+                    <th className="p-3.5">Giá Niêm Yết Gốc (Gạch Ngang)</th>
+                    <th className="p-3.5">Giá Bán Khuyến Mãi</th>
                     <th className="p-3.5 text-center">Giảm Khi Mua Kèm Máy</th>
                     <th className="p-3.5 text-center">Điểm Đổi Thưởng</th>
                     <th className="p-3.5 text-right">Lưu Thay Đổi</th>
@@ -1280,15 +1297,78 @@ export default function AdminPromotionsPage() {
                         <td className="p-3.5 font-semibold text-slate-700">{acc.brand}</td>
 
                         <td className="p-3.5">
-                          <span className="font-mono text-slate-600 block">
-                            {formatVND(acc.originalPrice || acc.sellingPrice)}
-                          </span>
+                          {(() => {
+                            const draftOrig =
+                              accPriceDrafts[acc.id]?.originalPrice ?? (acc.originalPrice || acc.sellingPrice);
+                            return (
+                              <div className="space-y-1">
+                                <input
+                                  autoComplete="off"
+                                  type="number"
+                                  step="5000"
+                                  min="0"
+                                  value={draftOrig}
+                                  onChange={(e) =>
+                                    setAccPriceDrafts((prev) => ({
+                                      ...prev,
+                                      [acc.id]: {
+                                        ...prev[acc.id],
+                                        originalPrice: Math.max(0, Number(e.target.value)),
+                                      },
+                                    }))
+                                  }
+                                  className="w-32 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl font-mono font-bold text-slate-700 text-xs focus:outline-none focus:border-amber-500 focus:bg-white"
+                                />
+                                <span className="text-[10px] font-mono text-slate-400 line-through block">
+                                  {formatVND(draftOrig)}
+                                </span>
+                              </div>
+                            );
+                          })()}
                         </td>
 
                         <td className="p-3.5">
-                          <span className="font-mono font-black text-emerald-900 text-sm block">
-                            {formatVND(acc.sellingPrice)}
-                          </span>
+                          {(() => {
+                            const draftOrig =
+                              accPriceDrafts[acc.id]?.originalPrice ?? (acc.originalPrice || acc.sellingPrice);
+                            const draftSell =
+                              accPriceDrafts[acc.id]?.sellingPrice ?? acc.sellingPrice;
+                            const discountPct =
+                              draftOrig > draftSell && draftOrig > 0
+                                ? Math.round(((draftOrig - draftSell) / draftOrig) * 100)
+                                : 0;
+                            return (
+                              <div className="space-y-1">
+                                <input
+                                  autoComplete="off"
+                                  type="number"
+                                  step="5000"
+                                  min="0"
+                                  value={draftSell}
+                                  onChange={(e) =>
+                                    setAccPriceDrafts((prev) => ({
+                                      ...prev,
+                                      [acc.id]: {
+                                        ...prev[acc.id],
+                                        sellingPrice: Math.max(0, Number(e.target.value)),
+                                      },
+                                    }))
+                                  }
+                                  className="w-32 px-2.5 py-1.5 bg-emerald-50 border border-emerald-300 rounded-xl font-mono font-black text-emerald-900 text-xs focus:outline-none focus:border-emerald-600 focus:bg-white"
+                                />
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-[10px] font-mono font-bold text-emerald-700">
+                                    {formatVND(draftSell)}
+                                  </span>
+                                  {discountPct > 0 && (
+                                    <span className="px-1.5 py-0.2 rounded bg-rose-100 text-rose-700 text-[9px] font-black">
+                                      -{discountPct}%
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </td>
 
                         {/* Discount with phone % (preset selector) */}
@@ -1321,7 +1401,14 @@ export default function AdminPromotionsPage() {
                         <td className="p-3.5 text-right">
                           <button
                             onClick={() => {
-                              showToast(`✓ Đã đồng bộ giá phụ kiện ${acc.name}!`);
+                              const draft = accPriceDrafts[acc.id];
+                              const nextOriginal =
+                                draft?.originalPrice ?? (acc.originalPrice || acc.sellingPrice);
+                              const nextSelling = draft?.sellingPrice ?? acc.sellingPrice;
+                              handleSaveAccessory(acc.id, {
+                                originalPrice: nextOriginal,
+                                sellingPrice: nextSelling,
+                              });
                             }}
                             className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-black text-white font-bold text-xs inline-flex items-center gap-1.5 transition-transform active:scale-95 cursor-pointer shadow-sm ml-auto"
                           >
