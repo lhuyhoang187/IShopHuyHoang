@@ -150,7 +150,9 @@ export async function POST(request: NextRequest) {
         address,
         points,
         body.customerType ? sanitizeString(body.customerType, 50) : 'Khách lẻ',
-        body.membershipTier ? sanitizeString(body.membershipTier, 50) : 'Thành viên mới',
+        body.membershipTier
+          ? sanitizeString(body.membershipTier, 50)
+          : (points > 0 ? 'Thành viên Thường' : 'Chưa xếp hạng'),
         body.taxCode ? sanitizeString(body.taxCode, 50) : null,
         body.birthday ? sanitizeString(body.birthday, 50) : null,
         body.city ? sanitizeString(body.city, 100) : 'TP. Hồ Chí Minh',

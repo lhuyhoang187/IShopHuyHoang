@@ -117,13 +117,13 @@ export default function AccountPage() {
         return sum + earned;
       }, 0);
 
-      // Điểm cơ bản (thành viên mới là 100 điểm) cộng với toàn bộ điểm từ hóa đơn
-      const basePoints = 100;
+      // Tài khoản chưa sử dụng dịch vụ có 0 điểm và chưa xếp hạng (chỉ tính điểm thực tế từ hóa đơn / CSDL)
+      const basePoints = 0;
       const calculatedTotalPoints = Math.max(user.points || 0, basePoints + invoicePoints);
+      const newTier = getTierByPoints(calculatedTotalPoints).tier;
 
-      if (user.points !== calculatedTotalPoints) {
+      if (user.points !== calculatedTotalPoints || user.membershipTier !== newTier) {
         user.points = calculatedTotalPoints;
-        const newTier = getTierByPoints(calculatedTotalPoints).tier;
         user.membershipTier = newTier;
         IShopStore.updateCustomerUser({ points: calculatedTotalPoints, membershipTier: newTier });
         setCustomerUser({ ...user, points: calculatedTotalPoints, membershipTier: newTier });
@@ -473,7 +473,13 @@ export default function AccountPage() {
                 {customerUser.email && <span>• {customerUser.email}</span>}
               </p>
               <p className="text-[11px] text-slate-600">
-                Ưu đãi hiện tại: <strong className="text-amber-700">Chiết khấu {currentTier.discountPercent}%</strong> trên mọi sản phẩm
+                {currentPoints === 0 ? (
+                  <span>Tài khoản mới chưa sử dụng dịch vụ (0 điểm — chưa xếp hạng thường hay VIP)</span>
+                ) : (
+                  <>
+                    Ưu đãi hiện tại: <strong className="text-amber-700">Chiết khấu {currentTier.discountPercent}%</strong> trên mọi sản phẩm
+                  </>
+                )}
               </p>
             </div>
           </div>

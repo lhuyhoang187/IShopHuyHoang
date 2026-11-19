@@ -715,11 +715,11 @@ export const IShopStore = {
         birthday: updated.birthday,
         city: updated.city,
         avatar: updated.avatar,
-        points: updated.points || 100,
+        points: updated.points ?? 0,
         totalSpent: 0,
         purchaseCount: 0,
         repairCount: 0,
-        membershipTier: updated.membershipTier || 'Thành viên mới',
+        membershipTier: updated.membershipTier || 'Chưa xếp hạng',
         createdAt: updated.createdAt || new Date().toISOString().split('T')[0],
       };
       customers.unshift(newCustomer);

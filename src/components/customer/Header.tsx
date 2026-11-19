@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { IShopStore } from '@/lib/store';
 import { CustomerUser } from '@/lib/types';
+import { getTierByPoints } from '@/lib/loyalty';
 import SmartSearchModal from './SmartSearchModal';
 
 export default function Header() {
@@ -215,14 +216,28 @@ export default function Header() {
                             )}
                           </div>
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-center justify-between">
+                            <div className="flex items-center justify-between gap-1">
                               <span className="font-bold text-slate-900 text-xs truncate">{customerUser.name}</span>
-                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
-                                VIP
-                              </span>
+                              {(() => {
+                                const pts = Number(customerUser.points) || 0;
+                                const tierInfo = getTierByPoints(pts);
+                                return (
+                                  <span
+                                    className={`px-1.5 py-0.5 rounded text-[9px] font-bold border shrink-0 ${
+                                      pts >= 1000
+                                        ? 'bg-amber-100 text-amber-800 border-amber-300'
+                                        : 'bg-slate-100 text-slate-600 border-slate-300'
+                                    }`}
+                                  >
+                                    {tierInfo.tier}
+                                  </span>
+                                );
+                              })()}
                             </div>
                             <p className="text-slate-500 text-[10px] truncate">{customerUser.phone || customerUser.email}</p>
-                            <p className="text-amber-700 text-[10px] font-semibold">Điểm: {customerUser.points || 100} pts</p>
+                            <p className="text-amber-700 text-[10px] font-semibold">
+                              Điểm: {(Number(customerUser.points) || 0).toLocaleString('vi-VN')} pts
+                            </p>
                           </div>
                         </div>
 
@@ -484,9 +499,21 @@ export default function Header() {
                         <p className="text-[10px] text-slate-500 mt-0.5 truncate">{customerUser.phone || customerUser.email}</p>
                       </div>
                     </div>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
-                      VIP
-                    </span>
+                    {(() => {
+                      const pts = Number(customerUser.points) || 0;
+                      const tierInfo = getTierByPoints(pts);
+                      return (
+                        <span
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                            pts >= 1000
+                              ? 'bg-amber-100 text-amber-800 border-amber-300'
+                              : 'bg-slate-100 text-slate-600 border-slate-300'
+                          }`}
+                        >
+                          {tierInfo.tier}
+                        </span>
+                      );
+                    })()}
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 pt-1">

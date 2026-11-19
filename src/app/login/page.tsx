@@ -799,27 +799,6 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
                 <span className="font-bold text-amber-600">{successInfo.email}</span> đã kết nối vào hệ thống iShop Huy Hoàng an toàn.
               </p>
 
-              {/* Thẻ trạng thái phiên bảo mật */}
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-left mb-6 space-y-2 text-xs text-slate-700">
-                <div className="flex justify-between items-center">
-                  <span>Trạng thái kết nối:</span>
-                  <span className="font-bold text-emerald-600 flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    Đã xác thực SSL 256-bit
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span>Thời gian phiên:</span>
-                  <span className="font-mono font-bold text-slate-900">
-                    {new Date().toLocaleTimeString('vi-VN')}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span>Loại tài khoản:</span>
-                  <span className="font-bold text-amber-600">Thành Viên VIP iShop</span>
-                </div>
-              </div>
-
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <button
                   type="button"

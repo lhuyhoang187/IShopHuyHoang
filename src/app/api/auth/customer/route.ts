@@ -86,7 +86,7 @@ export async function POST(request: Request) {
       await db.execute(
         `INSERT INTO customer 
          (id, name, phone, email, password, avatar, birthday, gender, city, address, points, totalSpent, purchaseCount, repairCount, membershipTier, customerType, createdAt, updatedAt)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 100, 0, 0, 0, 'Thành viên mới', 'Khách lẻ', NOW(), NOW())`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, 'Chưa xếp hạng', 'Khách lẻ', NOW(), NOW())`,
         [
           customerId,
           customerName,
