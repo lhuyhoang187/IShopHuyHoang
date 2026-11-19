@@ -233,6 +233,7 @@ export default function AccountPage() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            id: customerUser.id,
             name: customerUser.name,
             phone: customerUser.phone,
             avatar: finalAvatar,
@@ -338,7 +339,7 @@ export default function AccountPage() {
   };
 
   // Handle Password Change
-  const handleChangePassword = (e: React.FormEvent) => {
+  const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setSecurityFeedback(null);
 
@@ -358,12 +359,40 @@ export default function AccountPage() {
       return;
     }
 
+    try {
+      const res = await fetch('/api/customers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'change_password',
+          id: customerUser?.id,
+          phone: customerUser?.phone,
+          currentPassword,
+          newPassword,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        setSecurityFeedback({
+          type: 'error',
+          message: json.error || 'Không thể cập nhật mật khẩu vào CSDL!',
+        });
+        return;
+      }
+    } catch {
+      setSecurityFeedback({
+        type: 'error',
+        message: 'Lỗi kết nối máy chủ khi đổi mật khẩu!',
+      });
+      return;
+    }
+
     // Save updated password
     IShopStore.updateCustomerUser({ password: newPassword });
 
     setSecurityFeedback({
       type: 'success',
-      message: '✓ Đổi mật khẩu thành công! Mật khẩu mới của bạn đã có hiệu lực ngay lập tức.',
+      message: '✓ Đổi mật khẩu thành công và đã lưu vào CSDL! Mật khẩu mới có hiệu lực ngay lập tức.',
     });
     setCurrentPassword('');
     setNewPassword('');

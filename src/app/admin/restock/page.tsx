@@ -53,13 +53,13 @@ export default function AdminRestockPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Form State
-  const [selectedSupplierId, setSelectedSupplierId] = useState<string>('sup-1');
+  const [selectedSupplierId, setSelectedSupplierId] = useState<string>('');
 
   // 1. Brand selection
   const [selectedBrand, setSelectedBrand] = useState<string>('all');
 
   // 2. Model selection & smart search
-  const [selectedPhoneId, setSelectedPhoneId] = useState<string>('p-1');
+  const [selectedPhoneId, setSelectedPhoneId] = useState<string>('');
   const [modelSearchQuery, setModelSearchQuery] = useState<string>('');
 
   // 3. Capacity selection
@@ -98,17 +98,30 @@ export default function AdminRestockPage() {
 
   const loadData = async () => {
     setSuppliers(IShopStore.getSuppliers());
-    const phoneList = IShopStore.getPhones();
-    setPhones(phoneList);
+    setPhones(IShopStore.getPhones());
 
     try {
-      const res = await fetch('/api/brands');
-      const json = await res.json();
-      if (json.success && Array.isArray(json.data)) {
-        setDbBrands(json.data);
+      const [brandsRes, colorsRes, phonesRes, suppliersRes] = await Promise.all([
+        fetch('/api/brands', { cache: 'no-store' }).then((r) => r.json()).catch(() => null),
+        fetch('/api/colors', { cache: 'no-store' }).then((r) => r.json()).catch(() => null),
+        fetch('/api/phones', { cache: 'no-store' }).then((r) => r.json()).catch(() => null),
+        fetch('/api/suppliers', { cache: 'no-store' }).then((r) => r.json()).catch(() => null),
+      ]);
+
+      if (brandsRes?.success && Array.isArray(brandsRes.data)) {
+        setDbBrands(brandsRes.data);
+      }
+      if (colorsRes?.success && Array.isArray(colorsRes.data) && colorsRes.data.length > 0) {
+        setDefaultColors(colorsRes.data);
+      }
+      if (phonesRes?.success && Array.isArray(phonesRes.data)) {
+        setPhones(phonesRes.data);
+      }
+      if (suppliersRes?.success && Array.isArray(suppliersRes.data)) {
+        setSuppliers(suppliersRes.data);
       }
     } catch (e) {
-      console.warn('Error loading brands from database:', e);
+      console.warn('Error loading restock data from database:', e);
     }
   };
 
@@ -181,6 +194,20 @@ export default function AdminRestockPage() {
     }
     return currentPhone.colors;
   }, [currentPhone, defaultColors]);
+
+  // Auto-sync selectedSupplierId to first valid supplier from MySQL
+  useEffect(() => {
+    if (suppliers.length > 0 && !suppliers.some((s) => s.id === selectedSupplierId)) {
+      setSelectedSupplierId(suppliers[0].id);
+    }
+  }, [suppliers, selectedSupplierId]);
+
+  // Auto-sync selectedPhoneId to currentPhone
+  useEffect(() => {
+    if (currentPhone && currentPhone.id !== selectedPhoneId) {
+      setSelectedPhoneId(currentPhone.id);
+    }
+  }, [currentPhone, selectedPhoneId]);
 
   // When selected phone or available colors change, sync color
   useEffect(() => {
@@ -341,13 +368,21 @@ export default function AdminRestockPage() {
 
     // 1. Lưu Dòng máy mới vào MySQL qua /api/phones
     try {
-      await fetch('/api/phones', {
+      const res = await fetch('/api/phones', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newPhoneItem),
       });
-    } catch (err) {
-      console.warn('POST /api/phones error:', err);
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        alert(json.error || 'Không thể lưu dòng máy mới vào CSDL MySQL!');
+        setIsSubmittingModel(false);
+        return;
+      }
+    } catch (err: any) {
+      alert('Lỗi kết nối khi lưu dòng máy vào MySQL: ' + (err?.message || ''));
+      setIsSubmittingModel(false);
+      return;
     }
 
     // 2. Lưu vào IShopStore đồng bộ tức thì cho client
@@ -358,7 +393,7 @@ export default function AdminRestockPage() {
     setSelectedPhoneId(newId);
 
     setSuccessMessage(
-      `✓ Đã thêm thành công dòng máy "${trimmedModel}" (${targetBrand}) vào hệ thống!`
+      `✓ Đã thêm thành công dòng máy "${trimmedModel}" (${targetBrand}) vào CSDL MySQL!`
     );
 
     setIsAddModelModalOpen(false);
@@ -367,25 +402,25 @@ export default function AdminRestockPage() {
     await loadData();
   };
 
-  // Add new Color to current phone
+  // Sync phone colors to MySQL /api/phones
   const syncPhoneColorsToDb = async (phoneObj: PhoneProduct, updatedColors: PhoneProduct['colors']) => {
-    try {
-      await fetch('/api/phones', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: phoneObj.id,
-          name: phoneObj.name,
-          slug: phoneObj.slug,
-          brand: phoneObj.brand,
-          description: phoneObj.description,
-          colors: updatedColors,
-          capacities: phoneObj.capacities,
-          specs: phoneObj.specs,
-        }),
-      });
-    } catch (err) {
-      console.warn('Sync phone colors to MySQL notice:', err);
+    const res = await fetch('/api/phones', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: phoneObj.id,
+        name: phoneObj.name,
+        slug: phoneObj.slug,
+        brand: phoneObj.brand,
+        description: phoneObj.description,
+        colors: updatedColors,
+        capacities: phoneObj.capacities,
+        specs: phoneObj.specs,
+      }),
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      throw new Error(json.error || 'Không thể đồng bộ màu sắc dòng máy vào CSDL MySQL');
     }
   };
 
@@ -397,32 +432,58 @@ export default function AdminRestockPage() {
       return;
     }
 
-    if (currentPhone) {
-      const updatedColors = [...currentPhone.colors];
-      const existingColor = updatedColors.find(
-        (c) => c.name.toLowerCase() === trimmedColor.toLowerCase()
-      );
-      if (!existingColor) {
-        updatedColors.push({
-          id: `c-${Date.now()}`,
-          name: trimmedColor,
-          hex: newColorHex,
-          imageUrl: currentPhone.colors[0]?.imageUrl || '',
-        });
-        IShopStore.updatePhone(currentPhone.id, { colors: updatedColors });
-        await syncPhoneColorsToDb(currentPhone, updatedColors);
+    try {
+      // 1. Luôn lưu màu mới vào bảng danh mục màu sắc MySQL (phonecolorcatalog)
+      const colRes = await fetch('/api/colors', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: trimmedColor, hex: newColorHex }),
+      });
+      const colJson = await colRes.json();
+      if (!colRes.ok || !colJson.success) {
+        alert(colJson.error || 'Không thể lưu màu mới vào CSDL MySQL!');
+        return;
       }
-    } else {
+
+      const savedColorObj = colJson.data || {
+        id: `c-${Date.now()}`,
+        name: trimmedColor,
+        hex: newColorHex,
+        imageUrl: '',
+      };
+
       setDefaultColors((prev) => {
         if (prev.some((c) => c.name.toLowerCase() === trimmedColor.toLowerCase())) return prev;
-        return [...prev, { id: `c-${Date.now()}`, name: trimmedColor, hex: newColorHex, imageUrl: '' }];
+        return [...prev, savedColorObj];
       });
-    }
 
-    setColor(trimmedColor);
-    setIsAddColorModalOpen(false);
-    setNewColorName('');
-    loadData();
+      // 2. Nếu đang chọn một dòng máy, đồng bộ thêm màu vào bảng phonecolor của dòng máy đó
+      if (currentPhone) {
+        const updatedColors = [...currentPhone.colors];
+        const existingColor = updatedColors.find(
+          (c) => c.name.toLowerCase() === trimmedColor.toLowerCase()
+        );
+        if (!existingColor) {
+          updatedColors.push({
+            id: savedColorObj.id || `c-${Date.now()}`,
+            name: trimmedColor,
+            hex: newColorHex,
+            imageUrl: currentPhone.colors[0]?.imageUrl || '',
+          });
+          await syncPhoneColorsToDb(currentPhone, updatedColors);
+          IShopStore.updatePhone(currentPhone.id, { colors: updatedColors });
+        }
+      }
+
+      setColor(trimmedColor);
+      setIsAddColorModalOpen(false);
+      setNewColorName('');
+      setSuccessMessage(`✓ Đã lưu màu "${trimmedColor}" vào CSDL MySQL thành công!`);
+      setTimeout(() => setSuccessMessage(null), 3500);
+      await loadData();
+    } catch (err: any) {
+      alert('Lỗi lưu màu sắc mới vào CSDL: ' + (err?.message || 'Lỗi kết nối'));
+    }
   };
 
   const handleDeleteColor = async (colorNameToDelete: string) => {
@@ -440,20 +501,38 @@ export default function AdminRestockPage() {
       (c) => c.name.toLowerCase() !== colorNameToDelete.toLowerCase()
     );
 
-    if (currentPhone) {
-      IShopStore.updatePhone(currentPhone.id, { colors: remaining });
-      await syncPhoneColorsToDb(currentPhone, remaining);
-      loadData();
-    } else {
-      setDefaultColors(remaining);
-    }
+    try {
+      // 1. Xóa khỏi danh mục màu sắc MySQL (phonecolorcatalog)
+      const delRes = await fetch(`/api/colors?name=${encodeURIComponent(colorNameToDelete)}`, {
+        method: 'DELETE',
+      });
+      const delJson = await delRes.json();
+      if (!delRes.ok && delRes.status !== 404) {
+        // Nếu xóa ở catalog lỗi do còn 1 màu nhưng đang xóa trên phone riêng thì vẫn cho tiếp tục nếu có currentPhone
+        if (!currentPhone) {
+          alert(delJson.error || 'Không thể xóa màu khỏi CSDL MySQL!');
+          return;
+        }
+      }
 
-    if (color.toLowerCase() === colorNameToDelete.toLowerCase() && remaining.length > 0) {
-      setColor(remaining[0].name);
-    }
+      // 2. Nếu đang chọn một dòng máy, đồng bộ xóa khỏi bảng phonecolor của dòng máy đó
+      if (currentPhone) {
+        await syncPhoneColorsToDb(currentPhone, remaining);
+        IShopStore.updatePhone(currentPhone.id, { colors: remaining });
+      } else {
+        setDefaultColors(remaining);
+      }
 
-    setSuccessMessage(`✓ Đã xóa màu "${colorNameToDelete}" thành công!`);
-    setTimeout(() => setSuccessMessage(null), 3500);
+      if (color.toLowerCase() === colorNameToDelete.toLowerCase() && remaining.length > 0) {
+        setColor(remaining[0].name);
+      }
+
+      setSuccessMessage(`✓ Đã xóa màu "${colorNameToDelete}" khỏi CSDL MySQL thành công!`);
+      setTimeout(() => setSuccessMessage(null), 3500);
+      await loadData();
+    } catch (err: any) {
+      alert('Lỗi xóa màu sắc khỏi CSDL: ' + (err?.message || 'Lỗi kết nối'));
+    }
   };
 
   // Parse raw IMEI text into array of clean 15-digit numbers
@@ -475,6 +554,14 @@ export default function AdminRestockPage() {
       alert('Vui lòng nhập ít nhất 1 số IMEI hợp lệ!');
       return;
     }
+    if (!selectedSupplierId) {
+      alert('Vui lòng chọn hoặc tạo mới Nhà Cung Cấp trước khi nhập kho!');
+      return;
+    }
+    if (!currentPhone) {
+      alert('Vui lòng thêm hoặc chọn một Dòng Máy (Model) trước khi nạp IMEI!');
+      return;
+    }
     if (numericCostPrice <= 0 || numericSellingPrice <= 0) {
       alert('Vui lòng nhập đầy đủ giá vốn nhập và giá bán lẻ niêm yết!');
       return;
@@ -482,30 +569,36 @@ export default function AdminRestockPage() {
 
     // 1. Post to live MySQL Database via /api/restock
     try {
-      await fetch('/api/restock', {
+      const res = await fetch('/api/restock', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           supplierId: selectedSupplierId,
-          phoneId: selectedPhoneId,
-          phoneName: currentPhone ? currentPhone.name : 'Điện Thoại Mới',
+          phoneId: currentPhone.id,
+          phoneName: currentPhone.name,
           color,
           capacity,
           costPrice: numericCostPrice,
           sellingPrice: numericSellingPrice,
           imeis: parsedImeis,
           paidAmount,
-          notes: `Nhập lô hàng chính ngạch: Hãng ${currentPhone?.brand} - ${currentPhone?.name} (${color} - ${capacity}).`,
+          notes: `Nhập lô hàng chính ngạch: Hãng ${currentPhone.brand} - ${currentPhone.name} (${color} - ${capacity}).`,
         }),
       });
-    } catch (err) {
-      console.warn('API restock error:', err);
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        alert(json.error || 'Lỗi lưu lô IMEI vào CSDL MySQL!');
+        return;
+      }
+    } catch (err: any) {
+      alert('Lỗi kết nối khi nhập kho vào MySQL: ' + (err?.message || ''));
+      return;
     }
 
     // 2. Also save to client store for immediate reactivity
     IShopStore.importPhoneBatch(
       selectedSupplierId,
-      selectedPhoneId,
+      currentPhone.id,
       color,
       capacity,
       numericCostPrice,
@@ -515,7 +608,7 @@ export default function AdminRestockPage() {
     );
 
     setSuccessMessage(
-      `✓ Đã nạp thành công ${parsedImeis.length} máy mới [Hãng: ${currentPhone?.brand}] - ${currentPhone?.name} (${color} - ${capacity}) vào kho CSDL! Tự động tạo Phiếu Chi: ${formatVND(
+      `✓ Đã nạp thành công ${parsedImeis.length} máy mới [Hãng: ${currentPhone.brand}] - ${currentPhone.name} (${color} - ${capacity}) vào kho CSDL! Tự động tạo Phiếu Chi: ${formatVND(
         paidAmount
       )} và cập nhật công nợ NCC: +${formatVND(debtIncrease)}.`
     );

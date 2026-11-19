@@ -59,11 +59,14 @@ function normalizeCapacitiesInput(rawCaps: any) {
   const arr = Array.isArray(rawCaps) ? rawCaps : [];
   if (arr.length > 0) {
     return arr.map((c: any) => {
-      const price = Number(c.price) || 25990000;
+      const price = c.price !== undefined && c.price !== null ? Math.max(0, Number(c.price) || 0) : 0;
+      const orig = c.originalPrice !== undefined && c.originalPrice !== null && Number(c.originalPrice) > 0
+        ? Number(c.originalPrice)
+        : price;
       return {
         size: sanitizeString(c.size || '256GB', 50),
         price,
-        originalPrice: Number(c.originalPrice) || Math.round(price * 1.08),
+        originalPrice: orig,
         stock: c.stock as number | undefined,
         isOutOfStock: Boolean(c.isOutOfStock),
       };
@@ -72,8 +75,8 @@ function normalizeCapacitiesInput(rawCaps: any) {
   return [
     {
       size: '256GB',
-      price: 25990000,
-      originalPrice: 27990000,
+      price: 0,
+      originalPrice: 0,
       stock: undefined as number | undefined,
       isOutOfStock: false,
     },
@@ -432,7 +435,7 @@ export async function POST(request: NextRequest) {
         // Upsert 3NF PhoneVariant rows for each capacity under this color
         for (const cap of normalizedCaps) {
           const capSize = cap.size || '256GB';
-          const capPrice = Number(cap.price) || 20000000;
+          const capPrice = Number(cap.price) || 0;
           const isOut = col.isOutOfStock || cap.isOutOfStock || col.stock === 0 || cap.stock === 0 ? 1 : 0;
 
           const [exVars]: any = await conn.query(
@@ -442,14 +445,14 @@ export async function POST(request: NextRequest) {
           if (exVars[0]?.id) {
             await conn.execute(
               `UPDATE phonevariant SET price = ?, originalPrice = ?, isOutOfStock = ?, updatedAt = NOW() WHERE id = ?`,
-              [capPrice, cap.originalPrice ? Number(cap.originalPrice) : null, isOut, exVars[0].id]
+              [capPrice, cap.originalPrice ? Number(cap.originalPrice) : capPrice, isOut, exVars[0].id]
             );
           } else {
             const varId = 'var_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
             await conn.execute(
               `INSERT INTO phonevariant (id, colorId, capacity, price, originalPrice, isOutOfStock, createdAt, updatedAt)
                VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-              [varId, colorId, capSize, capPrice, cap.originalPrice ? Number(cap.originalPrice) : null, isOut]
+              [varId, colorId, capSize, capPrice, cap.originalPrice ? Number(cap.originalPrice) : capPrice, isOut]
             );
           }
         }

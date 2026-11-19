@@ -45,6 +45,53 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+
+    // Dedicated Password Change Action
+    if (body.action === 'change_password') {
+      const targetId = body.id ? sanitizeString(body.id, 64) : '';
+      const targetPhone = body.phone ? normalizePhone(body.phone) : '';
+      const currentPassword = String(body.currentPassword || '');
+      const newPassword = String(body.newPassword || '');
+
+      if (newPassword.length < 6) {
+        return NextResponse.json(
+          { error: 'Mật khẩu mới phải có ít nhất 6 ký tự!' },
+          { status: 400 }
+        );
+      }
+
+      let customerRow: any = null;
+      if (targetId) {
+        customerRow = await db.queryOne('SELECT * FROM customer WHERE id = ?', [targetId]);
+      }
+      if (!customerRow && targetPhone) {
+        customerRow = await db.queryOne('SELECT * FROM customer WHERE phone = ?', [targetPhone]);
+      }
+      if (!customerRow) {
+        return NextResponse.json(
+          { error: 'Không tìm thấy tài khoản khách hàng trong CSDL!' },
+          { status: 404 }
+        );
+      }
+
+      if (customerRow.password && currentPassword && customerRow.password !== currentPassword) {
+        return NextResponse.json(
+          { error: 'Mật khẩu hiện tại không chính xác!' },
+          { status: 401 }
+        );
+      }
+
+      await db.execute('UPDATE customer SET password = ?, updatedAt = NOW() WHERE id = ?', [
+        newPassword,
+        customerRow.id,
+      ]);
+
+      return NextResponse.json({
+        success: true,
+        message: 'Đã cập nhật mật khẩu mới vào CSDL thành công!',
+      });
+    }
+
     const rawName = body.name;
     const rawPhone = body.phone;
     const rawEmail = body.email;
@@ -55,14 +102,29 @@ export async function POST(request: NextRequest) {
     const email = rawEmail ? sanitizeString(rawEmail, 100).toLowerCase() : null;
     const address = rawAddress ? sanitizeString(rawAddress, 191) : null;
 
-    if (!name || name.length < 2) {
+    let existing: any = null;
+    if (body.id) {
+      existing = await db.queryOne('SELECT * FROM customer WHERE id = ?', [sanitizeString(body.id, 64)]);
+    }
+    if (!existing && phone) {
+      existing = await db.queryOne('SELECT * FROM customer WHERE phone = ?', [phone]);
+    }
+
+    if (!existing && (!name || name.length < 2)) {
       return NextResponse.json(
         { error: 'Họ tên khách hàng không được để trống (tối thiểu 2 ký tự)' },
         { status: 400 }
       );
     }
 
-    if (!isValidPhone(phone)) {
+    if (!existing && !isValidPhone(phone)) {
+      return NextResponse.json(
+        { error: 'Số điện thoại khách hàng không đúng định dạng số điện thoại Việt Nam 10 số' },
+        { status: 400 }
+      );
+    }
+
+    if (existing && phone && phone !== existing.phone && !isValidPhone(phone)) {
       return NextResponse.json(
         { error: 'Số điện thoại khách hàng không đúng định dạng số điện thoại Việt Nam 10 số' },
         { status: 400 }
@@ -76,17 +138,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let existing: any = null;
-    if (body.id) {
-      existing = await db.queryOne('SELECT * FROM customer WHERE id = ?', [sanitizeString(body.id, 64)]);
-    }
-    if (!existing) {
-      existing = await db.queryOne('SELECT * FROM customer WHERE phone = ?', [phone]);
-    }
-
     if (existing) {
-      const setClauses: string[] = ['name = ?', 'phone = ?', 'updatedAt = NOW()'];
-      const params: any[] = [name, phone];
+      const setClauses: string[] = ['updatedAt = NOW()'];
+      const params: any[] = [];
+
+      if (name && name.length >= 2) {
+        setClauses.push('name = ?');
+        params.push(name);
+      }
+      if (phone) {
+        setClauses.push('phone = ?');
+        params.push(phone);
+      }
 
       if (email !== null) {
         setClauses.push('email = ?');
@@ -150,8 +213,8 @@ export async function POST(request: NextRequest) {
 
     await db.execute(
       `INSERT INTO customer 
-       (id, name, phone, email, address, points, customerType, membershipTier, taxCode, birthday, city, notes, avatar, totalSpent, purchaseCount, repairCount, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, NOW(), NOW())`,
+       (id, name, phone, email, address, points, customerType, membershipTier, taxCode, birthday, gender, city, notes, avatar, totalSpent, purchaseCount, repairCount, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, NOW(), NOW())`,
       [
         customerId,
         name,
@@ -165,6 +228,7 @@ export async function POST(request: NextRequest) {
           : (points > 0 ? 'Thành viên Thường' : 'Chưa xếp hạng'),
         body.taxCode ? sanitizeString(body.taxCode, 50) : null,
         body.birthday ? sanitizeString(body.birthday, 50) : null,
+        body.gender ? sanitizeString(body.gender, 20) : null,
         body.city ? sanitizeString(body.city, 100) : 'TP. Hồ Chí Minh',
         body.notes || null,
         body.avatar || null,

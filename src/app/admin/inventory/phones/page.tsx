@@ -59,10 +59,10 @@ export default function InventoryPhonesPage() {
     setRole(IShopStore.getRole());
 
     // Sync phones live from MySQL Database
-    fetch('/api/phones')
+    fetch('/api/phones', { cache: 'no-store' })
       .then((res) => res.json())
       .then((json) => {
-        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+        if (json.success && Array.isArray(json.data)) {
           setPhones(json.data);
           // If modal is open, refresh selected phone
           setSelectedPhoneForEdit((prev) =>
@@ -73,10 +73,10 @@ export default function InventoryPhonesPage() {
       .catch((err) => console.warn('Phones sync notice:', err));
 
     // Sync IMEI live from MySQL Database
-    fetch('/api/inventory/phones')
+    fetch('/api/inventory/phones', { cache: 'no-store' })
       .then((res) => res.json())
       .then((json) => {
-        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+        if (json.success && Array.isArray(json.data)) {
           setStock(json.data);
         }
       })
@@ -267,11 +267,10 @@ export default function InventoryPhonesPage() {
           <button
             type="button"
             onClick={() => setActiveView('variants')}
-            className={`px-4 py-2.5 rounded-xl flex items-center gap-2 transition-all cursor-pointer ${
-              activeView === 'variants'
+            className={`px-4 py-2.5 rounded-xl flex items-center gap-2 transition-all cursor-pointer ${activeView === 'variants'
                 ? 'bg-amber-500 text-slate-950 font-black shadow-md'
                 : 'text-slate-700 hover:bg-amber-100/80'
-            }`}
+              }`}
           >
             <Sliders className="w-4 h-4" />
             <span>Quản Lý Tồn Kho Theo Màu &amp; Dung Lượng ({phones.length} Dòng Máy)</span>
@@ -280,11 +279,10 @@ export default function InventoryPhonesPage() {
           <button
             type="button"
             onClick={() => setActiveView('imei')}
-            className={`px-4 py-2.5 rounded-xl flex items-center gap-2 transition-all cursor-pointer ${
-              activeView === 'imei'
+            className={`px-4 py-2.5 rounded-xl flex items-center gap-2 transition-all cursor-pointer ${activeView === 'imei'
                 ? 'bg-slate-900 text-white font-black shadow-md'
                 : 'text-slate-700 hover:bg-amber-100/80'
-            }`}
+              }`}
           >
             <Smartphone className="w-4 h-4" />
             <span>Chi Tiết Từng Máy Theo Số IMEI ({stock.length} Máy)</span>
@@ -472,13 +470,12 @@ export default function InventoryPhonesPage() {
                             <div className="space-y-1 min-w-0">
                               <div className="flex items-center gap-1.5 flex-wrap">
                                 <span
-                                  className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide ${
-                                    phone.brand === 'Apple'
+                                  className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide ${phone.brand === 'Apple'
                                       ? 'bg-slate-900 text-white'
                                       : phone.brand === 'Samsung'
-                                      ? 'bg-blue-600 text-white'
-                                      : 'bg-orange-600 text-white'
-                                  }`}
+                                        ? 'bg-blue-600 text-white'
+                                        : 'bg-orange-600 text-white'
+                                    }`}
                                 >
                                   {phone.brand}
                                 </span>
@@ -520,13 +517,12 @@ export default function InventoryPhonesPage() {
                               return (
                                 <div
                                   key={cap.size}
-                                  className={`px-3 py-1.5 rounded-xl border flex items-center justify-between text-xs transition-colors ${
-                                    isHighlight
+                                  className={`px-3 py-1.5 rounded-xl border flex items-center justify-between text-xs transition-colors ${isHighlight
                                       ? 'border-amber-400 bg-amber-50/90 shadow-2xs'
                                       : isOut
-                                      ? 'bg-red-50/60 border-red-200 text-slate-600'
-                                      : 'bg-slate-50 border-slate-200 text-slate-800'
-                                  }`}
+                                        ? 'bg-red-50/60 border-red-200 text-slate-600'
+                                        : 'bg-slate-50 border-slate-200 text-slate-800'
+                                    }`}
                                 >
                                   <div className="flex items-center gap-2">
                                     <span className={`font-bold text-xs ${isOut ? 'line-through text-slate-400' : 'text-slate-900'}`}>
@@ -566,11 +562,10 @@ export default function InventoryPhonesPage() {
                               return (
                                 <div
                                   key={c.id}
-                                  className={`px-3 py-1.5 rounded-xl border flex items-center justify-between text-xs transition-colors ${
-                                    isOut
+                                  className={`px-3 py-1.5 rounded-xl border flex items-center justify-between text-xs transition-colors ${isOut
                                       ? 'bg-red-50/60 border-red-200 text-slate-600'
                                       : 'bg-slate-50 border-slate-200 text-slate-800'
-                                  }`}
+                                    }`}
                                 >
                                   <div className="flex items-center gap-2 min-w-0" title={c.name}>
                                     <span
@@ -578,9 +573,8 @@ export default function InventoryPhonesPage() {
                                       className="w-3.5 h-3.5 rounded-full border border-slate-300 shrink-0 shadow-2xs"
                                     />
                                     <span
-                                      className={`truncate font-semibold text-xs ${
-                                        isOut ? 'line-through text-slate-400' : 'text-slate-800'
-                                      }`}
+                                      className={`truncate font-semibold text-xs ${isOut ? 'line-through text-slate-400' : 'text-slate-800'
+                                        }`}
                                     >
                                       {cleanColorName}
                                     </span>

@@ -105,6 +105,90 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const existing = id ? await db.queryOne('SELECT * FROM sparepart WHERE id = ?', [id]) : null;
+
+    if (existing) {
+      await db.transaction(async (conn) => {
+        const setClauses: string[] = [];
+        const params: any[] = [];
+
+        if (name !== undefined) {
+          setClauses.push('name = ?');
+          params.push(sanitizeString(name || existing.name, 191));
+        }
+        if (categoryId !== undefined || category !== undefined) {
+          const resolvedCategoryId = await resolveSparePartCategoryId(categoryId || category, categoryName);
+          setClauses.push('categoryId = ?');
+          params.push(resolvedCategoryId);
+        }
+        if (barcode !== undefined) {
+          setClauses.push('barcode = ?');
+          params.push(sanitizeString(barcode, 50));
+        }
+        if (costPrice !== undefined) {
+          setClauses.push('costPrice = ?');
+          params.push(Math.max(0, Number(costPrice) || 0));
+        }
+        if (retailRepairPrice !== undefined) {
+          setClauses.push('retailRepairPrice = ?');
+          params.push(Math.max(0, Number(retailRepairPrice) || 0));
+        }
+        if (stock !== undefined) {
+          setClauses.push('stock = ?');
+          params.push(Math.max(0, Math.floor(Number(stock) || 0)));
+        }
+        if (unit !== undefined) {
+          setClauses.push('unit = ?');
+          params.push(sanitizeString(unit, 20) || 'cái');
+        }
+        if (warrantyMonths !== undefined) {
+          setClauses.push('warrantyMonths = ?');
+          params.push(Number(warrantyMonths) || 6);
+        }
+
+        if (setClauses.length > 0) {
+          setClauses.push('updatedAt = NOW()');
+          params.push(existing.id);
+          await conn.execute(`UPDATE sparepart SET ${setClauses.join(', ')} WHERE id = ?`, params);
+        }
+
+        if (compatibleModels !== undefined) {
+          const modelList: string[] = Array.isArray(compatibleModels)
+            ? compatibleModels.map((m: any) => sanitizeString(String(m), 150)).filter(Boolean)
+            : typeof compatibleModels === 'string'
+            ? compatibleModels.split(',').map((s: string) => sanitizeString(s, 150)).filter(Boolean)
+            : [];
+          await conn.execute('DELETE FROM sparepartcompatibility WHERE sparePartId = ?', [existing.id]);
+          for (const m of Array.from(new Set(modelList))) {
+            const compatId = 'spc_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
+            await conn.execute(
+              `INSERT INTO sparepartcompatibility (id, sparePartId, deviceModel, createdAt)
+               VALUES (?, ?, ?, NOW())`,
+              [compatId, existing.id, m]
+            );
+          }
+        }
+      });
+
+      const part = await db.queryOne(
+        `SELECT sp.*, sc.code AS category, sc.name AS categoryName
+         FROM sparepart sp
+         LEFT JOIN sparepartcategory sc ON sp.categoryId = sc.id
+         WHERE sp.id = ?`,
+        [existing.id]
+      );
+      const compats = await db.query(
+        'SELECT deviceModel FROM sparepartcompatibility WHERE sparePartId = ? ORDER BY id ASC',
+        [existing.id]
+      );
+
+      return NextResponse.json({
+        success: true,
+        message: 'Cập nhật linh kiện thành công',
+        data: part ? { ...part, compatibleModels: compats.map((c) => c.deviceModel) } : null,
+      });
+    }
+
     const cleanBarcode = barcode ? sanitizeString(barcode, 50) : `LK${Date.now()}`;
     const cleanId = id || `sp-${cleanBarcode}`;
     const cleanName = sanitizeString(name || 'Linh kiện thay thế', 191);
@@ -121,48 +205,24 @@ export async function POST(request: NextRequest) {
       ? compatibleModels.split(',').map((s: string) => sanitizeString(s, 150)).filter(Boolean)
       : [];
 
-    const existing = await db.queryOne('SELECT id FROM sparepart WHERE id = ?', [cleanId]);
-
     await db.transaction(async (conn) => {
-      if (existing) {
-        await conn.execute(
-          `UPDATE sparepart SET
-             name = ?, categoryId = ?, barcode = ?,
-             costPrice = ?, retailRepairPrice = ?, stock = ?, unit = ?, warrantyMonths = ?, updatedAt = NOW()
-           WHERE id = ?`,
-          [
-            cleanName,
-            resolvedCategoryId,
-            cleanBarcode,
-            cleanCost,
-            cleanRetail,
-            cleanStock,
-            cleanUnit,
-            cleanWarranty,
-            cleanId,
-          ]
-        );
-      } else {
-        await conn.execute(
-          `INSERT INTO sparepart
-           (id, name, categoryId, barcode, costPrice, retailRepairPrice, stock, unit, warrantyMonths, createdAt, updatedAt)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-          [
-            cleanId,
-            cleanName,
-            resolvedCategoryId,
-            cleanBarcode,
-            cleanCost,
-            cleanRetail,
-            cleanStock,
-            cleanUnit,
-            cleanWarranty,
-          ]
-        );
-      }
+      await conn.execute(
+        `INSERT INTO sparepart
+         (id, name, categoryId, barcode, costPrice, retailRepairPrice, stock, unit, warrantyMonths, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+        [
+          cleanId,
+          cleanName,
+          resolvedCategoryId,
+          cleanBarcode,
+          cleanCost,
+          cleanRetail,
+          cleanStock,
+          cleanUnit,
+          cleanWarranty,
+        ]
+      );
 
-      // Sync 1NF/3NF sparepartcompatibility rows
-      await conn.execute('DELETE FROM sparepartcompatibility WHERE sparePartId = ?', [cleanId]);
       for (const m of Array.from(new Set(modelList))) {
         const compatId = 'spc_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
         await conn.execute(

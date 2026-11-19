@@ -105,10 +105,10 @@ export default function InventoryAccessoriesPage() {
     setRole(IShopStore.getRole());
 
     // 2. Đồng bộ phụ kiện từ MySQL API
-    fetch('/api/inventory/accessories')
+    fetch('/api/inventory/accessories', { cache: 'no-store' })
       .then((res) => res.json())
       .then((res) => {
-        if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+        if (res.success && Array.isArray(res.data)) {
           setAccessories(res.data);
           res.data.forEach((acc: AccessoryProduct) => {
             IShopStore.addAccessory(acc);

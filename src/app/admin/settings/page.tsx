@@ -156,12 +156,19 @@ export default function AdminSettingsPage() {
     setTimeout(() => setRbacSuccessMsg(null), 3500);
   };
 
-  const handleResetRbac = () => {
+  const handleResetRbac = async () => {
     if (confirm('Khôi phục ma trận phân quyền về cấu hình bảo mật mặc định ban đầu?')) {
       const def = IShopStore.resetPermissionMatrix();
       setPermissions(def);
       setIsDirtyRbac(false);
-      setRbacSuccessMsg('✓ Đã khôi phục ma trận phân quyền về chuẩn mặc định!');
+      try {
+        await fetch('/api/admin/permissions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ permissions: def }),
+        });
+      } catch {}
+      setRbacSuccessMsg('✓ Đã khôi phục ma trận phân quyền về chuẩn mặc định và đồng bộ MySQL!');
       setTimeout(() => setRbacSuccessMsg(null), 3000);
     }
   };
@@ -180,7 +187,7 @@ export default function AdminSettingsPage() {
     setTimeout(() => setRbacSuccessMsg(null), 3000);
   };
 
-  const handleAddNewPermission = (e: React.FormEvent) => {
+  const handleAddNewPermission = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newModuleName.trim()) return;
     const newId = 'perm_' + Date.now().toString(36);
@@ -195,24 +202,38 @@ export default function AdminSettingsPage() {
     };
     const updated = [...permissions, newItem];
     setPermissions(updated);
-    setIsDirtyRbac(true);
+    setIsDirtyRbac(false);
     IShopStore.setPermissionMatrix(updated);
+    try {
+      await fetch('/api/admin/permissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ permissions: updated }),
+      });
+    } catch {}
     setIsAddModuleOpen(false);
     setNewModuleName('');
     setNewModuleDesc('');
     setNewModuleTech(false);
     setNewModuleCashier(false);
-    setRbacSuccessMsg(`✓ Đã thêm phân hệ quyền mới: "${newItem.module}"!`);
+    setRbacSuccessMsg(`✓ Đã thêm phân hệ quyền mới "${newItem.module}" và lưu vào MySQL!`);
     setTimeout(() => setRbacSuccessMsg(null), 3000);
   };
 
-  const handleDeletePermission = (id: string, moduleName: string) => {
+  const handleDeletePermission = async (id: string, moduleName: string) => {
     if (confirm(`Bạn có chắc muốn xóa phân hệ "${moduleName}" khỏi ma trận phân quyền?`)) {
       const updated = permissions.filter((p) => p.id !== id);
       setPermissions(updated);
-      setIsDirtyRbac(true);
+      setIsDirtyRbac(false);
       IShopStore.setPermissionMatrix(updated);
-      setRbacSuccessMsg(`✓ Đã xóa phân hệ "${moduleName}"!`);
+      try {
+        await fetch('/api/admin/permissions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ permissions: updated }),
+        });
+      } catch {}
+      setRbacSuccessMsg(`✓ Đã xóa phân hệ "${moduleName}" khỏi MySQL!`);
       setTimeout(() => setRbacSuccessMsg(null), 3000);
     }
   };

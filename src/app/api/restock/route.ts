@@ -123,8 +123,14 @@ export async function POST(request: NextRequest) {
     }
     if (!resolvedPhoneId) {
       const firstPhone = await db.queryOne('SELECT id, name FROM phoneproduct LIMIT 1');
-      resolvedPhoneId = firstPhone ? firstPhone.id : 'p-1';
-      resolvedPhoneName = resolvedPhoneName || firstPhone?.name || 'iPhone Mới Nhập';
+      if (!firstPhone) {
+        return NextResponse.json(
+          { error: 'Chưa có dòng máy nào trong CSDL. Vui lòng thêm dòng máy trước khi nhập IMEI!' },
+          { status: 400 }
+        );
+      }
+      resolvedPhoneId = firstPhone.id;
+      resolvedPhoneName = resolvedPhoneName || firstPhone.name;
     }
 
     const totalBatchCost = costNum * uniqueImeis.length;
@@ -139,6 +145,62 @@ export async function POST(request: NextRequest) {
     const orderCode = `NH-2608-${String(orderCount + 1).padStart(3, '0')}`;
 
     const result = await db.transaction(async (conn) => {
+      // 0. Ensure imported color & capacity variant exist in phonecolor / phonevariant
+      const cleanColorName = sanitizeString(color || 'Đen (Black)', 100);
+      const cleanCapacity = sanitizeString(capacity || '256GB', 50);
+      const [exColRows]: any = await conn.query(
+        'SELECT id FROM phonecolor WHERE phoneId = ? AND LOWER(name) = LOWER(?) LIMIT 1',
+        [resolvedPhoneId, cleanColorName]
+      );
+      let variantColorId = exColRows[0]?.id;
+      if (!variantColorId) {
+        let colorHex = '#222222';
+        try {
+          const [catRows]: any = await conn.query(
+            'SELECT hex FROM phonecolorcatalog WHERE LOWER(name) = LOWER(?) LIMIT 1',
+            [cleanColorName]
+          );
+          if (catRows[0]?.hex) colorHex = catRows[0].hex;
+        } catch {}
+        const [firstColRows]: any = await conn.query(
+          'SELECT imageUrl FROM phonecolor WHERE phoneId = ? ORDER BY displayOrder ASC LIMIT 1',
+          [resolvedPhoneId]
+        );
+        const fallbackImg =
+          firstColRows[0]?.imageUrl ||
+          'https://images.unsplash.com/photo-1580910051074-3eb694886505?w=800&auto=format&fit=crop&q=80';
+        const [cntCols]: any = await conn.query(
+          'SELECT COUNT(*) AS cnt FROM phonecolor WHERE phoneId = ?',
+          [resolvedPhoneId]
+        );
+        variantColorId = 'pc_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
+        await conn.execute(
+          `INSERT INTO phonecolor (id, phoneId, name, hex, imageUrl, displayOrder, createdAt, updatedAt)
+           VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+          [variantColorId, resolvedPhoneId, cleanColorName, colorHex, fallbackImg, Number(cntCols[0]?.cnt || 0)]
+        );
+      }
+
+      const [exVarRows]: any = await conn.query(
+        'SELECT id, originalPrice FROM phonevariant WHERE colorId = ? AND capacity = ? LIMIT 1',
+        [variantColorId, cleanCapacity]
+      );
+      if (exVarRows[0]?.id) {
+        const nextOrig =
+          Number(exVarRows[0].originalPrice || 0) > sellNum ? Number(exVarRows[0].originalPrice) : sellNum;
+        await conn.execute(
+          `UPDATE phonevariant SET price = ?, originalPrice = ?, isOutOfStock = 0, updatedAt = NOW() WHERE id = ?`,
+          [sellNum, nextOrig, exVarRows[0].id]
+        );
+      } else {
+        const varId = 'var_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
+        await conn.execute(
+          `INSERT INTO phonevariant (id, colorId, capacity, price, originalPrice, isOutOfStock, createdAt, updatedAt)
+           VALUES (?, ?, ?, ?, ?, 0, NOW(), NOW())`,
+          [varId, variantColorId, cleanCapacity, sellNum, sellNum]
+        );
+      }
+
       // 1. Insert/Update 3NF PhoneStock (no transitive phoneName / supplierName)
       for (const imei of uniqueImeis) {
         await conn.execute(
@@ -157,8 +219,8 @@ export async function POST(request: NextRequest) {
           [
             imei,
             resolvedPhoneId,
-            sanitizeString(color || 'Titan Tự Nhiên', 100),
-            sanitizeString(capacity || '256GB', 50),
+            cleanColorName,
+            cleanCapacity,
             costNum,
             sellNum,
             supplierId,

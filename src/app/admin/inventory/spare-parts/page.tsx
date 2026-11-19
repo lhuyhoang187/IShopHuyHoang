@@ -62,10 +62,10 @@ export default function InventorySparePartsPage() {
     setRole(IShopStore.getRole());
 
     // 2. Đồng bộ từ MySQL API
-    fetch('/api/inventory/spare-parts')
+    fetch('/api/inventory/spare-parts', { cache: 'no-store' })
       .then((res) => res.json())
       .then((res) => {
-        if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+        if (res.success && Array.isArray(res.data)) {
           setParts(res.data);
           res.data.forEach((p: SparePartItem) => {
             IShopStore.addSparePart(p);
