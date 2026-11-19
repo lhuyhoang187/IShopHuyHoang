@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { isValidAmount, sanitizeString, normalizePhone, isStrictVietnamPhone, getCashbookCategoryLabel } from '@/lib/validation';
+import { isValidAmount, sanitizeString, normalizePhone, getCashbookCategoryLabel } from '@/lib/validation';
 
 export async function GET(request: NextRequest) {
   try {
@@ -42,14 +42,14 @@ export async function POST(request: NextRequest) {
       }
 
       const rawPhone = String(body.phone || '').trim();
-      if (!rawPhone || !isStrictVietnamPhone(phone)) {
-        const digitsOnly = rawPhone.replace(/\D/g, '');
+      const digitsOnly = rawPhone.replace(/\D/g, '');
+      if (!/^[0-9]{10}$/.test(digitsOnly)) {
         return NextResponse.json(
           {
             error:
               digitsOnly.length > 10
-                ? 'Số điện thoại hotline sai định dạng quá 10 số'
-                : 'Số điện thoại hotline phải gồm đúng 10 chữ số (bắt đầu bằng 03, 05, 07, 08 hoặc 09)',
+                ? 'Số điện thoại hotline gồm 10 số, không thể nhập thêm'
+                : 'Số điện thoại hotline phải gồm đúng 10 số',
           },
           { status: 400 }
         );
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
         `INSERT INTO supplier
          (id, name, phone, email, address, contactPerson, totalPurchased, currentDebt, createdAt, updatedAt)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-        [id, name, phone, email, address, contactPerson, Number(body.totalPurchased || 0), Math.max(0, currentDebt)]
+        [id, name, digitsOnly, email, address, contactPerson, Number(body.totalPurchased || 0), Math.max(0, currentDebt)]
       );
 
       const created = await db.queryOne('SELECT * FROM supplier WHERE id = ?', [id]);
@@ -167,21 +167,20 @@ export async function PUT(request: NextRequest) {
       params.push(sanitizeString(name, 150));
     }
     if (phone !== undefined) {
-      const normalized = normalizePhone(phone);
       const digitsOnly = String(phone || '').replace(/\D/g, '');
-      if (!normalized || !isStrictVietnamPhone(normalized)) {
+      if (!/^[0-9]{10}$/.test(digitsOnly)) {
         return NextResponse.json(
           {
             error:
               digitsOnly.length > 10
-                ? 'Số điện thoại hotline sai định dạng quá 10 số'
-                : 'Số điện thoại hotline phải gồm đúng 10 chữ số (bắt đầu bằng 03, 05, 07, 08 hoặc 09)',
+                ? 'Số điện thoại hotline gồm 10 số, không thể nhập thêm'
+                : 'Số điện thoại hotline phải gồm đúng 10 số',
           },
           { status: 400 }
         );
       }
       setClauses.push('phone = ?');
-      params.push(normalized);
+      params.push(digitsOnly);
     }
     if (email) {
       setClauses.push('email = ?');

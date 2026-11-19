@@ -25,7 +25,6 @@ import { IShopStore } from '@/lib/store';
 import { Customer, Supplier } from '@/lib/types';
 import { formatVND } from '@/lib/vietqr';
 import { getTierByPoints } from '@/lib/loyalty';
-import { isStrictVietnamPhone } from '@/lib/validation';
 
 export default function AdminPartnersPage() {
   const [activeTab, setActiveTab] = useState<'customers' | 'suppliers'>('customers');
@@ -45,6 +44,7 @@ export default function AdminPartnersPage() {
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [custFormName, setCustFormName] = useState('');
   const [custFormPhone, setCustFormPhone] = useState('');
+  const [custPhoneLimitWarn, setCustPhoneLimitWarn] = useState(false);
   const [custFormEmail, setCustFormEmail] = useState('');
   const [custFormAddress, setCustFormAddress] = useState('');
   const [custFormPoints, setCustFormPoints] = useState<number>(0);
@@ -56,6 +56,7 @@ export default function AdminPartnersPage() {
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [supFormName, setSupFormName] = useState('');
   const [supFormPhone, setSupFormPhone] = useState('');
+  const [supPhoneLimitWarn, setSupPhoneLimitWarn] = useState(false);
   const [supFormEmail, setSupFormEmail] = useState('');
   const [supFormAddress, setSupFormAddress] = useState('');
   const [supFormContactPerson, setSupFormContactPerson] = useState('');
@@ -138,6 +139,7 @@ export default function AdminPartnersPage() {
     setEditingCustomer(null);
     setCustFormName('');
     setCustFormPhone('');
+    setCustPhoneLimitWarn(false);
     setCustFormEmail('');
     setCustFormAddress('');
     setCustFormPoints(0);
@@ -150,6 +152,7 @@ export default function AdminPartnersPage() {
     setEditingCustomer(cust);
     setCustFormName(cust.name);
     setCustFormPhone(cust.phone);
+    setCustPhoneLimitWarn(false);
     setCustFormEmail(cust.email || '');
     setCustFormAddress(cust.address || '');
     setCustFormPoints(cust.points || 0);
@@ -165,13 +168,8 @@ export default function AdminPartnersPage() {
       showToast('Vui lòng nhập họ tên và số điện thoại', 'error');
       return;
     }
-    if (!editingCustomer && !isStrictVietnamPhone(trimmedCustPhone)) {
-      showToast(
-        trimmedCustPhone.length > 10
-          ? 'Số điện thoại sai định dạng quá 10 số'
-          : 'Số điện thoại phải gồm đúng 10 chữ số (bắt đầu bằng 03, 05, 07, 08 hoặc 09)',
-        'error'
-      );
+    if (!editingCustomer && !/^[0-9]{10}$/.test(trimmedCustPhone)) {
+      showToast('Số điện thoại phải gồm đúng 10 số', 'error');
       return;
     }
 
@@ -229,6 +227,7 @@ export default function AdminPartnersPage() {
     setEditingSupplier(null);
     setSupFormName('');
     setSupFormPhone('');
+    setSupPhoneLimitWarn(false);
     setSupFormEmail('');
     setSupFormAddress('');
     setSupFormContactPerson('');
@@ -240,6 +239,7 @@ export default function AdminPartnersPage() {
     setEditingSupplier(sup);
     setSupFormName(sup.name);
     setSupFormPhone(sup.phone);
+    setSupPhoneLimitWarn(false);
     setSupFormEmail(sup.email || '');
     setSupFormAddress(sup.address || '');
     setSupFormContactPerson(sup.contactPerson || '');
@@ -258,13 +258,8 @@ export default function AdminPartnersPage() {
       showToast('Vui lòng nhập số điện thoại hotline', 'error');
       return;
     }
-    if (!isStrictVietnamPhone(trimmedSupPhone)) {
-      showToast(
-        trimmedSupPhone.length > 10
-          ? 'Số điện thoại hotline sai định dạng quá 10 số'
-          : 'Số điện thoại hotline phải gồm đúng 10 chữ số (bắt đầu bằng 03, 05, 07, 08 hoặc 09)',
-        'error'
-      );
+    if (!/^[0-9]{10}$/.test(trimmedSupPhone)) {
+      showToast('Số điện thoại hotline phải gồm đúng 10 số', 'error');
       return;
     }
 
@@ -714,21 +709,25 @@ export default function AdminPartnersPage() {
                   <input autoComplete="off"
                     type="tel"
                     inputMode="numeric"
-                    maxLength={10}
                     required
                     value={custFormPhone}
                     disabled={!!editingCustomer}
-                    onChange={(e) => setCustFormPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/\D/g, '');
+                      if (digits.length > 10) {
+                        setCustFormPhone(digits.slice(0, 10));
+                        setCustPhoneLimitWarn(true);
+                      } else {
+                        setCustFormPhone(digits);
+                        if (digits.length < 10) setCustPhoneLimitWarn(false);
+                      }
+                    }}
                     placeholder=""
-                    className={`w-full p-2.5 bg-slate-50 border rounded-xl font-mono text-slate-900 font-bold focus:bg-white focus:outline-none disabled:opacity-70 ${
-                      !editingCustomer && custFormPhone.length > 0 && !isStrictVietnamPhone(custFormPhone)
-                        ? 'border-rose-400 focus:border-rose-500'
-                        : 'border-slate-200 focus:border-purple-500'
-                    }`}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900 font-bold focus:bg-white focus:outline-none focus:border-purple-500 disabled:opacity-70"
                   />
-                  {!editingCustomer && custFormPhone.length > 0 && !isStrictVietnamPhone(custFormPhone) && (
-                    <p className="text-[11px] text-rose-600 font-semibold mt-1">
-                      Phải gồm đúng 10 chữ số (đầu số 03, 05, 07, 08, 09)
+                  {custPhoneLimitWarn && (
+                    <p className="text-[11px] text-amber-700 font-semibold mt-1">
+                      Số điện thoại gồm 10 số, không thể nhập thêm.
                     </p>
                   )}
                 </div>
@@ -839,24 +838,28 @@ export default function AdminPartnersPage() {
                   />
                 </div>
                 <div>
-                  <label className="text-slate-700 font-bold mb-1 block">Số điện thoại hotline (10 số) *:</label>
+                  <label className="text-slate-700 font-bold mb-1 block">Số điện thoại hotline *:</label>
                   <input autoComplete="off"
                     type="tel"
                     inputMode="numeric"
-                    maxLength={10}
                     required
                     value={supFormPhone}
-                    onChange={(e) => setSupFormPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/\D/g, '');
+                      if (digits.length > 10) {
+                        setSupFormPhone(digits.slice(0, 10));
+                        setSupPhoneLimitWarn(true);
+                      } else {
+                        setSupFormPhone(digits);
+                        if (digits.length < 10) setSupPhoneLimitWarn(false);
+                      }
+                    }}
                     placeholder=""
-                    className={`w-full p-2.5 bg-slate-50 border rounded-xl font-mono text-slate-900 font-bold focus:bg-white focus:outline-none ${
-                      supFormPhone.length > 0 && !isStrictVietnamPhone(supFormPhone)
-                        ? 'border-rose-400 focus:border-rose-500'
-                        : 'border-slate-200 focus:border-blue-500'
-                    }`}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900 font-bold focus:bg-white focus:outline-none focus:border-blue-500"
                   />
-                  {supFormPhone.length > 0 && !isStrictVietnamPhone(supFormPhone) && (
-                    <p className="text-[11px] text-rose-600 font-semibold mt-1">
-                      Phải gồm đúng 10 chữ số (đầu số 03, 05, 07, 08, 09)
+                  {supPhoneLimitWarn && (
+                    <p className="text-[11px] text-amber-700 font-semibold mt-1">
+                      Số điện thoại gồm 10 số, không thể nhập thêm.
                     </p>
                   )}
                 </div>
