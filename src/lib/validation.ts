@@ -59,6 +59,48 @@ export function isStrictVietnamPhone(phone: unknown): boolean {
 }
 
 /**
+ * Checks whether a logged-in customer has completed all required profile & address fields
+ * before being allowed to place an order or book a repair appointment.
+ */
+export function checkCustomerProfileCompleteness(
+  user:
+    | {
+        name?: string;
+        phone?: string;
+        email?: string;
+        birthday?: string;
+        gender?: string;
+        city?: string;
+        address?: string;
+      }
+    | null
+    | undefined
+): { isComplete: boolean; missingFields: string[] } {
+  if (!user) {
+    return {
+      isComplete: false,
+      missingFields: ['Đăng nhập tài khoản khách hàng'],
+    };
+  }
+
+  const missing: string[] = [];
+  if (!user.name || !user.name.trim()) missing.push('Họ và tên');
+  if (!user.phone || !isStrictVietnamPhone(user.phone.trim())) {
+    missing.push('Số điện thoại (đúng 10 số VN)');
+  }
+  if (!user.email || !isValidEmail(user.email.trim())) missing.push('Email');
+  if (!user.birthday || !user.birthday.trim()) missing.push('Ngày sinh nhật');
+  if (!user.gender || !user.gender.trim()) missing.push('Giới tính');
+  if (!user.city || !user.city.trim()) missing.push('Tỉnh / Thành phố');
+  if (!user.address || !user.address.trim()) missing.push('Địa chỉ giao hàng & nhận máy');
+
+  return {
+    isComplete: missing.length === 0,
+    missingFields: missing,
+  };
+}
+
+/**
  * Validates standard email address format.
  */
 export function isValidEmail(email: unknown): boolean {

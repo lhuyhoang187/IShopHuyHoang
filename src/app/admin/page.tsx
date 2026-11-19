@@ -199,7 +199,7 @@ export default function AdminUnifiedPage() {
   );
 
   const handleApproveLargeOrder = (orderId: string) => {
-    const success = IShopStore.approveLargeOrder(orderId, 'Chủ cửa hàng (Admin)');
+    const success = IShopStore.approveLargeOrder(orderId, 'Chủ cửa hàng');
     if (success) {
       setApprovalNotice('✓ Đã phê duyệt xuất kho đơn hàng thành công!');
       setTimeout(() => setApprovalNotice(null), 4000);
@@ -213,7 +213,7 @@ export default function AdminUnifiedPage() {
         'Nhập lý do từ chối đơn hàng (hoặc để trống):',
         'Vượt quá hạn mức số lượng hoặc cần xác minh lại'
       ) || 'Cần liên hệ trực tiếp';
-    const success = IShopStore.rejectLargeOrder(orderId, 'Chủ cửa hàng (Admin)', reason);
+    const success = IShopStore.rejectLargeOrder(orderId, 'Chủ cửa hàng', reason);
     if (success) {
       setApprovalNotice('✓ Đã từ chối đơn hàng lớn và gửi thông báo qua email.');
       setTimeout(() => setApprovalNotice(null), 4000);
@@ -268,10 +268,10 @@ export default function AdminUnifiedPage() {
       category === 'rent_utilities'
         ? 'Tiền thuê & Tiện ích'
         : category === 'salary'
-        ? 'Lương nhân viên'
-        : category === 'marketing'
-        ? 'Quảng cáo, marketing'
-        : categoryLabel;
+          ? 'Lương nhân viên'
+          : category === 'marketing'
+            ? 'Quảng cáo, marketing'
+            : categoryLabel;
 
     try {
       await fetch('/api/cashbook', {
@@ -284,7 +284,7 @@ export default function AdminUnifiedPage() {
           amount,
           paymentMethod,
           description,
-          creator: role === 'admin' ? 'Lê Huy Hoàng (Chủ Shop)' : 'Kế toán',
+          creator: role === 'admin' ? 'Lê Huy Hoàng' : 'Kế toán',
         }),
       });
     } catch (err) {
@@ -298,7 +298,7 @@ export default function AdminUnifiedPage() {
       amount,
       paymentMethod,
       description,
-      creator: role === 'admin' ? 'Lê Huy Hoàng (Chủ Shop)' : 'Kế toán',
+      creator: role === 'admin' ? 'Lê Huy Hoàng' : 'Kế toán',
     });
 
     setIsAddModalOpen(false);
@@ -325,7 +325,7 @@ export default function AdminUnifiedPage() {
         <div className="relative z-10 space-y-2.5">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-rose-100/90 text-rose-700 font-black text-xs border border-rose-300/80 shadow-sm animate-pulse">
             <Activity className="w-3.5 h-3.5 text-rose-600 animate-pulse" />
-            <span>HỆ THỐNG ĐIỀU HÀNH THỜI GIAN THỰC 2026</span>
+            <span>HỆ THỐNG ĐIỀU HÀNH</span>
           </div>
 
           <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 leading-tight tracking-tight">
@@ -336,10 +336,10 @@ export default function AdminUnifiedPage() {
             Đang đăng nhập với vai trò:{' '}
             <strong className="text-amber-700 uppercase font-black ml-1">
               {role === 'admin'
-                ? 'CHỦ CỬA HÀNG (ADMIN TOÀN QUYỀN)'
+                ? 'CHỦ CỬA HÀNG'
                 : role === 'technician'
-                ? 'KỸ THUẬT VIÊN'
-                : 'THU NGÂN / BÁN HÀNG (BẢO MẬT GIÁ VỐN)'}
+                  ? 'KỸ THUẬT VIÊN'
+                  : 'BÁN HÀNG'}
             </strong>
           </p>
         </div>
@@ -359,7 +359,7 @@ export default function AdminUnifiedPage() {
             className="px-5 py-3.5 rounded-2xl bg-white hover:bg-slate-50 text-slate-800 font-extrabold text-xs sm:text-sm border border-amber-300/80 shadow-sm hover:shadow-md flex items-center gap-2 transition-all hover:scale-105"
           >
             <Wrench className="w-4 h-4 text-amber-600" />
-            <span>Tiếp Nhận Sửa (30s)</span>
+            <span>Tiếp Nhận Sửa</span>
           </Link>
 
           <Link
@@ -380,11 +380,10 @@ export default function AdminUnifiedPage() {
           <button
             type="button"
             onClick={() => switchTab('overview')}
-            className={`flex items-center gap-2.5 px-5 py-3 rounded-xl text-xs sm:text-sm font-bold transition-all ${
-              activeTab === 'overview'
+            className={`flex items-center gap-2.5 px-5 py-3 rounded-xl text-xs sm:text-sm font-bold transition-all ${activeTab === 'overview'
                 ? 'bg-white text-slate-900 shadow-md border border-slate-200/80 scale-[1.02]'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
-            }`}
+              }`}
           >
             <Store className={`w-4 h-4 ${activeTab === 'overview' ? 'text-amber-600' : 'text-slate-500'}`} />
             <span>1. Tổng Quan Điều Hành</span>
@@ -393,11 +392,10 @@ export default function AdminUnifiedPage() {
           <button
             type="button"
             onClick={() => switchTab('accounting')}
-            className={`flex items-center gap-2.5 px-5 py-3 rounded-xl text-xs sm:text-sm font-bold transition-all ${
-              activeTab === 'accounting'
+            className={`flex items-center gap-2.5 px-5 py-3 rounded-xl text-xs sm:text-sm font-bold transition-all ${activeTab === 'accounting'
                 ? 'bg-white text-slate-900 shadow-md border border-slate-200/80 scale-[1.02]'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
-            }`}
+              }`}
           >
             <TrendingUp className={`w-4 h-4 ${activeTab === 'accounting' ? 'text-emerald-600' : 'text-slate-500'}`} />
             <span>2. Kế Toán &amp; Lợi Nhuận Gộp</span>
@@ -406,11 +404,10 @@ export default function AdminUnifiedPage() {
           <button
             type="button"
             onClick={() => switchTab('cashbook')}
-            className={`flex items-center gap-2.5 px-5 py-3 rounded-xl text-xs sm:text-sm font-bold transition-all ${
-              activeTab === 'cashbook'
+            className={`flex items-center gap-2.5 px-5 py-3 rounded-xl text-xs sm:text-sm font-bold transition-all ${activeTab === 'cashbook'
                 ? 'bg-white text-slate-900 shadow-md border border-slate-200/80 scale-[1.02]'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
-            }`}
+              }`}
           >
             <Wallet className={`w-4 h-4 ${activeTab === 'cashbook' ? 'text-blue-600' : 'text-slate-500'}`} />
             <span>3. Sổ Quỹ Thu - Chi</span>
@@ -437,7 +434,7 @@ export default function AdminUnifiedPage() {
           {activeTab === 'accounting' && (
             <div className="text-xs text-slate-500 font-semibold flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
               <Clock className="w-3.5 h-3.5 text-slate-400" />
-              <span>Tự động trừ giá vốn thời gian thực</span>
+              <span>Tự động trừ giá vốn</span>
             </div>
           )}
         </div>
@@ -501,10 +498,10 @@ export default function AdminUnifiedPage() {
                 </div>
               </div>
               <div className="text-3xl font-black text-slate-900 tracking-tight">
-                {availablePhonesCount} <span className="text-sm font-normal text-slate-500">cây</span>
+                {availablePhonesCount} <span className="text-sm font-normal text-slate-500">Máy</span>
               </div>
               <p className="text-[11px] text-slate-500 font-medium">
-                Đã xuất bán: <strong className="text-amber-700 font-bold">{soldPhonesCount}</strong> cây (Kích hoạt BH)
+                Đã xuất bán: <strong className="text-amber-700 font-bold">{soldPhonesCount}</strong> Máy (Kích hoạt BH)
               </p>
             </div>
 
@@ -573,7 +570,7 @@ export default function AdminUnifiedPage() {
                     </span>
                   </h2>
                   <p className="text-xs text-slate-500">
-                    Chương trình giảm giá tự động kích hoạt theo khung giờ và ngày bắt đầu/kết thúc
+                    Chương trình giảm giá
                   </p>
                 </div>
               </div>
@@ -637,7 +634,7 @@ export default function AdminUnifiedPage() {
                 </div>
                 <div>
                   <h2 className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2 flex-wrap">
-                    <span>Duyệt Đơn Hàng Lớn &amp; Đặt Trước (Pre-order)</span>
+                    <span>Duyệt Đơn Hàng Lớn &amp; Đặt Trước</span>
                     {waitingAdminApproval.length > 0 && (
                       <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-rose-500 text-white shadow-sm animate-pulse">
                         {waitingAdminApproval.length} ĐƠN CHỜ DUYỆT
@@ -1115,11 +1112,10 @@ export default function AdminUnifiedPage() {
                         <div
                           className="bg-cyan-500 h-2 rounded-full"
                           style={{
-                            width: `${
-                              grandTotalRevenue > 0
+                            width: `${grandTotalRevenue > 0
                                 ? Math.min(100, (phoneRevenue / grandTotalRevenue) * 100)
                                 : 0
-                            }%`,
+                              }%`,
                           }}
                         />
                       </div>
@@ -1148,11 +1144,10 @@ export default function AdminUnifiedPage() {
                         <div
                           className="bg-emerald-500 h-2 rounded-full"
                           style={{
-                            width: `${
-                              grandTotalRevenue > 0
+                            width: `${grandTotalRevenue > 0
                                 ? Math.min(100, (accRevenue / grandTotalRevenue) * 100)
                                 : 0
-                            }%`,
+                              }%`,
                           }}
                         />
                       </div>
@@ -1181,11 +1176,10 @@ export default function AdminUnifiedPage() {
                         <div
                           className="bg-amber-500 h-2 rounded-full"
                           style={{
-                            width: `${
-                              grandTotalRevenue > 0
+                            width: `${grandTotalRevenue > 0
                                 ? Math.min(100, (repairRevenue / grandTotalRevenue) * 100)
                                 : 0
-                            }%`,
+                              }%`,
                           }}
                         />
                       </div>
@@ -1322,33 +1316,30 @@ export default function AdminUnifiedPage() {
               <button
                 type="button"
                 onClick={() => setTypeFilter('all')}
-                className={`px-3.5 py-2 rounded-xl transition-all ${
-                  typeFilter === 'all'
+                className={`px-3.5 py-2 rounded-xl transition-all ${typeFilter === 'all'
                     ? 'bg-white text-slate-900 shadow-sm'
                     : 'text-slate-600 hover:text-slate-900'
-                }`}
+                  }`}
               >
                 Tất cả ({entries.length})
               </button>
               <button
                 type="button"
                 onClick={() => setTypeFilter('receipt')}
-                className={`px-3.5 py-2 rounded-xl transition-all ${
-                  typeFilter === 'receipt'
+                className={`px-3.5 py-2 rounded-xl transition-all ${typeFilter === 'receipt'
                     ? 'bg-emerald-600 text-white shadow-sm'
                     : 'text-slate-600 hover:text-emerald-700'
-                }`}
+                  }`}
               >
                 Phiếu Thu (+)
               </button>
               <button
                 type="button"
                 onClick={() => setTypeFilter('payment')}
-                className={`px-3.5 py-2 rounded-xl transition-all ${
-                  typeFilter === 'payment'
+                className={`px-3.5 py-2 rounded-xl transition-all ${typeFilter === 'payment'
                     ? 'bg-rose-600 text-white shadow-sm'
                     : 'text-slate-600 hover:text-rose-700'
-                }`}
+                  }`}
               >
                 Phiếu Chi (-)
               </button>
@@ -1382,9 +1373,8 @@ export default function AdminUnifiedPage() {
                       <tr key={entry.id} className="hover:bg-slate-50/80 transition-colors">
                         <td className="p-4 font-mono">
                           <span
-                            className={`font-black block text-sm ${
-                              entry.type === 'receipt' ? 'text-emerald-700' : 'text-rose-700'
-                            }`}
+                            className={`font-black block text-sm ${entry.type === 'receipt' ? 'text-emerald-700' : 'text-rose-700'
+                              }`}
                           >
                             {entry.code}
                           </span>
@@ -1393,11 +1383,10 @@ export default function AdminUnifiedPage() {
 
                         <td className="p-4">
                           <span
-                            className={`px-3 py-1 rounded-full text-[11px] font-bold border inline-block ${
-                              entry.type === 'receipt'
+                            className={`px-3 py-1 rounded-full text-[11px] font-bold border inline-block ${entry.type === 'receipt'
                                 ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
                                 : 'bg-rose-50 text-rose-800 border-rose-200'
-                            }`}
+                              }`}
                           >
                             {entry.type === 'receipt' ? 'Thu' : 'Chi'} • {entry.categoryLabel}
                           </span>
@@ -1414,9 +1403,8 @@ export default function AdminUnifiedPage() {
                         </td>
 
                         <td
-                          className={`p-4 text-right font-black text-sm font-mono ${
-                            entry.type === 'receipt' ? 'text-emerald-600' : 'text-rose-600'
-                          }`}
+                          className={`p-4 text-right font-black text-sm font-mono ${entry.type === 'receipt' ? 'text-emerald-600' : 'text-rose-600'
+                            }`}
                         >
                           {entry.type === 'receipt' ? '+' : '-'}
                           {formatVND(entry.amount)}
@@ -1455,22 +1443,20 @@ export default function AdminUnifiedPage() {
                 <button
                   type="button"
                   onClick={() => setEntryType('receipt')}
-                  className={`py-2.5 rounded-xl border font-bold transition-all ${
-                    entryType === 'receipt'
+                  className={`py-2.5 rounded-xl border font-bold transition-all ${entryType === 'receipt'
                       ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
                       : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
-                  }`}
+                    }`}
                 >
                   Phiếu Thu (+)
                 </button>
                 <button
                   type="button"
                   onClick={() => setEntryType('payment')}
-                  className={`py-2.5 rounded-xl border font-bold transition-all ${
-                    entryType === 'payment'
+                  className={`py-2.5 rounded-xl border font-bold transition-all ${entryType === 'payment'
                       ? 'bg-rose-600 text-white border-rose-600 shadow-sm'
                       : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
-                  }`}
+                    }`}
                 >
                   Phiếu Chi (-)
                 </button>

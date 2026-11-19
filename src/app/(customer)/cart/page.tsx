@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   ShoppingCart,
   Trash2,
@@ -17,10 +18,29 @@ import {
 import { IShopStore } from '@/lib/store';
 import { CartItem } from '@/lib/types';
 import { formatVND } from '@/lib/vietqr';
+import { checkCustomerProfileCompleteness } from '@/lib/validation';
+import { IncompleteProfileModal } from '@/components/common/IncompleteProfileNotice';
 
 export default function CartPage() {
+  const router = useRouter();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [toastMessage, setToastMessage] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [incompleteModalState, setIncompleteModalState] = useState<{ open: boolean; missing: string[] }>({
+    open: false,
+    missing: [],
+  });
+
+  const handleProceedCheckout = () => {
+    const user = IShopStore.getCustomerUser();
+    if (user) {
+      const check = checkCustomerProfileCompleteness(user);
+      if (!check.isComplete) {
+        setIncompleteModalState({ open: true, missing: check.missingFields });
+        return;
+      }
+    }
+    router.push('/checkout');
+  };
 
   const loadCart = () => {
     setCart(IShopStore.getCart());
@@ -222,13 +242,14 @@ export default function CartPage() {
               </div>
 
               <div className="space-y-2 pt-2">
-                <Link
-                  href="/checkout"
-                  className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-sm shadow-lg shadow-blue-600/25 flex items-center justify-center gap-2 transition-transform hover:scale-[1.02]"
+                <button
+                  type="button"
+                  onClick={handleProceedCheckout}
+                  className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-sm shadow-lg shadow-blue-600/25 flex items-center justify-center gap-2 transition-transform hover:scale-[1.02] cursor-pointer"
                 >
                   <Zap className="w-4 h-4 text-amber-300 fill-current" />
                   <span>TIẾN HÀNH ĐẶT HÀNG</span>
-                </Link>
+                </button>
               </div>
 
               <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5 text-[11px] text-slate-600">
@@ -261,6 +282,13 @@ export default function CartPage() {
           <span className="text-xs font-bold leading-relaxed">{toastMessage.message}</span>
         </div>
       )}
+
+      <IncompleteProfileModal
+        isOpen={incompleteModalState.open}
+        onClose={() => setIncompleteModalState({ open: false, missing: [] })}
+        missingFields={incompleteModalState.missing}
+        actionLabel="đặt hàng"
+      />
     </div>
   );
 }

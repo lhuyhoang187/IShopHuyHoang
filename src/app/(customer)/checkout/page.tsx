@@ -26,7 +26,8 @@ import { CartItem, Invoice, CustomerUser } from '@/lib/types';
 import { formatVND, generateVietQRUrl, DEFAULT_STORE_BANK } from '@/lib/vietqr';
 import { Lock, UserCheck } from 'lucide-react';
 import { VietnamAddressPicker } from '@/components/common/VietnamAddressPicker';
-import { isStrictVietnamPhone } from '@/lib/validation';
+import { IncompleteProfileCard, IncompleteProfileModal } from '@/components/common/IncompleteProfileNotice';
+import { isStrictVietnamPhone, checkCustomerProfileCompleteness } from '@/lib/validation';
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -37,8 +38,7 @@ export default function CheckoutPage() {
 
   // Customer Authentication state
   const [customerUser, setCustomerUser] = useState<CustomerUser | null>(null);
-  const [quickCustName, setQuickCustName] = useState('');
-  const [quickCustPhone, setQuickCustPhone] = useState('');
+  const [showIncompleteProfileModal, setShowIncompleteProfileModal] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -54,42 +54,32 @@ export default function CheckoutPage() {
   const [isPreOrder, setIsPreOrder] = useState(false);
   const [depositPercent, setDepositPercent] = useState<number>(10); // 10%, 20%, 100%
 
+  const syncCustomerFromStore = () => {
+    const cust = IShopStore.getCustomerUser();
+    setCustomerUser(cust);
+    if (cust) {
+      setFormData((prev) => ({
+        ...prev,
+        name: cust.name || prev.name,
+        phone: cust.phone || prev.phone,
+        email: cust.email || prev.email,
+        city: cust.city || prev.city,
+        address: cust.address || prev.address,
+      }));
+    }
+  };
+
   useEffect(() => {
     const currentCart = IShopStore.getCart();
     setCart(currentCart);
-
-    const cust = IShopStore.getCustomerUser();
-    if (cust) {
-      setCustomerUser(cust);
-      setFormData((prev) => ({
-        ...prev,
-        name: cust.name,
-        phone: cust.phone,
-        email: cust.email || '',
-        city: cust.city || '',
-        address: cust.address || '',
-      }));
-    }
+    syncCustomerFromStore();
+    IShopStore.verifySessionWithServer().then(() => syncCustomerFromStore()).catch(() => {});
+    const listener = () => syncCustomerFromStore();
+    window.addEventListener('ishop_data_changed', listener);
+    return () => window.removeEventListener('ishop_data_changed', listener);
   }, []);
 
-  const handleCustomerQuickLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!quickCustName.trim() || !quickCustPhone.trim()) return;
-
-    const user: CustomerUser = {
-      id: 'cust-' + Date.now(),
-      name: quickCustName.trim(),
-      phone: quickCustPhone.trim(),
-    };
-
-    IShopStore.setCustomerUser(user);
-    setCustomerUser(user);
-    setFormData((prev) => ({
-      ...prev,
-      name: user.name,
-      phone: user.phone,
-    }));
-  };
+  const profileCheck = checkCustomerProfileCompleteness(customerUser);
 
   const totalAmount = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
@@ -118,6 +108,20 @@ export default function CheckoutPage() {
   const handleSubmitOrder = (e: React.FormEvent) => {
     e.preventDefault();
     if (cart.length === 0) return;
+
+    // Ràng buộc bắt buộc đăng nhập và cập nhật đầy đủ hồ sơ + địa chỉ trước khi đặt hàng
+    if (!customerUser) {
+      setStockError('Vui lòng đăng nhập tài khoản khách hàng trước khi đặt hàng!');
+      router.push('/login');
+      return;
+    }
+    const latestCheck = checkCustomerProfileCompleteness(customerUser);
+    if (!latestCheck.isComplete) {
+      setShowIncompleteProfileModal(true);
+      setStockError('Bạn chưa cập nhật đầy đủ thông tin & địa chỉ trong Hồ Sơ Cá Nhân nên chưa thể đặt hàng!');
+      return;
+    }
+
     if (!isStrictVietnamPhone(formData.phone)) {
       setPhoneError('Số điện thoại phải gồm đúng 10 chữ số theo định dạng Việt Nam!');
       setStockError('Vui lòng nhập số điện thoại Việt Nam hợp lệ (đúng 10 chữ số)!');
@@ -498,67 +502,60 @@ export default function CheckoutPage() {
               </div>
               <div className="space-y-1">
                 <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-300">
-                  BẮT BUỘC XÁC THỰC THÀNH VIÊN
+                  BẮT BUỘC ĐĂNG NHẬP TÀI KHOẢN
                 </span>
                 <h3 className="text-lg font-black text-slate-900 mt-1">
-                  Đăng Nhập Khách Hàng Để Đặt Hàng & Nhận Bảo Hành
+                  Đăng Nhập Khách Hàng Để Đặt Hàng &amp; Nhận Bảo Hành
                 </h3>
                 <p className="text-xs text-slate-600 max-w-md mx-auto">
-                  Để tự động kích hoạt chứng nhận bảo hành điện tử theo số IMEI và nhận mã vận đơn, quý khách vui lòng xác nhận danh tính thành viên:
+                  Quý khách vui lòng đăng nhập tài khoản thành viên và hoàn thiện đầy đủ địa chỉ trong Hồ Sơ Cá Nhân trước khi tiến hành đặt hàng.
                 </p>
               </div>
 
-              <div className="max-w-md mx-auto space-y-3 text-xs text-left pt-2">
-                <div>
-                  <label className="text-slate-700 font-bold mb-1 block">Họ và tên người nhận hàng *:</label>
-                  <input autoComplete="off"
-                    type="text"
-                    required
-                    value={quickCustName}
-                    onChange={(e) => setQuickCustName(e.target.value)}
-                    placeholder=""
-                    className="w-full p-3 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-amber-500 shadow-sm placeholder:text-slate-400"
-                  />
-                </div>
-                <div>
-                  <label className="text-slate-700 font-bold mb-1 block">Số điện thoại liên hệ *:</label>
-                  <input autoComplete="off"
-                    type="tel"
-                    required
-                    value={quickCustPhone}
-                    onChange={(e) => setQuickCustPhone(e.target.value)}
-                    placeholder=""
-                    className="w-full p-3 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-amber-500 shadow-sm placeholder:text-slate-400"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={handleCustomerQuickLogin}
-                  className="w-full py-3.5 rounded-xl btn-gold text-xs font-black flex items-center justify-center gap-2 shadow-md text-white"
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+                <Link
+                  href="/login"
+                  className="w-full sm:w-auto px-6 py-3 rounded-xl btn-gold text-xs font-black flex items-center justify-center gap-2 shadow-md text-white"
                 >
                   <UserCheck className="w-4 h-4 text-white" />
-                  <span className="text-white">Xác Nhận Thành Viên & Tiếp Tục Thanh Toán</span>
-                </button>
+                  <span>Đăng Nhập Ngay</span>
+                </Link>
+                <Link
+                  href="/register"
+                  className="w-full sm:w-auto px-6 py-3 rounded-xl bg-white hover:bg-slate-100 border border-slate-300 text-slate-800 text-xs font-bold flex items-center justify-center gap-2 transition-colors"
+                >
+                  <span>Tạo Tài Khoản Mới</span>
+                </Link>
               </div>
             </div>
           ) : (
-            <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-between text-xs">
-              <div className="flex items-center gap-2 text-emerald-800 font-medium">
-                <UserCheck className="w-4 h-4 text-emerald-600" />
-                <span>
-                  Đặt hàng với tài khoản: <strong className="text-slate-900 font-bold">{customerUser.name}</strong> ({customerUser.phone})
-                </span>
+            <div className="space-y-4">
+              <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2 text-emerald-800 font-medium">
+                  <UserCheck className="w-4 h-4 text-emerald-600" />
+                  <span>
+                    Đặt hàng với tài khoản: <strong className="text-slate-900 font-bold">{customerUser.name}</strong> ({customerUser.phone})
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    IShopStore.logoutCustomer();
+                    setCustomerUser(null);
+                    router.push('/');
+                  }}
+                  className="text-slate-500 hover:text-slate-900 text-[11px] underline font-semibold cursor-pointer"
+                >
+                  Đăng xuất
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  IShopStore.logoutCustomer();
-                  setCustomerUser(null);
-                }}
-                className="text-slate-500 hover:text-slate-900 text-[11px] underline font-semibold"
-              >
-                Đổi tài khoản
-              </button>
+
+              {!profileCheck.isComplete && (
+                <IncompleteProfileCard
+                  missingFields={profileCheck.missingFields}
+                  actionLabel="đặt hàng"
+                />
+              )}
             </div>
           )}
 
@@ -893,6 +890,13 @@ export default function CheckoutPage() {
           </div>
         </div>
       </form>
+
+      <IncompleteProfileModal
+        isOpen={showIncompleteProfileModal}
+        onClose={() => setShowIncompleteProfileModal(false)}
+        missingFields={profileCheck.missingFields}
+        actionLabel="đặt hàng"
+      />
     </div>
   );
 }

@@ -29,6 +29,8 @@ import {
 import { formatVND } from '@/lib/vietqr';
 import confetti from 'canvas-confetti';
 import { IShopStore } from '@/lib/store';
+import { checkCustomerProfileCompleteness } from '@/lib/validation';
+import { IncompleteProfileCard, IncompleteProfileModal } from '@/components/common/IncompleteProfileNotice';
 import {
   CustomerUser,
   RepairDeviceOption,
@@ -49,8 +51,6 @@ export default function RepairPriceListPage() {
 
   // Customer Authentication state
   const [customerUser, setCustomerUser] = useState<CustomerUser | null>(null);
-  const [quickLoginName, setQuickLoginName] = useState('');
-  const [quickLoginPhone, setQuickLoginPhone] = useState('');
 
   // Repair Catalog & Lists loaded from Store
   const [deviceList, setDeviceList] = useState<RepairDeviceOption[]>([]);
@@ -236,30 +236,15 @@ export default function RepairPriceListPage() {
     );
   };
 
-  const handleCustomerQuickLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!quickLoginName.trim() || !quickLoginPhone.trim()) return;
-
-    const user: CustomerUser = {
-      id: 'cust-' + Date.now(),
-      name: quickLoginName.trim(),
-      phone: quickLoginPhone.trim(),
-    };
-
-    IShopStore.setCustomerUser(user);
-    setCustomerUser(user);
-    setBookingForm((prev) => ({
-      ...prev,
-      name: user.name,
-      phone: user.phone,
-    }));
-  };
+  const [showIncompleteProfileModal, setShowIncompleteProfileModal] = useState(false);
 
   const handleLogoutCustomer = () => {
     IShopStore.logoutCustomer();
     setCustomerUser(null);
     router.push('/');
   };
+
+  const profileCheck = checkCustomerProfileCompleteness(customerUser);
 
   const defaultIphonePrices = [
     { service: 'Thay Pin Pisen Chính Hãng (Hiển thị 100% dung lượng)', models: 'iPhone 11 / 12 / 13 Series', price: 650000, warranty: '12 Tháng', estimatedMinutes: 20 },
@@ -341,6 +326,15 @@ export default function RepairPriceListPage() {
 
   const handleBooking = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!customerUser) {
+      router.push('/login');
+      return;
+    }
+    const latestCheck = checkCustomerProfileCompleteness(customerUser);
+    if (!latestCheck.isComplete) {
+      setShowIncompleteProfileModal(true);
+      return;
+    }
     setIsSubmitting(true);
 
     const actualModel =
@@ -362,7 +356,7 @@ export default function RepairPriceListPage() {
       const ticket = IShopStore.createRepairTicket({
         customerName: bookingForm.name,
         customerPhone: bookingForm.phone,
-        customerAddress: 'Đặt hẹn online qua website iShop',
+        customerAddress: customerUser.address || 'Đặt hẹn online qua website iShop',
         deviceModel: actualModel,
         imeiOrSerial: 'OL-' + Math.floor(100000 + Math.random() * 900000),
         unlockPasscode: 'Chưa cung cấp',
@@ -386,7 +380,7 @@ export default function RepairPriceListPage() {
         body: JSON.stringify({
           customerName: bookingForm.name,
           customerPhone: bookingForm.phone,
-          customerAddress: 'Đặt online qua website',
+          customerAddress: customerUser.address || 'Đặt online qua website',
           deviceModel: actualModel,
           imeiOrSerial: ticket.imeiOrSerial,
           unlockPasscode: 'Chưa cung cấp',
@@ -676,48 +670,31 @@ export default function RepairPriceListPage() {
               </div>
               <div className="space-y-1">
                 <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-300">
-                  YÊU CẦU XÁC THỰC TÀI KHOẢN KHÁCH HÀNG
+                  YÊU CẦU ĐĂNG NHẬP TÀI KHOẢN KHÁCH HÀNG
                 </span>
                 <h3 className="text-xl font-black text-slate-900 mt-2">
-                  Xác Thực Để Kích Hoạt Phiếu Sửa Chữa iCare
+                  Đăng Nhập Để Đặt Lịch Sửa Chữa iCare
                 </h3>
                 <p className="text-xs text-slate-600 max-w-md mx-auto">
-                  Để tự động cấp mã theo dõi thời gian thực và kích hoạt gói bảo hành điện tử chính chủ, quý khách vui lòng xác nhận danh tính thành viên:
+                  Quý khách vui lòng đăng nhập tài khoản thành viên và hoàn thiện đầy đủ địa chỉ trong Hồ Sơ Cá Nhân trước khi đặt lịch sửa chữa.
                 </p>
               </div>
 
-              {/* Quick Customer Login Form */}
-              <form autoComplete="off" onSubmit={handleCustomerQuickLogin} className="max-w-md mx-auto space-y-3 text-xs text-left">
-                <div>
-                  <label className="text-slate-700 font-bold mb-1 block">Họ và tên của bạn *:</label>
-                  <input autoComplete="off"
-                    type="text"
-                    required
-                    value={quickLoginName}
-                    onChange={(e) => setQuickLoginName(e.target.value)}
-                    placeholder=""
-                    className="w-full p-3 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-amber-500 shadow-sm placeholder:text-slate-400 font-medium"
-                  />
-                </div>
-                <div>
-                  <label className="text-slate-700 font-bold mb-1 block">Số điện thoại liên hệ *:</label>
-                  <input autoComplete="off"
-                    type="tel"
-                    required
-                    value={quickLoginPhone}
-                    onChange={(e) => setQuickLoginPhone(e.target.value)}
-                    placeholder=""
-                    className="w-full p-3 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-amber-500 shadow-sm placeholder:text-slate-400 font-mono font-bold text-amber-700"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className="w-full py-3.5 rounded-xl btn-gold text-xs font-black flex items-center justify-center gap-2 shadow-md cursor-pointer"
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+                <Link
+                  href="/login"
+                  className="w-full sm:w-auto px-6 py-3 rounded-xl btn-gold text-xs font-black flex items-center justify-center gap-2 shadow-md text-white"
                 >
                   <UserCheck className="w-4 h-4 text-white" />
-                  <span>Xác Nhận &amp; Tiếp Tục Đặt Hẹn Lấy Ngay</span>
-                </button>
-              </form>
+                  <span>Đăng Nhập Ngay</span>
+                </Link>
+                <Link
+                  href="/register"
+                  className="w-full sm:w-auto px-6 py-3 rounded-xl bg-white hover:bg-slate-100 border border-slate-300 text-slate-800 text-xs font-bold flex items-center justify-center gap-2 transition-colors"
+                >
+                  <span>Tạo Tài Khoản Mới</span>
+                </Link>
+              </div>
             </div>
           ) : (
             <div className="space-y-4">
@@ -734,9 +711,16 @@ export default function RepairPriceListPage() {
                   onClick={handleLogoutCustomer}
                   className="text-slate-500 hover:text-slate-900 text-[11px] underline font-semibold cursor-pointer"
                 >
-                  Đổi tài khoản
+                  Đăng xuất
                 </button>
               </div>
+
+              {!profileCheck.isComplete && (
+                <IncompleteProfileCard
+                  missingFields={profileCheck.missingFields}
+                  actionLabel="đặt lịch sửa chữa"
+                />
+              )}
 
               <form autoComplete="off" onSubmit={handleBooking} className="space-y-5 text-xs">
                 {/* 1. Full name & Phone number (Retained as text inputs as requested) */}
@@ -1211,6 +1195,13 @@ export default function RepairPriceListPage() {
           )}
         </div>
       </div>
+
+      <IncompleteProfileModal
+        isOpen={showIncompleteProfileModal}
+        onClose={() => setShowIncompleteProfileModal(false)}
+        missingFields={profileCheck.missingFields}
+        actionLabel="đặt lịch sửa chữa"
+      />
     </div>
   );
 }
