@@ -543,6 +543,38 @@ export default function AdminRestockPage() {
     await loadData();
   };
 
+  // Delete currently selected phone model from MySQL
+  const handleDeleteModel = async (phoneObj: PhoneProduct) => {
+    const confirmed = window.confirm(
+      `Bạn có chắc chắn muốn xóa dòng máy "${phoneObj.name}" (${phoneObj.brand}) và toàn bộ số IMEI thuộc dòng máy này khỏi CSDL?`
+    );
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch(`/api/phones?id=${encodeURIComponent(phoneObj.id)}`, {
+        method: 'DELETE',
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        alert(json.error || 'Không thể xóa dòng máy khỏi CSDL MySQL!');
+        return;
+      }
+
+      const remaining = phones.filter((p) => p.id !== phoneObj.id);
+      setPhones(remaining);
+      const nextSameBrand = remaining.find(
+        (p) => selectedBrand === 'all' || p.brand === selectedBrand
+      );
+      setSelectedPhoneId(nextSameBrand?.id || '');
+      await IShopStore.hydrateFromDatabase(true);
+      await loadData();
+      setSuccessMessage(`✓ Đã xóa dòng máy "${phoneObj.name}" khỏi CSDL MySQL thành công!`);
+      setTimeout(() => setSuccessMessage(null), 3500);
+    } catch (err: any) {
+      alert('Lỗi kết nối khi xóa dòng máy: ' + (err?.message || ''));
+    }
+  };
+
   // Sync phone colors to MySQL /api/phones
   const syncPhoneColorsToDb = async (
     phoneObj: PhoneProduct,
@@ -1008,19 +1040,30 @@ export default function AdminRestockPage() {
                   )}{' '}
                   *:
                 </label>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center flex-wrap gap-2">
                   <span className="text-[11px] text-slate-500 font-medium">
                     {filteredPhonesByBrand.length} model khả dụng
                   </span>
+                  {currentPhone && filteredPhonesByBrand.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteModel(currentPhone)}
+                      title={`Xóa dòng máy ${currentPhone.name}`}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs transition-colors cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Xóa Dòng Máy</span>
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => {
                       setNewModelBrand(selectedBrand !== 'all' ? selectedBrand : (brandList[0] || 'Apple'));
                       setIsAddModelModalOpen(true);
                     }}
-                    className="text-[11px] text-blue-700 hover:text-blue-800 font-bold hover:underline inline-flex items-center gap-0.5 cursor-pointer"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 font-bold text-xs transition-colors cursor-pointer"
                   >
-                    <Plus className="w-3 h-3" />
+                    <Plus className="w-3.5 h-3.5" />
                     <span>Thêm Dòng Máy</span>
                   </button>
                 </div>
