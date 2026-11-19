@@ -475,7 +475,12 @@ export default function AccountPage() {
               <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-tr from-amber-500 via-amber-400 to-amber-600 p-0.5 shadow-md overflow-hidden">
                 <div className="w-full h-full bg-slate-100 rounded-[14px] flex items-center justify-center text-amber-800 font-black text-2xl overflow-hidden">
                   {avatar ? (
-                    <img src={avatar} alt={customerUser.name} className="w-full h-full object-cover" />
+                    <img
+                      src={avatar}
+                      alt={customerUser.name}
+                      className="w-full h-full object-cover block"
+                      onError={() => setAvatar('')}
+                    />
                   ) : (
                     customerUser.name.charAt(0).toUpperCase()
                   )}
@@ -647,7 +652,12 @@ export default function AccountPage() {
               <div className="flex items-center gap-4">
                 <div className="w-14 h-14 rounded-2xl bg-slate-100 border border-amber-300 overflow-hidden flex items-center justify-center shrink-0 shadow-sm">
                   {avatar ? (
-                    <img src={avatar} alt={customerUser.name} className="w-full h-full object-cover" />
+                    <img
+                      src={avatar}
+                      alt={customerUser.name}
+                      className="w-full h-full object-cover block"
+                      onError={() => setAvatar('')}
+                    />
                   ) : (
                     <span className="text-xl font-black text-amber-800">{customerUser.name.charAt(0)}</span>
                   )}

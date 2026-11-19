@@ -59,7 +59,10 @@ export default function AdminLayout({
   const [isAuthenticating, setIsAuthenticating] = useState(false);
 
   const loadAdminState = () => {
-    const user = IShopStore.getStaffUser();
+    let user = IShopStore.getStaffUser();
+    if (user?.avatar && user.avatar.length === 65535) {
+      user.avatar = undefined;
+    }
     setStaffUser(user);
     if (user) {
       setCurrentRole(user.role);
@@ -589,7 +592,14 @@ export default function AdminLayout({
                 <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-500 via-amber-400 to-amber-600 p-0.5 shrink-0 shadow-sm">
                   <div className="w-full h-full bg-slate-900 rounded-[10px] flex items-center justify-center text-amber-300 font-black text-xs overflow-hidden">
                     {staffUser.avatar ? (
-                      <img src={staffUser.avatar} alt={staffUser.name} className="w-full h-full object-cover" />
+                      <img
+                        src={staffUser.avatar}
+                        alt={staffUser.name}
+                        className="w-full h-full object-cover block"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLElement).style.display = 'none';
+                        }}
+                      />
                     ) : (
                       staffUser.name.charAt(0).toUpperCase()
                     )}

@@ -416,13 +416,19 @@ export const IShopStore = {
   getStaffAvatar(username: string): string | undefined {
     if (!username) return undefined;
     const avatars = getStorage<Record<string, string>>('staff_avatars', {});
-    return avatars[username.toLowerCase().trim()];
+    const val = avatars[username.toLowerCase().trim()];
+    if (val && val.length === 65535) {
+      delete avatars[username.toLowerCase().trim()];
+      setStorage('staff_avatars', avatars);
+      return undefined;
+    }
+    return val;
   },
   setStaffAvatar(username: string, avatarUrl: string | null) {
     if (!username) return;
     const avatars = getStorage<Record<string, string>>('staff_avatars', {});
     const key = username.toLowerCase().trim();
-    if (avatarUrl) {
+    if (avatarUrl && avatarUrl.length !== 65535) {
       avatars[key] = avatarUrl;
     } else {
       delete avatars[key];
@@ -430,7 +436,11 @@ export const IShopStore = {
     setStorage('staff_avatars', avatars);
   },
   getStaffUser(): StaffUser | null {
-    return getStorage<StaffUser | null>('staff_user', null);
+    const user = getStorage<StaffUser | null>('staff_user', null);
+    if (user?.avatar && user.avatar.length === 65535) {
+      user.avatar = undefined;
+    }
+    return user;
   },
   setStaffUser(user: StaffUser | null) {
     if (user) {
@@ -471,13 +481,19 @@ export const IShopStore = {
   getCustomerAvatar(phoneOrEmailOrId: string): string | undefined {
     if (!phoneOrEmailOrId) return undefined;
     const avatars = getStorage<Record<string, string>>('customer_avatars', {});
-    return avatars[phoneOrEmailOrId.toLowerCase().trim()];
+    const val = avatars[phoneOrEmailOrId.toLowerCase().trim()];
+    if (val && val.length === 65535) {
+      delete avatars[phoneOrEmailOrId.toLowerCase().trim()];
+      setStorage('customer_avatars', avatars);
+      return undefined;
+    }
+    return val;
   },
   setCustomerAvatar(phoneOrEmailOrId: string, avatarUrl: string | null) {
     if (!phoneOrEmailOrId) return;
     const avatars = getStorage<Record<string, string>>('customer_avatars', {});
     const key = phoneOrEmailOrId.toLowerCase().trim();
-    if (avatarUrl) {
+    if (avatarUrl && avatarUrl.length !== 65535) {
       avatars[key] = avatarUrl;
     } else {
       delete avatars[key];
@@ -487,6 +503,9 @@ export const IShopStore = {
   getCustomerUser(): CustomerUser | null {
     const user = getStorage<CustomerUser | null>('customer_user', null);
     if (!user) return null;
+    if (user.avatar && user.avatar.length === 65535) {
+      user.avatar = undefined;
+    }
 
     // Tự động đồng bộ điểm tích lũy và hạng thẻ mới nhất từ danh bạ khách hàng
     if (user.phone || user.id) {

@@ -133,3 +133,48 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const username = searchParams.get('username');
+    const id = searchParams.get('id');
+
+    if (!username && !id) {
+      return NextResponse.json(
+        { error: 'Vui lòng cung cấp username hoặc id nhân viên' },
+        { status: 400 }
+      );
+    }
+
+    const user = id
+      ? await db.queryOne(
+          `SELECT id, username, name, role, phone, email, avatar, department, birthday, address, bio, createdAt, updatedAt 
+           FROM user WHERE id = ?`,
+          [id]
+        )
+      : await db.queryOne(
+          `SELECT id, username, name, role, phone, email, avatar, department, birthday, address, bio, createdAt, updatedAt 
+           FROM user WHERE LOWER(username) = ?`,
+          [String(username).toLowerCase()]
+        );
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Không tìm thấy tài khoản nhân viên' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: user,
+    });
+  } catch (error: any) {
+    console.error('Get profile error:', error);
+    return NextResponse.json(
+      { error: 'Lỗi tra cứu hồ sơ: ' + (error?.message || '') },
+      { status: 500 }
+    );
+  }
+}

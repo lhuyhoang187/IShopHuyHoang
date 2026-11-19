@@ -65,9 +65,15 @@ export default function AdminProfilePage() {
   const [isChangingPass, setIsChangingPass] = useState(false);
   const [isTwoFactor, setIsTwoFactor] = useState(true);
 
-  const loadStaffData = () => {
+  const loadStaffData = async () => {
     setIsLoading(true);
-    const user = IShopStore.getStaffUser();
+    let user = IShopStore.getStaffUser();
+
+    // Nếu avatar trong cache bị lỗi cắt ngắn (65535 bytes do giới hạn cũ), tự động dọn dẹp
+    if (user?.avatar && user.avatar.length === 65535) {
+      user.avatar = undefined;
+    }
+
     setStaffUser(user);
 
     if (user) {
@@ -92,6 +98,42 @@ export default function AdminProfilePage() {
       setAvatar(user.avatar || '');
     }
     setIsLoading(false);
+
+    // Đồng bộ tức thời thông tin hồ sơ và ảnh avatar mới nhất từ CSDL MySQL
+    const targetUsername = user?.username || 'admin';
+    try {
+      const res = await fetch(`/api/admin/staff/profile?username=${targetUsername}`, { cache: 'no-store' });
+      const json = await res.json();
+      if (json.success && json.data) {
+        const dbUser = json.data;
+        if (dbUser.name) setFullName(dbUser.name);
+        if (dbUser.phone) setPhone(dbUser.phone);
+        if (dbUser.email) setEmail(dbUser.email);
+        if (dbUser.department) setDepartment(dbUser.department);
+        if (dbUser.birthday) setBirthday(dbUser.birthday);
+        if (dbUser.address) setAddress(dbUser.address);
+        if (dbUser.bio) setBio(dbUser.bio);
+
+        // Cập nhật avatar chuẩn từ MySQL (loại bỏ chuỗi bị cắt ngắn nếu có)
+        const dbAvatar = dbUser.avatar && dbUser.avatar.length !== 65535 ? dbUser.avatar : '';
+        setAvatar(dbAvatar);
+
+        if (user) {
+          const syncedUser = {
+            ...user,
+            name: dbUser.name || user.name,
+            phone: dbUser.phone || user.phone,
+            email: dbUser.email || user.email,
+            department: dbUser.department || user.department,
+            avatar: dbAvatar || undefined,
+          };
+          setStaffUser(syncedUser);
+          IShopStore.setStaffUser(syncedUser);
+        }
+      }
+    } catch (err) {
+      console.warn('Sync staff profile from MySQL notice:', err);
+    }
   };
 
   useEffect(() => {
@@ -109,7 +151,7 @@ export default function AdminProfilePage() {
       const updated = IShopStore.updateStaffUser({ avatar: finalAvatar || undefined });
       if (updated) setStaffUser(updated);
 
-      // Đồng bộ vào backend API
+      // Đồng bộ vào backend API MySQL
       try {
         await fetch('/api/admin/staff/profile', {
           method: 'POST',
@@ -355,7 +397,8 @@ export default function AdminProfilePage() {
                     <img
                       src={avatar}
                       alt={staffUser.name}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover block"
+                      onError={() => setAvatar('')}
                     />
                   ) : (
                     staffUser.name.charAt(0).toUpperCase()
@@ -495,7 +538,12 @@ export default function AdminProfilePage() {
               <div className="flex items-center gap-4">
                 <div className="w-14 h-14 rounded-2xl bg-white border border-slate-200 overflow-hidden flex items-center justify-center shrink-0">
                   {avatar ? (
-                    <img src={avatar} alt={staffUser.name} className="w-full h-full object-cover" />
+                    <img
+                      src={avatar}
+                      alt={staffUser.name}
+                      className="w-full h-full object-cover block"
+                      onError={() => setAvatar('')}
+                    />
                   ) : (
                     <span className="text-xl font-black text-slate-800">{staffUser.name.charAt(0)}</span>
                   )}
