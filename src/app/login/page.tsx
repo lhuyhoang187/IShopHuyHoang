@@ -263,12 +263,6 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
           </div>
         </Link>
 
-        {/* Badge xác thực trung tâm (Ẩn trên màn hình nhỏ) */}
-        <div className="hidden lg:inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-100 border border-slate-200 shadow-sm text-xs font-bold">
-          <ShieldCheck className="w-4 h-4 text-amber-600" />
-          <span className="tracking-wide text-slate-700">XÁC THỰC BẢO MẬT 256-BIT</span>
-        </div>
-
         {/* Cụm tiện ích bên phải: Về Cửa Hàng */}
         <div className="flex items-center gap-2 sm:gap-2.5">
           <Link
@@ -405,7 +399,7 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
                           required={mode === 'signup'}
                           value={firstName}
                           onChange={(e) => setFirstName(e.target.value)}
-                          placeholder=""
+                          placeholder="Họ tên người dùng"
                           className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-medium text-slate-900 placeholder:text-slate-400 hover:border-slate-300 focus:bg-white focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all"
                         />
                       </div>
@@ -430,7 +424,7 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder=""
+                      placeholder="abc@gmail.com"
                       className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-medium text-slate-900 placeholder:text-slate-400 hover:border-slate-300 focus:bg-white focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all"
                     />
                   </div>
@@ -453,7 +447,7 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      placeholder=""
+                      placeholder="Nhập mật khẩu"
                       className="w-full pl-10 pr-11 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-medium text-slate-900 placeholder:text-slate-400 hover:border-slate-300 focus:bg-white focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all"
                     />
                     <button
@@ -919,7 +913,7 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
                           required
                           value={forgotEmail}
                           onChange={(e) => setForgotEmail(e.target.value)}
-                          placeholder=""
+                          placeholder="abc@gmail.com"
                           className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all"
                         />
                       </div>

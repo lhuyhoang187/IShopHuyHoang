@@ -386,7 +386,7 @@ export default function AccountPage() {
                     required
                     value={loginPhone}
                     onChange={(e) => setLoginPhone(e.target.value)}
-                    placeholder=""
+                    placeholder="Số điện thoại"
                     className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 font-mono font-bold text-xs focus:outline-none focus:border-amber-600 focus:bg-white shadow-inner transition-colors"
                   />
                 </div>
@@ -400,7 +400,7 @@ export default function AccountPage() {
                     type="password"
                     value={loginPass}
                     onChange={(e) => setLoginPass(e.target.value)}
-                    placeholder=""
+                    placeholder="Nhập mật khẩu"
                     className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-xs focus:outline-none focus:border-amber-600 focus:bg-white shadow-inner transition-colors"
                   />
                 </div>
