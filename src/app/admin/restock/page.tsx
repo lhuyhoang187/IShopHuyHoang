@@ -681,13 +681,13 @@ export default function AdminRestockPage() {
                 onChange={(e) => handleBrandChange(e.target.value)}
                 className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-bold text-xs sm:text-sm focus:outline-none focus:border-blue-500 cursor-pointer"
               >
-                <option value="all">📱 Tất cả thương hiệu ({phones.length} dòng máy)</option>
+                <option value="all">Tất cả thương hiệu ({phones.length} dòng máy)</option>
                 {brandList.map((b) => {
                   const brandObj = dbBrands.find((d) => d.name.toLowerCase() === b.toLowerCase());
                   const cnt = phones.filter((p) => p.brand === b).length;
                   return (
                     <option key={b} value={b}>
-                      {getBrandEmoji(b)} {b} {brandObj?.country ? `(${brandObj.country})` : ''} — {cnt} model
+                      {b} {brandObj?.country ? `(${brandObj.country})` : ''} — {cnt} model
                     </option>
                   );
                 })}
@@ -722,7 +722,6 @@ export default function AdminRestockPage() {
                         onClick={() => handleBrandChange(b)}
                         className="px-3 py-2 flex items-center gap-1.5 cursor-pointer"
                       >
-                        <span>{getBrandEmoji(b)}</span>
                         <span>{b}</span>
                         {brandObj?.country && (
                           <span
@@ -1082,36 +1081,16 @@ export default function AdminRestockPage() {
 
               <div>
                 <label className="text-slate-700 font-bold mb-1 block">
-                  Biểu tượng / Icon đại diện:
+                  Thứ tự hiển thị:
                 </label>
-                <div className="flex items-center gap-2">
-                  <div className="flex flex-wrap gap-1.5 flex-1">
-                    {['📱', '🍏', '🔷', '🟠', '🟢', '🔴', '⚡', '🌟', '💎', '🌐', '🇯🇵', '🇺🇸'].map(
-                      (emoji) => (
-                        <button
-                          key={emoji}
-                          type="button"
-                          onClick={() => setNewBrandLogoEmoji(emoji)}
-                          className={`w-9 h-9 rounded-xl border flex items-center justify-center text-base transition-all cursor-pointer ${
-                            newBrandLogoEmoji === emoji
-                              ? 'bg-blue-100 border-blue-600 shadow-xs'
-                              : 'bg-slate-50 hover:bg-slate-100 border-slate-200'
-                          }`}
-                        >
-                          {emoji}
-                        </button>
-                      )
-                    )}
-                  </div>
-                  <input autoComplete="off"
-                    type="number"
-                    value={newBrandDisplayOrder}
-                    onChange={(e) => setNewBrandDisplayOrder(Number(e.target.value) || 10)}
-                    title="Thứ tự hiển thị"
-                    placeholder=""
-                    className="w-16 p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold text-center focus:outline-none focus:border-blue-500"
-                  />
-                </div>
+                <input autoComplete="off"
+                  type="number"
+                  value={newBrandDisplayOrder}
+                  onChange={(e) => setNewBrandDisplayOrder(Number(e.target.value) || 10)}
+                  title="Thứ tự hiển thị"
+                  placeholder=""
+                  className="w-24 p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold text-center focus:outline-none focus:border-blue-500"
+                />
               </div>
 
               <div>
@@ -1190,7 +1169,7 @@ export default function AdminRestockPage() {
                 >
                   {brandList.map((b) => (
                     <option key={b} value={b}>
-                      {getBrandEmoji(b)} {b}
+                      {b}
                     </option>
                   ))}
                 </select>

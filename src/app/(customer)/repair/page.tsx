@@ -768,10 +768,10 @@ export default function RepairPriceListPage() {
                   {/* Tầng 1: Chọn Hãng / Thương hiệu (Thanh chọn 4 nút gọn gàng) */}
                   <div className="grid grid-cols-4 gap-1 p-1 rounded-2xl bg-slate-100 border border-slate-200 text-xs">
                     {[
-                      { key: 'Apple', label: 'Apple', sub: 'iPhone/iPad', icon: '🍏' },
-                      { key: 'Samsung', label: 'Samsung', sub: 'Galaxy/Fold', icon: '🔷' },
-                      { key: 'Xiaomi', label: 'Xiaomi', sub: 'Redmi/Mi', icon: '⚡' },
-                      { key: 'Khác', label: 'Khác', sub: 'Tự nhập máy', icon: '📱' },
+                      { key: 'Apple', label: 'Apple', sub: 'iPhone/iPad' },
+                      { key: 'Samsung', label: 'Samsung', sub: 'Galaxy/Fold' },
+                      { key: 'Xiaomi', label: 'Xiaomi', sub: 'Redmi/Mi' },
+                      { key: 'Khác', label: 'Khác', sub: 'Tự nhập máy' },
                     ].map((b) => (
                       <button
                         key={b.key}
@@ -794,7 +794,7 @@ export default function RepairPriceListPage() {
                             : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50 font-semibold'
                         }`}
                       >
-                        <span className="block font-bold truncate">{b.icon} {b.label}</span>
+                        <span className="block font-bold truncate">{b.label}</span>
                         <span className="text-[10px] text-slate-400 block font-normal truncate hidden sm:block">{b.sub}</span>
                       </button>
                     ))}
@@ -817,9 +817,6 @@ export default function RepairPriceListPage() {
                           className="w-full p-3 rounded-xl bg-slate-50 hover:bg-white border border-slate-200 text-left flex items-center justify-between shadow-2xs hover:border-amber-400 transition-all cursor-pointer relative z-10"
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 font-bold text-xs">
-                              {selectedBrand === 'Apple' ? '🍏' : selectedBrand === 'Samsung' ? '🔷' : '⚡'}
-                            </div>
                             <div className="min-w-0">
                               <span className="text-xs font-black text-slate-900 block truncate">
                                 {bookingForm.model === 'custom' ? (customModelText || 'Dòng máy khác...') : bookingForm.model}
