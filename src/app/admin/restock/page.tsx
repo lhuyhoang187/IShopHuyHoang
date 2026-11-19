@@ -97,10 +97,8 @@ export default function AdminRestockPage() {
   const [newColorHex, setNewColorHex] = useState('#2563EB');
 
   // Batch IMEI and Payment
-  const [imeiListText, setImeiListText] = useState<string>(
-    '358921104888001\n358921104888002\n358921104888003'
-  );
-  const [paidAmount, setPaidAmount] = useState<number>(50000000);
+  const [imeiListText, setImeiListText] = useState<string>('');
+  const [paidAmount, setPaidAmount] = useState<number>(0);
 
   const loadData = async () => {
     setSuppliers(IShopStore.getSuppliers());

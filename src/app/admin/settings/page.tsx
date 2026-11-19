@@ -37,8 +37,8 @@ export default function AdminSettingsPage() {
   });
 
   // Webhook Simulator State
-  const [testAmount, setTestAmount] = useState('34990000');
-  const [testContent, setTestContent] = useState('IShop HD-2608-001');
+  const [testAmount, setTestAmount] = useState('');
+  const [testContent, setTestContent] = useState('');
   const [webhookResult, setWebhookResult] = useState<any>(null);
   const [isSendingWebhook, setIsSendingWebhook] = useState(false);
 
@@ -237,9 +237,9 @@ export default function AdminSettingsPage() {
   };
 
   const handleResetData = () => {
-    if (confirm('Bạn có chắc muốn khôi phục toàn bộ dữ liệu mẫu ban đầu?')) {
+    if (confirm('Xóa bộ đệm trình duyệt và tải lại toàn bộ dữ liệu mới nhất trực tiếp từ MySQL?')) {
       IShopStore.resetAllData();
-      alert('Đã khôi phục dữ liệu mẫu thành công!');
+      alert('Đã xóa bộ đệm và đồng bộ trực tiếp từ MySQL thành công!');
       window.location.reload();
     }
   };

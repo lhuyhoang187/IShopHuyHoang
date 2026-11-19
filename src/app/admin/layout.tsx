@@ -144,25 +144,7 @@ export default function AdminLayout({
         setAuthError(json.error || 'Đăng nhập không thành công');
       }
     } catch (err: any) {
-      // Local offline fallback if API is unreachable
-      const lowerUser = loginUsername.toLowerCase().trim();
-      if (lowerUser === 'admin' || lowerUser === 'cashier' || lowerUser === 'tech' || lowerUser === 'technician') {
-        const role: Role = lowerUser === 'tech' || lowerUser === 'technician' ? 'technician' : lowerUser === 'cashier' ? 'cashier' : 'admin';
-        const name = role === 'admin' ? 'Chủ Cửa Hàng (Admin)' : role === 'technician' ? 'Kỹ Thuật Viên Apple' : 'Thu Ngân Quầy POS';
-        const cachedAvatar = IShopStore.getStaffAvatar(lowerUser);
-        const fallbackUser: StaffUser = {
-          id: 'staff-' + lowerUser,
-          username: lowerUser,
-          name,
-          role,
-          avatar: cachedAvatar,
-        };
-        IShopStore.setStaffUser(fallbackUser);
-        setStaffUser(fallbackUser);
-        setCurrentRole(role);
-        return;
-      }
-      setAuthError('Lỗi kết nối máy chủ xác thực: ' + (err?.message || ''));
+      setAuthError('Lỗi kết nối máy chủ xác thực CSDL MySQL: ' + (err?.message || ''));
     } finally {
       setIsAuthenticating(false);
     }

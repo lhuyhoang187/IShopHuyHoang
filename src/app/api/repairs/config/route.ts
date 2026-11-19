@@ -26,21 +26,18 @@ export async function GET(request: NextRequest) {
        ORDER BY s.isFeatured DESC, s.createdAt DESC`
     );
 
-    const services =
-      dbServices.length > 0
-        ? dbServices.map((s) => ({
-            id: s.id,
-            name: s.name,
-            category: s.category || 'other',
-            deviceBrand: s.deviceBrand || 'Apple',
-            deviceModels: s.deviceModels || 'Tất cả dòng máy',
-            price: Number(s.price || 0),
-            warranty: s.warrantyPeriod || '12 Tháng',
-            estimatedMinutes: Number(s.estimatedMinutes || 30),
-            description: s.description || '',
-            isActive: Boolean(s.isActive),
-          }))
-        : initialRepairServiceCatalog;
+    const services = dbServices.map((s) => ({
+      id: s.id,
+      name: s.name,
+      category: s.category || 'other',
+      deviceBrand: s.deviceBrand || 'Apple',
+      deviceModels: s.deviceModels || 'Tất cả dòng máy',
+      price: Number(s.price || 0),
+      warranty: s.warrantyPeriod || '12 Tháng',
+      estimatedMinutes: Number(s.estimatedMinutes || 30),
+      description: s.description || '',
+      isActive: Boolean(s.isActive),
+    }));
 
     const options = await db.query(
       `SELECT o.*, COALESCE(b.name, 'Khác') AS brandName
@@ -103,7 +100,7 @@ export async function GET(request: NextRequest) {
         success: true,
         data: {
           devices: initialRepairDeviceOptions,
-          services: initialRepairServiceCatalog,
+          services: [],
           symptoms: initialRepairSymptoms,
           timeSlots: initialRepairTimeSlots,
         },

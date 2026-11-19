@@ -153,15 +153,6 @@ function WarrantyContent() {
     }
   }, [initialQuery]);
 
-  const sampleQueries = [
-    { type: 'imei', query: '358921104999888', label: 'IMEI: 358921104999888', desc: 'iPhone 18 Pro Max' },
-    { type: 'imei', query: '358921104829104', label: 'IMEI: 358921104829104', desc: 'Máy mới nguyên seal' },
-    { type: 'phone', query: '0986898197', label: 'SĐT: 0986.898.197', desc: 'Khách hàng 2 máy' },
-    { type: 'phone', query: '0912345678', label: 'SĐT: 0912.345.678', desc: 'Phiếu sửa chữa' },
-    { type: 'code', query: 'HD-2608-001', label: 'Mã HĐ: HD-2608-001', desc: 'Hóa đơn mua máy' },
-    { type: 'code', query: 'SC-2608-001', label: 'Mã Phiếu: SC-2608-001', desc: 'Sửa chữa iCare' },
-  ];
-
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
       {/* Header */}
@@ -237,29 +228,6 @@ function WarrantyContent() {
             </div>
           )}
         </form>
-
-        {/* Quick test sample queries */}
-        <div className="pt-2 border-t border-slate-100">
-          <span className="text-xs text-slate-500 font-bold block mb-2.5">
-            Mẫu tra cứu nhanh để bạn trải nghiệm ngay:
-          </span>
-          <div className="flex flex-wrap gap-2">
-            {sampleQueries.map((item) => (
-              <button
-                key={item.query}
-                type="button"
-                onClick={() => {
-                  setSearchInput(item.query);
-                  handleSearch(item.query);
-                }}
-                className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-amber-50 text-slate-700 hover:text-amber-800 border border-slate-200 hover:border-amber-300 text-xs text-left transition-all font-semibold cursor-pointer"
-              >
-                <span className="font-mono font-bold text-slate-900">{item.label}</span>
-                <span className="text-[10px] text-slate-500 ml-1.5 font-medium">({item.desc})</span>
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
 
       {/* Results Section */}

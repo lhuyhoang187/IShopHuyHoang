@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { ServerStore } from '@/lib/serverStore';
 import {
   normalizePhone,
   isValidPhone,
@@ -69,14 +68,10 @@ export async function GET(request: NextRequest) {
         });
       }
 
-      const fallback = ServerStore.getInvoiceByCode(cleanCode);
-      if (!fallback) {
-        return NextResponse.json(
-          { error: 'Không tìm thấy hóa đơn' },
-          { status: 404 }
-        );
-      }
-      return NextResponse.json({ success: true, source: 'fallback_store', data: fallback });
+      return NextResponse.json(
+        { error: 'Không tìm thấy hóa đơn' },
+        { status: 404 }
+      );
     }
 
     const invoices = await db.query(
@@ -330,17 +325,6 @@ export async function POST(request: NextRequest) {
         [invId]
       );
       return invRows[0];
-    });
-
-    ServerStore.createInvoice({
-      customerName,
-      customerPhone,
-      items: body.items,
-      subtotal,
-      discount,
-      totalAmount,
-      paymentMethod: paymentMethod === 'vietqr' ? 'vietqr' : 'cash',
-      cashierName: sanitizeString(body.cashierName || 'Website Online Order', 100),
     });
 
     return NextResponse.json(

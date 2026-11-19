@@ -37,19 +37,8 @@ import {
   sendRepairStatusUpdateEmail,
   sendRewardRedeemEmail,
 } from './emailService';
-import {
-  initialPhones,
-  initialPhoneStock,
-  initialAccessories,
-  initialSpareParts,
-  initialRepairTickets,
-  initialCustomers,
-  initialSuppliers,
-  initialCashbook,
-  initialInvoices,
-} from './initialData';
 
-const STORAGE_PREFIX = 'ishop_huyhoang_v6_mysql_';
+const STORAGE_PREFIX = 'ishop_huyhoang_v7_prod_';
 
 function getStorage<T>(key: string, defaultValue: T): T {
   if (typeof window === 'undefined') return defaultValue;
@@ -223,21 +212,7 @@ export const initialRepairDeviceOptions: RepairDeviceOption[] = [
   { id: 'rd-18', name: 'Xiaomi / Dòng máy Android khác', brand: 'Khác', isActive: true },
 ];
 
-export const initialRepairServiceCatalog: RepairServiceCatalogItem[] = [
-  { id: 'rs-1', name: 'Thay Màn Hình OLED Zin Bóc Máy 120Hz ProMotion', category: 'screen', deviceBrand: 'Apple', deviceModels: 'iPhone 13 / 14 Pro Max', price: 5200000, warranty: '06 Tháng', estimatedMinutes: 35, description: 'Màn zin bóc máy hiển thị TrueTone mượt mà', isActive: true },
-  { id: 'rs-2', name: 'Ép Kính Cảm Ứng Chân Không (Giữ màn zin hiển thị)', category: 'glass', deviceBrand: 'Apple', deviceModels: 'iPhone 12 / 13 / 14 Pro Max', price: 750000, warranty: '12 Tháng keo bọt', estimatedMinutes: 45, description: 'Công nghệ ép kính buồng chân không vô trùng', isActive: true },
-  { id: 'rs-3', name: 'Thay Pin Pisen Dung Lượng Cao Siêu Bền', category: 'battery', deviceBrand: 'Apple', deviceModels: 'iPhone 14 / 15 Series', price: 850000, warranty: '12 Tháng', estimatedMinutes: 20, description: 'Tăng 25% thời lượng onscreen cho máy', isActive: true },
-  { id: 'rs-4', name: 'Thay Pin Pisen Chính Hãng (Hiển thị 100% dung lượng)', category: 'battery', deviceBrand: 'Apple', deviceModels: 'iPhone 11 / 12 / 13 Series', price: 650000, warranty: '12 Tháng', estimatedMinutes: 20, description: 'Pin chuẩn Pisen chống cháy nổ, hiển thị dung lượng chuẩn', isActive: true },
-  { id: 'rs-5', name: 'Thay Cụm Chân Sạc Type-C & Mic Thoại', category: 'charge_port', deviceBrand: 'Apple', deviceModels: 'iPhone 15 / 16 Series', price: 650000, warranty: '06 Tháng', estimatedMinutes: 30, description: 'Khắc phục sạc chập chờn, mic gọi không nghe', isActive: true },
-  { id: 'rs-6', name: 'Thay Màn Hình Zin Bóc Máy iPhone 15 Pro Max', category: 'screen', deviceBrand: 'Apple', deviceModels: 'iPhone 15 Pro Max', price: 6500000, warranty: '06 Tháng', estimatedMinutes: 30, description: 'Màn hình zin Apple tháo máy hỗ trợ 120Hz', isActive: true },
-  { id: 'rs-7', name: 'Thay Kính Lưng Sau Bằng Tia Laser Tự Động', category: 'glass', deviceBrand: 'Apple', deviceModels: 'iPhone 13 / 14 / 15 Series', price: 550000, warranty: '12 Tháng', estimatedMinutes: 40, description: 'Bắn tia laser bóc lưng không cần tháo máy', isActive: true },
-  { id: 'rs-8', name: 'Sửa Face ID / Cảm Biến Tiệm Cận Chuyên Sâu', category: 'other', deviceBrand: 'Apple', deviceModels: 'iPhone X đến 15 Pro Max', price: 650000, warranty: '06 Tháng', estimatedMinutes: 60, description: 'Cứu Face ID báo di chuyển máy lên xuống', isActive: true },
-  { id: 'rs-9', name: 'Thay Màn Hình Dynamic AMOLED 2X Zin', category: 'screen', deviceBrand: 'Samsung', deviceModels: 'Samsung Galaxy S24 Ultra', price: 5900000, warranty: '06 Tháng', estimatedMinutes: 40, description: 'Màn zin hãng Samsung nét căng 120Hz', isActive: true },
-  { id: 'rs-10', name: 'Thay Pin Chính Hãng Samsung 5.000mAh', category: 'battery', deviceBrand: 'Samsung', deviceModels: 'Galaxy S23 / S24 Ultra', price: 750000, warranty: '12 Tháng', estimatedMinutes: 25, description: 'Pin chuẩn nhà máy Samsung dung lượng chuẩn', isActive: true },
-  { id: 'rs-11', name: 'Ép Kính Màn Hình Cong Phẳng Chân Không', category: 'glass', deviceBrand: 'Samsung', deviceModels: 'Galaxy Note 20 / S22 / S23 Ultra', price: 850000, warranty: '12 Tháng', estimatedMinutes: 50, description: 'Ép kính cong chuẩn không bọt khí', isActive: true },
-  { id: 'rs-12', name: 'Thay Cụm Chân Sạc Nhanh 45W & Cáp Bo Phụ', category: 'charge_port', deviceBrand: 'Samsung', deviceModels: 'Galaxy S24 Ultra', price: 550000, warranty: '06 Tháng', estimatedMinutes: 30, description: 'Cụm sạc nhanh 45W chuẩn Super Fast Charge', isActive: true },
-  { id: 'rs-13', name: 'Kiểm Tra Toàn Diện & Báo Giá Miễn Phí Tại Chỗ', category: 'other', deviceBrand: 'Chung', deviceModels: 'Tất cả các dòng máy', price: 0, warranty: 'Miễn phí 100%', estimatedMinutes: 15, description: 'Kỹ thuật viên đo đạc vi mạch và báo giá trước khi sửa', isActive: true },
-];
+export const initialRepairServiceCatalog: RepairServiceCatalogItem[] = [];
 
 export const initialRepairSymptoms: RepairSymptomOption[] = [
   { id: 'sym-1', code: 'screen_broken', title: 'Màn hình nứt vỡ kính, sọc xanh, chảy mực', icon: '📱', description: 'Rơi va đập, màn hình sọc hoặc liệt cảm ứng', isActive: true },
@@ -319,13 +294,13 @@ export const IShopStore = {
       if (accRes?.success && Array.isArray(accRes.data)) {
         changed = setStorage('accessories', accRes.data, true) || changed;
       }
-      if (accCatRes?.success && Array.isArray(accCatRes.data) && accCatRes.data.length > 0) {
+      if (accCatRes?.success && Array.isArray(accCatRes.data)) {
         changed = setStorage('accessory_categories', accCatRes.data, true) || changed;
       }
       if (partsRes?.success && Array.isArray(partsRes.data)) {
         changed = setStorage('spare_parts', partsRes.data, true) || changed;
       }
-      if (partCatRes?.success && Array.isArray(partCatRes.data) && partCatRes.data.length > 0) {
+      if (partCatRes?.success && Array.isArray(partCatRes.data)) {
         changed = setStorage('spare_part_categories', partCatRes.data, true) || changed;
       }
       if (invRes?.success && Array.isArray(invRes.data)) {
@@ -335,16 +310,16 @@ export const IShopStore = {
         changed = setStorage('repairs', repRes.data, true) || changed;
       }
       if (repCfgRes?.success && repCfgRes.data) {
-        if (Array.isArray(repCfgRes.data.devices) && repCfgRes.data.devices.length > 0) {
+        if (Array.isArray(repCfgRes.data.devices)) {
           changed = setStorage('repair_device_options', repCfgRes.data.devices, true) || changed;
         }
-        if (Array.isArray(repCfgRes.data.services) && repCfgRes.data.services.length > 0) {
+        if (Array.isArray(repCfgRes.data.services)) {
           changed = setStorage('repair_service_catalog', repCfgRes.data.services, true) || changed;
         }
-        if (Array.isArray(repCfgRes.data.symptoms) && repCfgRes.data.symptoms.length > 0) {
+        if (Array.isArray(repCfgRes.data.symptoms)) {
           changed = setStorage('repair_symptom_options', repCfgRes.data.symptoms, true) || changed;
         }
-        if (Array.isArray(repCfgRes.data.timeSlots) && repCfgRes.data.timeSlots.length > 0) {
+        if (Array.isArray(repCfgRes.data.timeSlots)) {
           changed = setStorage('repair_time_slot_options', repCfgRes.data.timeSlots, true) || changed;
         }
       }
@@ -352,10 +327,10 @@ export const IShopStore = {
         changed = setStorage('cashbook', cashRes.data, true) || changed;
       }
       if (promoRes?.success && promoRes.data) {
-        if (Array.isArray(promoRes.data.campaigns) && promoRes.data.campaigns.length > 0) {
+        if (Array.isArray(promoRes.data.campaigns)) {
           changed = setStorage('promotion_campaigns', promoRes.data.campaigns, true) || changed;
         }
-        if (Array.isArray(promoRes.data.promoQRs) && promoRes.data.promoQRs.length > 0) {
+        if (Array.isArray(promoRes.data.promoQRs)) {
           changed = setStorage('promo_qr_codes', promoRes.data.promoQRs, true) || changed;
         }
       }
@@ -622,7 +597,7 @@ export const IShopStore = {
 
   // Phones catalog
   getPhones(): PhoneProduct[] {
-    return getStorage<PhoneProduct[]>('phones', initialPhones);
+    return getStorage<PhoneProduct[]>('phones', []);
   },
   getPhoneBySlug(slug: string): PhoneProduct | undefined {
     return this.getPhones().find((p) => p.slug === slug);
@@ -854,7 +829,7 @@ export const IShopStore = {
 
   // Phone stock (IMEIs)
   getPhoneStock(): PhoneStockItem[] {
-    return getStorage<PhoneStockItem[]>('phone_stock', initialPhoneStock);
+    return getStorage<PhoneStockItem[]>('phone_stock', []);
   },
   getAvailablePhones(): PhoneStockItem[] {
     return this.getPhoneStock().filter((item) => item.status === 'in_stock');
@@ -883,7 +858,7 @@ export const IShopStore = {
 
   // Accessories
   getAccessories(): AccessoryProduct[] {
-    return getStorage<AccessoryProduct[]>('accessories', initialAccessories);
+    return getStorage<AccessoryProduct[]>('accessories', []);
   },
   getAccessoryBySlug(slug: string): AccessoryProduct | undefined {
     return this.getAccessories().find((a) => a.slug === slug);
@@ -1020,7 +995,7 @@ export const IShopStore = {
 
   // Spare parts
   getSpareParts(): SparePartItem[] {
-    return getStorage<SparePartItem[]>('spare_parts', initialSpareParts);
+    return getStorage<SparePartItem[]>('spare_parts', []);
   },
   addSparePart(part: SparePartItem): void {
     const parts = this.getSpareParts();
@@ -1100,7 +1075,7 @@ export const IShopStore = {
 
   // Repairs
   getRepairs(): RepairTicket[] {
-    return getStorage<RepairTicket[]>('repairs', initialRepairTickets);
+    return getStorage<RepairTicket[]>('repairs', []);
   },
   getRepairByCode(code: string): RepairTicket | undefined {
     const clean = code.trim().toUpperCase();
@@ -1462,7 +1437,7 @@ export const IShopStore = {
 
   // Invoices & POS
   getInvoices(): Invoice[] {
-    return getStorage<Invoice[]>('invoices', initialInvoices);
+    return getStorage<Invoice[]>('invoices', []);
   },
   createInvoice(invoiceData: Omit<Invoice, 'id' | 'invoiceCode' | 'createdAt'>): Invoice {
     const invoices = this.getInvoices();
@@ -1670,7 +1645,7 @@ export const IShopStore = {
 
   // Cashbook
   getCashbook(): CashbookEntry[] {
-    return getStorage<CashbookEntry[]>('cashbook', initialCashbook);
+    return getStorage<CashbookEntry[]>('cashbook', []);
   },
   addCashbookEntry(entry: Omit<CashbookEntry, 'id' | 'code' | 'date'>) {
     const entries = this.getCashbook();
@@ -1692,7 +1667,7 @@ export const IShopStore = {
 
   // Customers & Suppliers
   getCustomers(): Customer[] {
-    return getStorage<Customer[]>('customers', initialCustomers);
+    return getStorage<Customer[]>('customers', []);
   },
   addCustomer(customer: Customer): Customer {
     const list = this.getCustomers();
@@ -1845,7 +1820,7 @@ export const IShopStore = {
   },
 
   getSuppliers(): Supplier[] {
-    return getStorage<Supplier[]>('suppliers', initialSuppliers);
+    return getStorage<Supplier[]>('suppliers', []);
   },
   paySupplierDebt(supplierId: string, amount: number, paymentMethod: 'cash' | 'transfer' = 'transfer') {
     const suppliers = this.getSuppliers();
@@ -1884,26 +1859,9 @@ export const IShopStore = {
     }
   },
 
-  // Recent items ("Xem cuối: SP.xxxxx")
+  // Recent items
   getRecentItems(): RecentItem[] {
-    return getStorage<RecentItem[]>('recent_items', [
-      {
-        id: '1',
-        code: 'HD-2608-001',
-        type: 'invoice',
-        title: 'HD-2608-001 (Bảo)',
-        url: '/admin/pos',
-        time: 'Hôm qua',
-      },
-      {
-        id: '2',
-        code: 'SC-2608-001',
-        type: 'repair',
-        title: 'SC-2608-001 (Hùng)',
-        url: '/admin/repairs',
-        time: 'Sáng nay',
-      },
-    ]);
+    return getStorage<RecentItem[]>('recent_items', []);
   },
   addRecentItem(item: RecentItem) {
     const items = this.getRecentItems().filter((i) => i.code !== item.code);
@@ -2122,7 +2080,7 @@ export const IShopStore = {
 
   // Compare List (Customer Portal)
   getComparisonList(): string[] {
-    return getStorage<string[]>('comparison_ids', ['p-1', 'p-6']); // Default compare iPhone 18 Pro Max vs iPhone Duo!
+    return getStorage<string[]>('comparison_ids', []);
   },
   toggleComparison(phoneId: string) {
     const list = this.getComparisonList();
@@ -2147,25 +2105,7 @@ export const IShopStore = {
   // 1. QUẢN LÝ MÃ SẢN PHẨM / THIẾT BỊ VÒNG ĐỜI THỐNG NHẤT (CHUNG MÃ IMEI)
   // =========================================================================
   getRegisteredDevices(phone?: string): RegisteredDevice[] {
-    const defaultList: RegisteredDevice[] = [
-      {
-        id: 'dev-init-1',
-        imei: '359144208391001',
-        productName: 'iPhone 18 Pro 128GB - Titan Sa Mạc',
-        phoneId: 'p-2',
-        color: 'Titan Sa Mạc',
-        capacity: '128GB',
-        customerPhone: '0986898197',
-        customerName: 'Lê Huy Hoàng',
-        customerEmail: 'huyhoang@gmail.com',
-        purchaseInvoiceCode: 'HD-2608-001',
-        purchaseDate: '2026-08-25',
-        warrantyExpiryDate: '2027-08-25',
-        purchasePrice: 28490000,
-        repairHistoryCodes: ['SC-2608-001'],
-      },
-    ];
-    const list = getStorage<RegisteredDevice[]>('registered_devices', defaultList);
+    const list = getStorage<RegisteredDevice[]>('registered_devices', []);
     if (!phone) return list;
     const cleanPhone = phone.trim();
     return list.filter((d) => d.customerPhone === cleanPhone);
@@ -2297,52 +2237,7 @@ export const IShopStore = {
   // 3. QR CODE KHUYẾN MÃI (SETUP THỜI GIAN & ĐẾM NGƯỢC HIỆU LỰC CÒN LẠI)
   // =========================================================================
   getPromoQRCodes(): PromoQRCode[] {
-    const defaultList: PromoQRCode[] = [
-      {
-        id: 'qr-promo-1',
-        code: 'FLASH-APPLE-500K',
-        title: 'Flash Sale Siêu Cấp - Giảm 500.000đ',
-        description: 'Áp dụng cho mọi đơn hàng điện thoại Flagship từ 10.000.000đ khi đặt trực tiếp hoặc online.',
-        discountType: 'fixed_amount',
-        discountValue: 500000,
-        minOrderValue: 10000000,
-        startDate: new Date(Date.now() - 3600 * 1000 * 24).toISOString(),
-        endDate: new Date(Date.now() + 3600 * 1000 * 72).toISOString(), // 3 ngày nữa
-        isActive: true,
-        qrPayload: 'https://ishop.vn/promo/FLASH-APPLE-500K',
-        bannerColor: 'from-amber-500 to-orange-600',
-      },
-      {
-        id: 'qr-promo-2',
-        code: 'TECHFEST-10',
-        title: 'TechFest Phụ Kiện - Giảm 10%',
-        description: 'Giảm 10% tối đa 500.000đ cho củ sạc GaN, cáp sạc dù, tai nghe và ốp lưng chính hãng.',
-        discountType: 'percentage',
-        discountValue: 10,
-        minOrderValue: 300000,
-        startDate: new Date(Date.now() - 3600 * 1000 * 12).toISOString(),
-        endDate: new Date(Date.now() + 3600 * 1000 * 120).toISOString(), // 5 ngày nữa
-        isActive: true,
-        qrPayload: 'https://ishop.vn/promo/TECHFEST-10',
-        bannerColor: 'from-blue-600 to-indigo-700',
-      },
-      {
-        id: 'qr-promo-3',
-        code: 'ICARE-VIP-100K',
-        title: 'iCare Trợ Giá Sửa Chữa - Tặng 100.000đ',
-        description: 'Trợ giá trực tiếp cho dịch vụ ép kính, thay pin Pisen dung lượng chuẩn hoặc thay màn hình zin.',
-        discountType: 'fixed_amount',
-        discountValue: 100000,
-        minOrderValue: 500000,
-        startDate: new Date(Date.now() - 3600 * 1000 * 24).toISOString(),
-        endDate: new Date(Date.now() + 3600 * 1000 * 168).toISOString(), // 7 ngày nữa
-        isActive: true,
-        qrPayload: 'https://ishop.vn/promo/ICARE-VIP-100K',
-        bannerColor: 'from-emerald-600 to-teal-700',
-      },
-    ];
-
-    return getStorage<PromoQRCode[]>('promo_qr_codes', defaultList);
+    return getStorage<PromoQRCode[]>('promo_qr_codes', []);
   },
 
   createPromoQRCode(data: Omit<PromoQRCode, 'id'>): PromoQRCode {
@@ -2396,49 +2291,7 @@ export const IShopStore = {
   // 3.1 CHIẾN DỊCH KHUYẾN MÃI & FLASH SALE (SETUP THỜI GIAN BẮT ĐẦU & KẾT THÚC)
   // =========================================================================
   getPromotionCampaigns(): PromotionCampaign[] {
-    const defaultCampaigns: PromotionCampaign[] = [
-      {
-        id: 'camp-1',
-        title: '⚡ Siêu Flash Sale Giờ Vàng 2026',
-        description: 'Giảm giá trực tiếp lên đến 15% cho tất cả dòng máy iPhone 18 Series, iPhone Duo & phụ kiện chính hãng khi mua tại cửa hàng hoặc online.',
-        badgeText: 'FLASH SALE',
-        discountType: 'percentage',
-        discountValue: 15,
-        startDate: new Date(Date.now() - 3600 * 1000 * 6).toISOString(),
-        endDate: new Date(Date.now() + 3600 * 1000 * 48).toISOString(), // Còn 2 ngày
-        isActive: true,
-        targetCategory: 'all',
-        bannerGradient: 'from-amber-500 via-orange-500 to-rose-600',
-      },
-      {
-        id: 'camp-2',
-        title: '🎧 Tuần Lễ Vàng Phụ Kiện Chính Hãng Anker & Baseus',
-        description: 'Trợ giá giảm 20% cho toàn bộ củ sạc nhanh GaN 65W/100W, cáp sạc dù chống đứt và pin dự phòng MagSafe chuẩn Qi2.',
-        badgeText: 'GIẢM ĐẾN 20%',
-        discountType: 'percentage',
-        discountValue: 20,
-        startDate: new Date(Date.now() - 3600 * 1000 * 24).toISOString(),
-        endDate: new Date(Date.now() + 3600 * 1000 * 120).toISOString(), // Còn 5 ngày
-        isActive: true,
-        targetCategory: 'accessories',
-        bannerGradient: 'from-emerald-500 via-teal-600 to-cyan-600',
-      },
-      {
-        id: 'camp-3',
-        title: '🏆 Lễ Hội Mua Sắm Flagship Trợ Giá Lên Đời',
-        description: 'Thu cũ đổi mới trợ giá 1.000.000đ trực tiếp vào giá bán lẻ khi nâng cấp lên Galaxy S24 Ultra hoặc Xiaomi 14 Ultra.',
-        badgeText: 'TẶNG 1.000.000Đ',
-        discountType: 'fixed_amount',
-        discountValue: 1000000,
-        startDate: new Date(Date.now() + 3600 * 1000 * 24).toISOString(), // Sắp diễn ra
-        endDate: new Date(Date.now() + 3600 * 1000 * 240).toISOString(),
-        isActive: true,
-        targetCategory: 'phones',
-        bannerGradient: 'from-blue-600 via-indigo-600 to-purple-600',
-      },
-    ];
-
-    return getStorage<PromotionCampaign[]>('promotion_campaigns', defaultCampaigns);
+    return getStorage<PromotionCampaign[]>('promotion_campaigns', []);
   },
 
   createPromotionCampaign(data: Omit<PromotionCampaign, 'id'>): PromotionCampaign {
@@ -2552,16 +2405,37 @@ export const IShopStore = {
     setStorage('comparison_ids', []);
   },
 
-  // Reset to default data
+  // Clear local cache and re-sync fresh from MySQL database
   resetAllData() {
     if (typeof window === 'undefined') return;
+    const savedStaff = this.getStaffUser();
     localStorage.clear();
-    window.dispatchEvent(new Event('ishop_data_changed'));
+    if (savedStaff) {
+      setStorage('staff_user', savedStaff, true);
+    }
+    this.hydrateFromDatabase(true);
   },
 };
 
 // Automatic background & cross-tab real-time synchronization with live MySQL Database
 if (typeof window !== 'undefined') {
+  // Tự động dọn sạch dữ liệu cache mẫu cũ (v6) khi nâng cấp sang bản production sạch (v7), giữ lại phiên đăng nhập admin
+  try {
+    const oldPrefix = 'ishop_huyhoang_v6_mysql_';
+    const oldAdminRaw = localStorage.getItem(oldPrefix + 'staff_user');
+    if (oldAdminRaw && !localStorage.getItem(STORAGE_PREFIX + 'staff_user')) {
+      const parsed = JSON.parse(oldAdminRaw);
+      if (parsed?.username === 'admin') {
+        localStorage.setItem(STORAGE_PREFIX + 'staff_user', oldAdminRaw);
+      }
+    }
+    Object.keys(localStorage).forEach((k) => {
+      if (k.startsWith(oldPrefix)) {
+        localStorage.removeItem(k);
+      }
+    });
+  } catch {}
+
   setTimeout(() => {
     IShopStore.hydrateFromDatabase();
   }, 100);

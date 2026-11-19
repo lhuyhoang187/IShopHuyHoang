@@ -15,10 +15,12 @@ export default function SmartSearchModal({ isOpen, onClose }: Props) {
   const [query, setQuery] = useState('');
   const [phones, setPhones] = useState(IShopStore.getPhones());
   const [accessories, setAccessories] = useState(IShopStore.getAccessories());
+  const [repairCatalog, setRepairCatalog] = useState(IShopStore.getRepairServiceCatalog());
 
   useEffect(() => {
     setPhones(IShopStore.getPhones());
     setAccessories(IShopStore.getAccessories());
+    setRepairCatalog(IShopStore.getRepairServiceCatalog());
   }, [isOpen]);
 
   useEffect(() => {
@@ -53,21 +55,37 @@ export default function SmartSearchModal({ isOpen, onClose }: Props) {
         a.categoryName.toLowerCase().includes(q)
     );
 
-    // Mock repair keywords
-    const repairServices = [
-      { name: 'Thay pin iPhone chính hãng Pisen (Bảo hành 12T)', model: 'iPhone 11 - 15 Pro Max', price: 'từ 450.000đ', url: '/repair' },
-      { name: 'Ép kính màn hình cảm ứng chân không lấy ngay', model: 'iPhone, Samsung, Xiaomi', price: 'từ 350.000đ', url: '/repair' },
-      { name: 'Thay cụm màn hình OLED Zin 120Hz ProMotion', model: 'iPhone 13 - 16 Series', price: 'từ 1.950.000đ', url: '/repair' },
-      { name: 'Thay chân sạc Type-C, mic thoại, chuông loa ngoài', model: 'Tất cả dòng máy', price: 'từ 250.000đ', url: '/repair' },
-    ];
-    const matchedRepairs = repairServices.filter((r) => r.name.toLowerCase().includes(q) || r.model.toLowerCase().includes(q) || 'sửa chữa thay pin ép kính'.includes(q));
+    // Real repair services from MySQL catalog
+    const matchedRepairs = repairCatalog
+      .filter(
+        (r) =>
+          r.isActive !== false &&
+          (r.name.toLowerCase().includes(q) ||
+            (r.deviceModels || '').toLowerCase().includes(q) ||
+            (r.deviceBrand || '').toLowerCase().includes(q))
+      )
+      .map((r) => ({
+        name: r.name,
+        model: r.deviceModels || r.deviceBrand || 'Tất cả dòng máy',
+        price: r.price > 0 ? formatVND(r.price) : 'Miễn phí',
+        url: '/repair',
+      }));
 
     return {
       phones: matchedPhones,
       accessories: matchedAccessories,
       repairs: matchedRepairs,
     };
-  }, [query, phones, accessories]);
+  }, [query, phones, accessories, repairCatalog]);
+
+  const quickSuggestions = useMemo(() => {
+    const items = [
+      ...phones.slice(0, 4).map((p) => p.name),
+      ...accessories.slice(0, 3).map((a) => a.name),
+      ...repairCatalog.slice(0, 2).map((r) => r.name),
+    ];
+    return Array.from(new Set(items));
+  }, [phones, accessories, repairCatalog]);
 
   if (!isOpen) return null;
 
@@ -106,28 +124,25 @@ export default function SmartSearchModal({ isOpen, onClose }: Props) {
           {!query.trim() ? (
             <div>
               <p className="text-xs uppercase tracking-wider text-slate-500 font-bold mb-2.5">
-                Gợi ý tìm kiếm phổ biến
+                {quickSuggestions.length > 0 ? 'Gợi ý sản phẩm & dịch vụ hiện có' : 'Nhập từ khóa để tìm kiếm'}
               </p>
-              <div className="flex flex-wrap gap-2">
-                {[
-                  'iPhone 18 Pro Max',
-                  'iPhone Duo',
-                  'Samsung S24 Ultra',
-                  'Củ sạc 65W GaN',
-                  'Pin Pisen iPhone',
-                  'Ép kính màn hình',
-                  'Cáp Anker Type-C',
-                  'Tai nghe AirPods',
-                ].map((item) => (
-                  <button
-                    key={item}
-                    onClick={() => setQuery(item)}
-                    className="px-3 py-1.5 rounded-full text-xs bg-slate-100 hover:bg-amber-100 hover:text-amber-800 text-slate-700 transition-colors border border-slate-200 font-medium"
-                  >
-                    {item}
-                  </button>
-                ))}
-              </div>
+              {quickSuggestions.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {quickSuggestions.map((item) => (
+                    <button
+                      key={item}
+                      onClick={() => setQuery(item)}
+                      className="px-3 py-1.5 rounded-full text-xs bg-slate-100 hover:bg-amber-100 hover:text-amber-800 text-slate-700 transition-colors border border-slate-200 font-medium"
+                    >
+                      {item}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-500">
+                  Cửa hàng hiện chưa có sản phẩm nào được đăng bán. Vui lòng thêm sản phẩm trong trang quản trị.
+                </p>
+              )}
             </div>
           ) : (
             <>

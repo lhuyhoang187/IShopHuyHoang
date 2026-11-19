@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { ServerStore } from '@/lib/serverStore';
 import {
   normalizePhone,
   isValidPhone,
@@ -87,14 +86,10 @@ export async function GET(request: NextRequest) {
         });
       }
 
-      const fallback = ServerStore.getRepairByCode(cleanCode);
-      if (!fallback) {
-        return NextResponse.json(
-          { error: 'Không tìm thấy phiếu sửa chữa' },
-          { status: 404 }
-        );
-      }
-      return NextResponse.json({ success: true, source: 'fallback_store', data: fallback });
+      return NextResponse.json(
+        { error: 'Không tìm thấy phiếu sửa chữa' },
+        { status: 404 }
+      );
     }
 
     const repairs = await db.query(`${REPAIR_SELECT_SQL} ORDER BY r.createdAt DESC`);
@@ -280,17 +275,6 @@ export async function POST(request: NextRequest) {
          VALUES (?, ?, 'received', 'Tiếp nhận máy tại quầy', 'Biên nhận sửa chữa K80 được tạo tự động và lưu vào CSDL MySQL.', ?, NOW())`,
         [logId, ticketCode, sanitizeString(assignedBy || 'Lễ tân tiếp nhận', 100)]
       );
-    });
-
-    ServerStore.createRepair({
-      customerName,
-      customerPhone,
-      customerAddress: body.customerAddress,
-      deviceModel,
-      imeiOrSerial,
-      unlockPasscode,
-      issueDescription,
-      laborFee,
     });
 
     const newTicket = await db.queryOne(`${REPAIR_SELECT_SQL} WHERE r.id = ?`, [ticketId]);

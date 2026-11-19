@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { ServerStore } from '@/lib/serverStore';
 import { normalizePhone } from '@/lib/validation';
 
 export async function GET(request: NextRequest) {
@@ -142,17 +141,6 @@ export async function GET(request: NextRequest) {
         warrantyType: ticket.warrantyPeriod || 'Bảo hành 06 tháng linh kiện & dịch vụ sửa chữa iCare',
         serviceCenter: 'Trung Tâm Kỹ Thuật iCare Service - 168 Đường 3/2, Q.10 & 45 Lê Văn Việt, TP. Thủ Đức',
       });
-    }
-
-    if (results.length === 0) {
-      const fallback = ServerStore.checkWarranty(q);
-      if (fallback.found) {
-        results.push({
-          type: 'phone',
-          ...fallback,
-          warrantyMonths: fallback.warrantyMonths || 12,
-        });
-      }
     }
 
     if (results.length === 0) {

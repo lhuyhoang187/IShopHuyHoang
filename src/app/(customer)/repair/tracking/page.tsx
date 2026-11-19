@@ -160,33 +160,6 @@ function RepairTrackingContent() {
             )}
           </button>
         </form>
-
-        {/* Quick Click Samples */}
-        <div className="pt-2">
-          <span className="text-xs text-slate-600 font-semibold block mb-2">
-            Thử nghiệm nhanh bằng các phiếu mẫu thực tế:
-          </span>
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => {
-                setInputQuery('SC-2608-001');
-                handleSearch('SC-2608-001');
-              }}
-              className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-amber-50 text-slate-700 hover:text-amber-800 border border-slate-200 text-xs font-mono font-semibold transition-colors"
-            >
-              SC-2608-001 (iPhone 15 Pro Max - Đang sửa)
-            </button>
-            <button
-              onClick={() => {
-                setInputQuery('SC-2608-002');
-                handleSearch('SC-2608-002');
-              }}
-              className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 border border-slate-200 text-xs font-mono font-semibold transition-colors"
-            >
-              SC-2608-002 (iPhone 13 Pro Max - Sẵn sàng giao)
-            </button>
-          </div>
-        </div>
       </div>
 
       {/* Ticket Result Details */}

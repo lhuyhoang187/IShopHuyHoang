@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { ServerStore } from '@/lib/serverStore';
 import { isValidAmount } from '@/lib/validation';
 
 /**
@@ -27,7 +26,6 @@ export async function POST(request: NextRequest) {
     const transferAmount = Number(body.transferAmount || body.amount || body.price || 0);
     const content = String(body.content || body.description || body.subAccount || '');
     const referenceCode = String(body.referenceCode || body.ref || body.id || '');
-    const transactionDate = String(body.transactionDate || body.when || new Date().toISOString());
 
     if (!isValidAmount(transferAmount, false)) {
       return NextResponse.json(
@@ -36,15 +34,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = ServerStore.processVietQRWebhook({
-      gateway: body.gateway || 'MBBank Napas 247',
-      transactionDate,
-      accountNumber: body.accountNumber || body.subAccount || '0988888999',
-      transferType: 'in',
-      transferAmount,
-      content,
-      referenceCode,
-    });
+    // Đối soát mã đơn hàng HD-xxxx hoặc phiếu sửa SC-xxxx trực tiếp trong MySQL
+    const upperContent = content.toUpperCase();
+    const invoiceMatch = upperContent.match(/HD[-_]?\d+[-_]?\d+/i);
+    const repairMatch = upperContent.match(/SC[-_]?\d+[-_]?\d+/i);
+
+    let matched = false;
+    let type: 'invoice' | 'repair' | 'unknown' = 'unknown';
+    let targetCode: string | null = null;
+
+    if (invoiceMatch) {
+      const code = invoiceMatch[0].replace(/_/g, '-');
+      const inv = await db.queryOne('SELECT invoiceCode FROM invoice WHERE UPPER(invoiceCode) = ?', [code]);
+      if (inv) {
+        matched = true;
+        type = 'invoice';
+        targetCode = inv.invoiceCode;
+      }
+    } else if (repairMatch) {
+      const code = repairMatch[0].replace(/_/g, '-');
+      const rep = await db.queryOne('SELECT ticketCode FROM repairticket WHERE UPPER(ticketCode) = ?', [code]);
+      if (rep) {
+        matched = true;
+        type = 'repair';
+        targetCode = rep.ticketCode;
+      }
+    }
 
     const now = new Date();
     const dateStr = now.toISOString().split('T')[0];
@@ -61,9 +76,9 @@ export async function POST(request: NextRequest) {
         cbId,
         cashbookCode,
         dateStr,
-        result.type === 'repair' ? 'repair_service' : 'sale_phone',
+        type === 'repair' ? 'repair_service' : 'sale_phone',
         transferAmount,
-        result.targetCode || referenceCode || 'WEBHOOK',
+        targetCode || referenceCode || 'WEBHOOK',
         `[Tự Động Napas 247] Nhận ${transferAmount.toLocaleString('vi-VN')}đ. Nội dung: ${content}`,
       ]
     );
@@ -73,7 +88,12 @@ export async function POST(request: NextRequest) {
       source: 'mysql_database',
       message: 'Xử lý biến động số dư VietQR thành công và đã hạch toán CSDL',
       data: {
-        ...result,
+        success: true,
+        matched,
+        type,
+        targetCode,
+        amountReceived: transferAmount,
+        cashbookEntryCode: cashbookCode,
         mysqlCashbookCode: cashbookCode,
       },
     });

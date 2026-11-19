@@ -154,36 +154,6 @@ export default function AccountPage() {
     return () => window.removeEventListener('ishop_data_changed', handleDataChange);
   }, []);
 
-  // Quick Demo Login
-  const handleQuickDemoLogin = (demoPhone = '0909123456', demoName = 'Hoàng Gia Bảo') => {
-    const custs = IShopStore.getCustomers();
-    const existing = custs.find((c) => c.phone === demoPhone);
-    const cachedAvatar =
-      IShopStore.getCustomerAvatar(demoPhone) ||
-      existing?.avatar ||
-      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=240&auto=format&fit=crop&q=80';
-
-    const newUser: CustomerUser = {
-      id: existing ? existing.id : 'cust-demo',
-      name: existing ? existing.name : demoName,
-      phone: demoPhone,
-      email: existing?.email || 'bao.hoang@icloud.com',
-      address: existing?.address || '45 Lê Văn Việt, TP. Thủ Đức, TP.HCM',
-      points: existing ? existing.points : 62365,
-      birthday: existing?.birthday || '1996-10-18',
-      city: existing?.city || 'TP. Hồ Chí Minh',
-      gender: 'male',
-      membershipTier: existing?.membershipTier || 'Thẻ Kim Cương',
-      avatar: cachedAvatar,
-      createdAt: '2026-01-15',
-    };
-
-    IShopStore.setCustomerUser(newUser);
-    setCustomerUser(newUser);
-    setAvatar(newUser.avatar || '');
-    confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } });
-  };
-
   // Handle Login Submit
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -379,28 +349,6 @@ export default function AccountPage() {
               <p className="text-xs text-slate-600 leading-relaxed">
                 Vui lòng đăng nhập để cập nhật hồ sơ, đổi mật khẩu, xem thẻ VIP tích điểm và theo dõi đơn hàng của bạn.
               </p>
-            </div>
-
-            {/* Quick Demo Login Option */}
-            <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 space-y-2.5 shadow-sm">
-              <div className="flex items-center gap-2 text-amber-900 font-bold text-xs">
-                <Sparkles className="w-4 h-4 text-amber-600" />
-                <span>Trải Nghiệm Nhanh Bằng Tài Khoản Khách VIP:</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => handleQuickDemoLogin()}
-                className="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer"
-              >
-                <span>Vào với tài khoản: Hoàng Gia Bảo (VIP Kim Cương)</span>
-                <ArrowRight className="w-4 h-4 text-amber-400" />
-              </button>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <div className="h-px flex-1 bg-slate-200" />
-              <span className="text-[11px] text-slate-400 uppercase tracking-widest font-mono">Hoặc Đăng Nhập SĐT</span>
-              <div className="h-px flex-1 bg-slate-200" />
             </div>
 
             {/* Login Form */}

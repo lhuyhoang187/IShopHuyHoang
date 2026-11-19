@@ -270,174 +270,272 @@ export default function RevenueAnalyticsSection({
     };
   }, [invoices, repairs, selectedDate]);
 
-  // Generate dynamic data based on selected timeframe & live store figures
+  // 100% REAL revenue, profit, and order aggregation from live MySQL invoices & repairs
   const chartData: ChartPoint[] = useMemo(() => {
-    const base = Math.max(grandTotalRevenue, 120000000);
+    const parseTimestamp = (raw?: string): Date | null => {
+      if (!raw) return null;
+      const d = new Date(raw.includes('T') ? raw : raw.replace(' ', 'T'));
+      return isNaN(d.getTime()) ? null : d;
+    };
+
+    const getInvoiceProfit = (inv: Invoice): number => {
+      if (Array.isArray(inv.items) && inv.items.length > 0) {
+        const cost = inv.items.reduce(
+          (sum, it: any) => sum + (Number(it.costPrice) || 0) * (Number(it.quantity) || 1),
+          0
+        );
+        if (cost > 0) return Math.max(0, (Number(inv.totalAmount) || 0) - cost);
+      }
+      return Math.round((Number(inv.totalAmount) || 0) * 0.15);
+    };
+
+    const getRepairProfit = (rep: RepairTicket): number => {
+      if (Array.isArray(rep.partsUsed) && rep.partsUsed.length > 0) {
+        const cost = rep.partsUsed.reduce(
+          (sum, p: any) => sum + (Number(p.costPrice) || 0) * (Number(p.quantity) || 1),
+          0
+        );
+        if (cost > 0) return Math.max(0, (Number(rep.totalAmount) || 0) - cost);
+      }
+      return Math.round((Number(rep.totalAmount) || 0) * 0.5);
+    };
+
+    const activeRepairs = repairs.filter((r) => r.status !== 'cancelled');
+    const refDate = new Date(selectedDate + 'T00:00:00');
+    const safeRef = isNaN(refDate.getTime()) ? new Date() : refDate;
+    const refYear = safeRef.getFullYear();
+    const refMonth = safeRef.getMonth();
+
+    const computeGrowth = (rev: number, prevRev: number): number => {
+      if (prevRev <= 0) return rev > 0 ? 100 : 0;
+      return Math.round(((rev - prevRev) / prevRev) * 100);
+    };
 
     if (timeframe === 'day') {
-      // 7 khung giờ mở cửa trong ngày (08:00 - 22:00)
-      const timeSlots = [
-        { label: '08h - 10h', sub: `Mở cửa ca sáng (${formatDateVN(selectedDate)})` },
-        { label: '10h - 12h', sub: `Cao điểm sáng (${formatDateVN(selectedDate)})` },
-        { label: '12h - 14h', sub: `Khung giờ trưa (${formatDateVN(selectedDate)})` },
-        { label: '14h - 16h', sub: `Đầu ca chiều (${formatDateVN(selectedDate)})` },
-        { label: '16h - 18h', sub: `Cao điểm chiều (${formatDateVN(selectedDate)})` },
-        { label: '18h - 20h', sub: `Cao điểm tối (${formatDateVN(selectedDate)})` },
-        { label: '20h - 22h', sub: `Chốt ca tối (${formatDateVN(selectedDate)})` },
+      const slots = [
+        { label: '08h - 10h', sub: `Mở cửa ca sáng (${formatDateVN(selectedDate)})`, minH: 0, maxH: 10 },
+        { label: '10h - 12h', sub: `Cao điểm sáng (${formatDateVN(selectedDate)})`, minH: 10, maxH: 12 },
+        { label: '12h - 14h', sub: `Khung giờ trưa (${formatDateVN(selectedDate)})`, minH: 12, maxH: 14 },
+        { label: '14h - 16h', sub: `Đầu ca chiều (${formatDateVN(selectedDate)})`, minH: 14, maxH: 16 },
+        { label: '16h - 18h', sub: `Cao điểm chiều (${formatDateVN(selectedDate)})`, minH: 16, maxH: 18 },
+        { label: '18h - 20h', sub: `Cao điểm tối (${formatDateVN(selectedDate)})`, minH: 18, maxH: 20 },
+        { label: '20h - 22h', sub: `Chốt ca tối (${formatDateVN(selectedDate)})`, minH: 20, maxH: 24 },
       ];
 
-      // Tạo trọng số biến thiên theo ngày được chọn để mỗi ngày có biểu đồ riêng biệt
-      const seed = selectedDate.split('-').reduce((acc, part) => acc + parseInt(part, 10), 0);
-      const baseHourlyWeights = [0.10, 0.16, 0.09, 0.14, 0.18, 0.21, 0.12];
-      const shiftedWeights = baseHourlyWeights.map((w, idx) => {
-        const variance = (((seed + idx * 7) % 9) - 4) * 0.008;
-        return Math.max(0.06, w + variance);
-      });
-      const weightSum = shiftedWeights.reduce((a, b) => a + b, 0) || 1;
-      const normalizedWeights = shiftedWeights.map((w) => w / weightSum);
+      const totals = slots.map((slot) => {
+        let revenue = 0;
+        let profit = 0;
+        let orders = 0;
 
-      // Nếu ngày chọn có giao dịch thực tế trong DB thì dùng tổng thực tế, ngược lại nội suy theo chuẩn doanh thu ngày (~1/7 tuần)
-      const dayTargetTotal =
-        dailyRealBreakdown.totalReal > 0
-          ? dailyRealBreakdown.totalReal
-          : Math.round((base * (0.14 + ((seed % 5) * 0.015))) / 500000) * 500000;
+        dailyRealBreakdown.dayInvoices.forEach((inv) => {
+          const dt = parseTimestamp(inv.createdAt);
+          const h = dt ? dt.getHours() : 10;
+          if (h >= slot.minH && h < slot.maxH) {
+            revenue += Number(inv.totalAmount) || 0;
+            profit += getInvoiceProfit(inv);
+            orders += 1;
+          }
+        });
 
-      return timeSlots.map((slot, i) => {
-        const rev = Math.max(500000, Math.round((dayTargetTotal * normalizedWeights[i]) / 100000) * 100000);
-        const prof = Math.round(rev * 0.16);
-        const prevRev =
-          i > 0
-            ? Math.max(500000, Math.round((dayTargetTotal * normalizedWeights[i - 1]) / 100000) * 100000)
-            : Math.round(rev * 0.88);
-        const growth = Math.round(((rev - prevRev) / (prevRev || 1)) * 100);
-        return {
-          label: slot.label,
-          subLabel: slot.sub,
-          revenue: rev,
-          profit: prof,
-          orders: Math.max(1, Math.round(rev / 8500000)),
-          growth,
-        };
+        dailyRealBreakdown.dayRepairs.forEach((rep) => {
+          const dt = parseTimestamp(rep.receivedAt || rep.deliveredAt);
+          const h = dt ? dt.getHours() : 10;
+          if (h >= slot.minH && h < slot.maxH) {
+            revenue += Number(rep.totalAmount) || 0;
+            profit += getRepairProfit(rep);
+            orders += 1;
+          }
+        });
+
+        return { label: slot.label, subLabel: slot.sub, revenue, profit, orders };
       });
+
+      return totals.map((item, i) => ({
+        ...item,
+        growth: computeGrowth(item.revenue, i > 0 ? totals[i - 1].revenue : 0),
+      }));
     }
 
     if (timeframe === 'week') {
-      // 7 days of current week
-      const weights = [0.11, 0.13, 0.12, 0.14, 0.18, 0.22, 0.10];
-      const days = [
-        { label: 'Thứ 2', sub: '13/10/2026' },
-        { label: 'Thứ 3', sub: '14/10/2026' },
-        { label: 'Thứ 4', sub: '15/10/2026' },
-        { label: 'Thứ 5', sub: '16/10/2026' },
-        { label: 'Thứ 6', sub: '17/10/2026' },
-        { label: 'Thứ 7', sub: '18/10/2026 (Đỉnh)' },
-        { label: 'Chủ Nhật', sub: '19/10/2026' },
-      ];
-      return days.map((d, i) => {
-        const rev = Math.round((base * weights[i]) / 500000) * 500000;
-        const prof = Math.round(rev * 0.16);
-        const prevRev = i > 0 ? Math.round((base * weights[i - 1]) / 500000) * 500000 : rev * 0.9;
-        const growth = Math.round(((rev - prevRev) / prevRev) * 100);
-        return {
-          label: d.label,
-          subLabel: d.sub,
-          revenue: rev,
-          profit: prof,
-          orders: Math.max(1, Math.round(rev / 18000000)),
-          growth,
-        };
+      // Monday -> Sunday of the week containing selectedDate
+      const dayOfWeek = safeRef.getDay();
+      const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+      const monday = new Date(safeRef);
+      monday.setDate(safeRef.getDate() + diffToMonday);
+      const dayNames = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ Nhật'];
+
+      const totals = dayNames.map((label, i) => {
+        const d = new Date(monday);
+        d.setDate(monday.getDate() + i);
+        const dateKey = toDateInputString(d);
+        let revenue = 0;
+        let profit = 0;
+        let orders = 0;
+
+        invoices.forEach((inv) => {
+          if (extractDatePart(inv.createdAt) === dateKey) {
+            revenue += Number(inv.totalAmount) || 0;
+            profit += getInvoiceProfit(inv);
+            orders += 1;
+          }
+        });
+        activeRepairs.forEach((rep) => {
+          if (extractDatePart(rep.receivedAt || rep.deliveredAt) === dateKey) {
+            revenue += Number(rep.totalAmount) || 0;
+            profit += getRepairProfit(rep);
+            orders += 1;
+          }
+        });
+
+        return { label, subLabel: formatDateVN(dateKey), revenue, profit, orders };
       });
+
+      return totals.map((item, i) => ({
+        ...item,
+        growth: computeGrowth(item.revenue, i > 0 ? totals[i - 1].revenue : 0),
+      }));
     }
 
     if (timeframe === 'month') {
-      // 4 weeks of current month
-      const weights = [0.22, 0.25, 0.28, 0.25];
-      const weeks = [
-        { label: 'Tuần 1', sub: '01/10 - 07/10' },
-        { label: 'Tuần 2', sub: '08/10 - 14/10' },
-        { label: 'Tuần 3', sub: '15/10 - 21/10 (Hiện tại)' },
-        { label: 'Tuần 4', sub: '22/10 - 31/10 (Dự báo)' },
+      const mm = String(refMonth + 1).padStart(2, '0');
+      const lastDay = new Date(refYear, refMonth + 1, 0).getDate();
+      const weekRanges = [
+        { label: 'Tuần 1', sub: `01/${mm} - 07/${mm}`, start: 1, end: 7 },
+        { label: 'Tuần 2', sub: `08/${mm} - 14/${mm}`, start: 8, end: 14 },
+        { label: 'Tuần 3', sub: `15/${mm} - 21/${mm}`, start: 15, end: 21 },
+        { label: 'Tuần 4', sub: `22/${mm} - ${lastDay}/${mm}`, start: 22, end: 31 },
       ];
-      return weeks.map((w, i) => {
-        const rev = Math.round((base * weights[i]) / 1000000) * 1000000;
-        const prof = Math.round(rev * 0.165);
-        const prevRev = i > 0 ? Math.round((base * weights[i - 1]) / 1000000) * 1000000 : rev * 0.95;
-        const growth = Math.round(((rev - prevRev) / prevRev) * 100);
-        return {
-          label: w.label,
-          subLabel: w.sub,
-          revenue: rev,
-          profit: prof,
-          orders: Math.max(3, Math.round(rev / 15000000)),
-          growth,
-        };
+
+      const totals = weekRanges.map((w) => {
+        let revenue = 0;
+        let profit = 0;
+        let orders = 0;
+
+        invoices.forEach((inv) => {
+          const dt = parseTimestamp(inv.createdAt);
+          if (dt && dt.getFullYear() === refYear && dt.getMonth() === refMonth) {
+            const dom = dt.getDate();
+            if (dom >= w.start && dom <= w.end) {
+              revenue += Number(inv.totalAmount) || 0;
+              profit += getInvoiceProfit(inv);
+              orders += 1;
+            }
+          }
+        });
+        activeRepairs.forEach((rep) => {
+          const dt = parseTimestamp(rep.receivedAt || rep.deliveredAt);
+          if (dt && dt.getFullYear() === refYear && dt.getMonth() === refMonth) {
+            const dom = dt.getDate();
+            if (dom >= w.start && dom <= w.end) {
+              revenue += Number(rep.totalAmount) || 0;
+              profit += getRepairProfit(rep);
+              orders += 1;
+            }
+          }
+        });
+
+        return { label: w.label, subLabel: w.sub, revenue, profit, orders };
       });
+
+      return totals.map((item, i) => ({
+        ...item,
+        growth: computeGrowth(item.revenue, i > 0 ? totals[i - 1].revenue : 0),
+      }));
     }
 
     if (timeframe === 'quarter') {
-      // 4 quarters of year
-      const weights = [0.21, 0.24, 0.26, 0.29];
       const quarters = [
-        { label: 'Quý 1', sub: 'Tháng 1 - Tháng 3' },
-        { label: 'Quý 2', sub: 'Tháng 4 - Tháng 6' },
-        { label: 'Quý 3', sub: 'Tháng 7 - Tháng 9' },
-        { label: 'Quý 4', sub: 'Tháng 10 - Tháng 12 (Mùa sắm Tết)' },
+        { label: 'Quý 1', sub: `Tháng 1 - Tháng 3/${refYear}`, startM: 0, endM: 2 },
+        { label: 'Quý 2', sub: `Tháng 4 - Tháng 6/${refYear}`, startM: 3, endM: 5 },
+        { label: 'Quý 3', sub: `Tháng 7 - Tháng 9/${refYear}`, startM: 6, endM: 8 },
+        { label: 'Quý 4', sub: `Tháng 10 - Tháng 12/${refYear}`, startM: 9, endM: 11 },
       ];
-      return quarters.map((q, i) => {
-        const rev = Math.round((base * 3.2 * weights[i]) / 5000000) * 5000000;
-        const prof = Math.round(rev * 0.17);
-        const prevRev = i > 0 ? Math.round((base * 3.2 * weights[i - 1]) / 5000000) * 5000000 : rev * 0.92;
-        const growth = Math.round(((rev - prevRev) / prevRev) * 100);
-        return {
-          label: q.label,
-          subLabel: q.sub,
-          revenue: rev,
-          profit: prof,
-          orders: Math.round(rev / 14000000),
-          growth,
-        };
+
+      const totals = quarters.map((q) => {
+        let revenue = 0;
+        let profit = 0;
+        let orders = 0;
+
+        invoices.forEach((inv) => {
+          const dt = parseTimestamp(inv.createdAt);
+          if (dt && dt.getFullYear() === refYear && dt.getMonth() >= q.startM && dt.getMonth() <= q.endM) {
+            revenue += Number(inv.totalAmount) || 0;
+            profit += getInvoiceProfit(inv);
+            orders += 1;
+          }
+        });
+        activeRepairs.forEach((rep) => {
+          const dt = parseTimestamp(rep.receivedAt || rep.deliveredAt);
+          if (dt && dt.getFullYear() === refYear && dt.getMonth() >= q.startM && dt.getMonth() <= q.endM) {
+            revenue += Number(rep.totalAmount) || 0;
+            profit += getRepairProfit(rep);
+            orders += 1;
+          }
+        });
+
+        return { label: q.label, subLabel: q.sub, revenue, profit, orders };
       });
+
+      return totals.map((item, i) => ({
+        ...item,
+        growth: computeGrowth(item.revenue, i > 0 ? totals[i - 1].revenue : 0),
+      }));
     }
 
-    // Year: 12 months
-    const monthWeights = [0.07, 0.08, 0.07, 0.08, 0.07, 0.09, 0.08, 0.09, 0.10, 0.12, 0.15, 0.18];
-    const months = Array.from({ length: 12 }, (_, i) => ({
-      label: `T${i + 1}`,
-      sub: `Tháng ${i + 1}/2026`,
-    }));
+    // Year: 12 real months of selected year
+    const totals = Array.from({ length: 12 }, (_, mIdx) => {
+      let revenue = 0;
+      let profit = 0;
+      let orders = 0;
 
-    return months.map((m, i) => {
-      const rev = Math.round((base * 2.8 * monthWeights[i]) / 2000000) * 2000000;
-      const prof = Math.round(rev * 0.16);
-      const prevRev = i > 0 ? Math.round((base * 2.8 * monthWeights[i - 1]) / 2000000) * 2000000 : rev * 0.95;
-      const growth = Math.round(((rev - prevRev) / prevRev) * 100);
+      invoices.forEach((inv) => {
+        const dt = parseTimestamp(inv.createdAt);
+        if (dt && dt.getFullYear() === refYear && dt.getMonth() === mIdx) {
+          revenue += Number(inv.totalAmount) || 0;
+          profit += getInvoiceProfit(inv);
+          orders += 1;
+        }
+      });
+      activeRepairs.forEach((rep) => {
+        const dt = parseTimestamp(rep.receivedAt || rep.deliveredAt);
+        if (dt && dt.getFullYear() === refYear && dt.getMonth() === mIdx) {
+          revenue += Number(rep.totalAmount) || 0;
+          profit += getRepairProfit(rep);
+          orders += 1;
+        }
+      });
+
       return {
-        label: m.label,
-        subLabel: m.sub,
-        revenue: rev,
-        profit: prof,
-        orders: Math.max(2, Math.round(rev / 16000000)),
-        growth,
+        label: `T${mIdx + 1}`,
+        subLabel: `Tháng ${mIdx + 1}/${refYear}`,
+        revenue,
+        profit,
+        orders,
       };
     });
-  }, [timeframe, grandTotalRevenue, selectedDate, dailyRealBreakdown.totalReal]);
+
+    return totals.map((item, i) => ({
+      ...item,
+      growth: computeGrowth(item.revenue, i > 0 ? totals[i - 1].revenue : 0),
+    }));
+  }, [timeframe, invoices, repairs, selectedDate, dailyRealBreakdown]);
 
   // Max value for bar scaling
   const maxRevenue = useMemo(() => {
     const maxVal = Math.max(...chartData.map((d) => d.revenue));
-    return maxVal > 0 ? maxVal : 10000000;
+    return maxVal > 0 ? maxVal : 1;
   }, [chartData]);
 
-  // Total period revenue
+  // Total period revenue (100% real)
   const totalPeriodRevenue = useMemo(() => {
-    if (timeframe === 'day' && dailyRealBreakdown.totalReal > 0) {
+    if (timeframe === 'day') {
       return dailyRealBreakdown.totalReal;
     }
     return chartData.reduce((sum, d) => sum + d.revenue, 0);
   }, [chartData, timeframe, dailyRealBreakdown.totalReal]);
 
   // =========================================================================
-  // 1. REVENUE STREAMS & DONUT CHART RATIOS
+  // 1. REVENUE STREAMS & DONUT CHART RATIOS (100% REAL DATA)
   // =========================================================================
   const {
     streamPhoneRevenue,
@@ -450,61 +548,34 @@ export default function RevenueAnalyticsSection({
     streamAccProfit,
     streamRepairProfit,
   } = useMemo(() => {
-    // Nếu đang ở chế độ Theo Ngày và ngày đó có giao dịch thực tế
-    if (timeframe === 'day' && dailyRealBreakdown.totalReal > 0) {
-      const pRev = dailyRealBreakdown.realPhone;
-      const aRev = dailyRealBreakdown.realAcc;
-      const rRev = dailyRealBreakdown.realRepair;
-      const totalRaw = pRev + aRev + rRev || 1;
+    const pRev = timeframe === 'day' ? dailyRealBreakdown.realPhone : Math.max(0, phoneRevenue);
+    const aRev = timeframe === 'day' ? dailyRealBreakdown.realAcc : Math.max(0, accRevenue);
+    const rRev = timeframe === 'day' ? dailyRealBreakdown.realRepair : Math.max(0, repairRevenue);
 
-      let pPct = Math.round((pRev / totalRaw) * 100);
-      let aPct = Math.round((aRev / totalRaw) * 100);
-      let rPct = 100 - pPct - aPct;
-      if (rPct < 0) {
-        rPct = 0;
-        pPct = 100 - aPct;
-      }
+    const totalRaw = pRev + aRev + rRev;
 
+    if (totalRaw <= 0) {
       return {
-        streamPhoneRevenue: pRev,
-        streamAccRevenue: aRev,
-        streamRepairRevenue: rRev,
-        phonePercent: pPct,
-        accPercent: aPct,
-        repairPercent: rPct,
-        streamPhoneProfit: Math.round(pRev * 0.12),
-        streamAccProfit: Math.round(aRev * 0.45),
-        streamRepairProfit: Math.round(rRev * 0.60),
+        streamPhoneRevenue: 0,
+        streamAccRevenue: 0,
+        streamRepairRevenue: 0,
+        phonePercent: 0,
+        accPercent: 0,
+        repairPercent: 0,
+        streamPhoneProfit: 0,
+        streamAccProfit: 0,
+        streamRepairProfit: 0,
       };
     }
 
-    const actualPhone = phoneRevenue > 0 ? phoneRevenue : Math.round(totalPeriodRevenue * 0.78);
-    const actualAcc = accRevenue > 0 ? accRevenue : Math.round(totalPeriodRevenue * 0.14);
-
-    const nonCancelledRepairs = repairs
-      .filter((r) => r.status !== 'cancelled')
-      .reduce((sum, r) => sum + r.totalAmount, 0);
-    const actualRepair =
-      repairRevenue > 0
-        ? repairRevenue
-        : nonCancelledRepairs > 0
-        ? nonCancelledRepairs
-        : Math.round(totalPeriodRevenue * 0.08);
-
-    const totalRaw = actualPhone + actualAcc + actualRepair || 1;
-
-    let pPct = Math.round((actualPhone / totalRaw) * 100);
-    let aPct = Math.round((actualAcc / totalRaw) * 100);
+    let pPct = Math.round((pRev / totalRaw) * 100);
+    let aPct = Math.round((aRev / totalRaw) * 100);
     let rPct = 100 - pPct - aPct;
 
     if (rPct < 0) {
       rPct = 0;
       pPct = 100 - aPct;
     }
-
-    const pRev = Math.round((pPct / 100) * totalPeriodRevenue);
-    const aRev = Math.round((aPct / 100) * totalPeriodRevenue);
-    const rRev = totalPeriodRevenue - pRev - aRev;
 
     return {
       streamPhoneRevenue: pRev,
@@ -517,15 +588,7 @@ export default function RevenueAnalyticsSection({
       streamAccProfit: Math.round(aRev * 0.45),
       streamRepairProfit: Math.round(rRev * 0.60),
     };
-  }, [
-    timeframe,
-    dailyRealBreakdown,
-    phoneRevenue,
-    accRevenue,
-    repairRevenue,
-    repairs,
-    totalPeriodRevenue,
-  ]);
+  }, [timeframe, dailyRealBreakdown, phoneRevenue, accRevenue, repairRevenue]);
 
   // Donut SVG circumference calculation (Radius = 50 -> Circumference = 314.16)
   const circumference = 2 * Math.PI * 50;
@@ -593,7 +656,7 @@ export default function RevenueAnalyticsSection({
   const totalGrowth =
     firstPoint && lastPoint && firstPoint.revenue > 0
       ? Math.round(((lastPoint.revenue - firstPoint.revenue) / firstPoint.revenue) * 100)
-      : 12;
+      : 0;
 
   const periodTitleLabel =
     timeframe === 'day'
@@ -840,7 +903,7 @@ export default function RevenueAnalyticsSection({
                     </span>
                     <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black flex items-center gap-0.5">
                       <ArrowUpRight className="w-3 h-3 text-emerald-700" />
-                      <span>+{totalGrowth > 0 ? totalGrowth : 12.8}%</span>
+                      <span>{totalGrowth >= 0 ? `+${totalGrowth}` : totalGrowth}%</span>
                     </span>
                   </div>
                 </>
