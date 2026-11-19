@@ -597,9 +597,6 @@ export default function AdminRestockPage() {
                 <Package className="w-4 h-4 text-blue-600" />
                 <span>1. Dán Danh Sách Số IMEI Cần Nhập Kho</span>
               </h2>
-              <span className="px-3 py-1 rounded-full text-xs font-black bg-blue-50 text-blue-700 border border-blue-200">
-                Đã nhận diện: {parsedImeis.length} IMEI
-              </span>
             </div>
 
             <div>
