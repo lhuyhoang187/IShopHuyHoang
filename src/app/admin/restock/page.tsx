@@ -715,7 +715,7 @@ export default function AdminRestockPage() {
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs transition-colors cursor-pointer"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
-                      <span>Xóa Hãng "{selectedBrand}"</span>
+                      <span>Xóa Hãng</span>
                     </button>
                   )}
                   <button
@@ -897,7 +897,7 @@ export default function AdminRestockPage() {
                       className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs transition-colors cursor-pointer"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
-                      <span>Xóa Màu "{color}"</span>
+                      <span>Xóa Màu</span>
                     </button>
                   )}
                   <button
