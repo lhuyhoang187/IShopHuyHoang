@@ -68,9 +68,9 @@ export default function AdminRestockPage() {
   // 4. Color selection
   const [color, setColor] = useState<string>('Đen (Black)');
 
-  // Pricing
-  const [costPrice, setCostPrice] = useState<number>(32500000);
-  const [sellingPrice, setSellingPrice] = useState<number>(34990000);
+  // Pricing (trống mặc định để người dùng tự nhập)
+  const [costPrice, setCostPrice] = useState<string>('');
+  const [sellingPrice, setSellingPrice] = useState<string>('');
 
   // Modal 1: Add Brand (ONLY Brand info: Name, Country/Origin, Description, Logo, Display Order)
   const [isAddBrandModalOpen, setIsAddBrandModalOpen] = useState(false);
@@ -182,18 +182,8 @@ export default function AdminRestockPage() {
     return currentPhone.colors;
   }, [currentPhone, defaultColors]);
 
-  // When selected phone or available colors change, sync capacity & color
+  // When selected phone or available colors change, sync color
   useEffect(() => {
-    if (currentPhone) {
-      // Find matching capacity or fallback
-      const matchedCap = currentPhone.capacities?.find((c) => c.size === capacity);
-      if (matchedCap) {
-        setSellingPrice(matchedCap.price);
-        setCostPrice(Math.round((matchedCap.price * 0.92) / 10000) * 10000);
-      }
-    }
-
-    // Find matching color or fallback
     const matchedColor = availableColors.find((c) => c.name === color);
     if (!matchedColor && availableColors.length > 0) {
       setColor(availableColors[0].name);
@@ -203,26 +193,6 @@ export default function AdminRestockPage() {
   // Handle capacity selection (Standard list: 128GB -> 2TB, NO 64GB)
   const handleSelectCapacity = (capSize: string) => {
     setCapacity(capSize);
-    if (currentPhone) {
-      const capObj = currentPhone.capacities?.find((c) => c.size === capSize);
-      if (capObj) {
-        setSellingPrice(capObj.price);
-        setCostPrice(Math.round((capObj.price * 0.92) / 10000) * 10000);
-      } else {
-        // Estimate reasonable price if phone doesn't have this capacity yet
-        const basePrice = currentPhone.capacities?.[0]?.price || 30000000;
-        let mult = 1;
-        if (capSize === '128GB') mult = 0.9;
-        else if (capSize === '256GB') mult = 1.0;
-        else if (capSize === '512GB') mult = 1.18;
-        else if (capSize === '1TB') mult = 1.35;
-        else if (capSize === '2TB') mult = 1.55;
-
-        const estPrice = Math.round((basePrice * mult) / 100000) * 100000;
-        setSellingPrice(estPrice);
-        setCostPrice(Math.round((estPrice * 0.92) / 10000) * 10000);
-      }
-    }
   };
 
   // Delete Brand from database & list
@@ -321,7 +291,7 @@ export default function AdminRestockPage() {
     const targetBrand = newModelBrand || (selectedBrand !== 'all' ? selectedBrand : (brandList[0] || 'Apple'));
     const newId = `p-${Date.now()}`;
     const initialCapacity = capacity || '256GB';
-    const initialPrice = sellingPrice > 0 ? sellingPrice : 0;
+    const initialPrice = Number(sellingPrice) > 0 ? Number(sellingPrice) : 0;
     const baseColors = availableColors.length > 0 ? availableColors : defaultColors;
     const initialColors = baseColors.map((col, idx) => ({
       id: `c-${Date.now()}-${idx}`,
@@ -494,13 +464,19 @@ export default function AdminRestockPage() {
       .filter((s) => s.length >= 10);
   }, [imeiListText]);
 
-  const totalBatchCost = costPrice * parsedImeis.length;
+  const numericCostPrice = Number(costPrice) || 0;
+  const numericSellingPrice = Number(sellingPrice) || 0;
+  const totalBatchCost = numericCostPrice * parsedImeis.length;
   const debtIncrease = Math.max(0, totalBatchCost - paidAmount);
 
   const handleImport = async (e: React.FormEvent) => {
     e.preventDefault();
     if (parsedImeis.length === 0) {
       alert('Vui lòng nhập ít nhất 1 số IMEI hợp lệ!');
+      return;
+    }
+    if (numericCostPrice <= 0 || numericSellingPrice <= 0) {
+      alert('Vui lòng nhập đầy đủ giá vốn nhập và giá bán lẻ niêm yết!');
       return;
     }
 
@@ -515,8 +491,8 @@ export default function AdminRestockPage() {
           phoneName: currentPhone ? currentPhone.name : 'Điện Thoại Mới',
           color,
           capacity,
-          costPrice,
-          sellingPrice,
+          costPrice: numericCostPrice,
+          sellingPrice: numericSellingPrice,
           imeis: parsedImeis,
           paidAmount,
           notes: `Nhập lô hàng chính ngạch: Hãng ${currentPhone?.brand} - ${currentPhone?.name} (${color} - ${capacity}).`,
@@ -532,8 +508,8 @@ export default function AdminRestockPage() {
       selectedPhoneId,
       color,
       capacity,
-      costPrice,
-      sellingPrice,
+      numericCostPrice,
+      numericSellingPrice,
       parsedImeis,
       paidAmount
     );
@@ -932,10 +908,11 @@ export default function AdminRestockPage() {
                 </label>
                 <input autoComplete="off"
                   type="number"
+                  required
                   min={1000}
                   step={10000}
                   value={costPrice}
-                  onChange={(e) => setCostPrice(Number(e.target.value) || 0)}
+                  onChange={(e) => setCostPrice(e.target.value)}
                   className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-black text-sm font-mono focus:outline-none focus:border-blue-500"
                 />
                 <span className="text-[10px] text-slate-500 mt-0.5 block">
@@ -949,10 +926,11 @@ export default function AdminRestockPage() {
                 </label>
                 <input autoComplete="off"
                   type="number"
+                  required
                   min={1000}
                   step={10000}
                   value={sellingPrice}
-                  onChange={(e) => setSellingPrice(Number(e.target.value) || 0)}
+                  onChange={(e) => setSellingPrice(e.target.value)}
                   className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-emerald-700 font-black text-sm font-mono focus:outline-none focus:border-emerald-500"
                 />
                 <span className="text-[10px] text-slate-500 mt-0.5 block">
