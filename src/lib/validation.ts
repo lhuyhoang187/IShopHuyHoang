@@ -49,6 +49,16 @@ export function isValidPhone(phone: unknown): boolean {
 }
 
 /**
+ * Strict 10-digit Vietnamese mobile phone number validation:
+ * Must be exactly 10 numeric digits starting with 03, 05, 07, 08, or 09.
+ */
+export function isStrictVietnamPhone(phone: unknown): boolean {
+  if (!phone || typeof phone !== 'string') return false;
+  const cleaned = phone.trim();
+  return /^0(3|5|7|8|9)[0-9]{8}$/.test(cleaned);
+}
+
+/**
  * Validates standard email address format.
  */
 export function isValidEmail(email: unknown): boolean {

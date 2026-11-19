@@ -39,10 +39,12 @@ import { CustomerUser, Customer, Invoice, RepairTicket } from '@/lib/types';
 import { MEMBERSHIP_TIERS, getTierByPoints, MembershipTierConfig } from '@/lib/loyalty';
 import { formatVND } from '@/lib/vietqr';
 import { AvatarPickerModal } from '@/components/common/AvatarPickerModal';
+import { VietnamAddressPicker } from '@/components/common/VietnamAddressPicker';
 import { RedeemGiftSection } from '@/components/loyalty/RedeemGiftSection';
 import { PromoQRSection } from '@/components/loyalty/PromoQRSection';
 import { DevicePassportSection } from '@/components/loyalty/DevicePassportSection';
 import { EmailHubSection } from '@/components/loyalty/EmailHubSection';
+import { isStrictVietnamPhone } from '@/lib/validation';
 
 export default function AccountPage() {
   const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'loyalty' | 'orders' | 'repairs' | 'devices' | 'emails'>('profile');
@@ -52,10 +54,11 @@ export default function AccountPage() {
   // Profile Form State
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
+  const [phoneError, setPhoneError] = useState<string | null>(null);
   const [email, setEmail] = useState('');
   const [birthday, setBirthday] = useState('');
   const [gender, setGender] = useState('male');
-  const [city, setCity] = useState('TP. Hồ Chí Minh');
+  const [city, setCity] = useState('');
   const [address, setAddress] = useState('');
   const [avatar, setAvatar] = useState('');
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
@@ -98,7 +101,7 @@ export default function AccountPage() {
       setEmail(user.email || '');
       setBirthday(user.birthday || '');
       setGender(user.gender || 'male');
-      setCity(user.city || 'TP. Hồ Chí Minh');
+      setCity(user.city || '');
       setAddress(user.address || '');
       setAvatar(user.avatar || '');
 
@@ -242,13 +245,49 @@ export default function AccountPage() {
     }
   };
 
+  // Validate Vietnamese 10-digit phone number input
+  const handleProfilePhoneChange = (rawVal: string) => {
+    const hasNonDigit = /\D/.test(rawVal);
+    const digitsOnly = rawVal.replace(/\D/g, '');
+
+    if (digitsOnly.length > 10) {
+      setPhone(digitsOnly.slice(0, 10));
+      setPhoneError('Số điện thoại Việt Nam chỉ được nhập tối đa 10 chữ số!');
+      return;
+    }
+
+    setPhone(digitsOnly);
+
+    if (hasNonDigit) {
+      setPhoneError('Số điện thoại chỉ được phép nhập chữ số (0-9)!');
+      return;
+    }
+
+    if (digitsOnly.length === 10 && !isStrictVietnamPhone(digitsOnly)) {
+      setPhoneError('Số điện thoại Việt Nam không hợp lệ (phải bắt đầu bằng 03, 05, 07, 08 hoặc 09)!');
+      return;
+    }
+
+    setPhoneError(null);
+  };
+
   // Handle Save Profile
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fullName.trim() || !phone.trim()) {
-      alert('Vui lòng điền Họ tên và Số điện thoại!');
+      setPhoneError('Vui lòng điền Họ tên và Số điện thoại!');
       return;
     }
+    if (!isStrictVietnamPhone(phone.trim())) {
+      setPhoneError(
+        phone.trim().length !== 10
+          ? 'Số điện thoại phải gồm đúng 10 chữ số theo định dạng Việt Nam!'
+          : 'Số điện thoại Việt Nam phải bắt đầu bằng 03, 05, 07, 08 hoặc 09!'
+      );
+      return;
+    }
+
+    setPhoneError(null);
     setIsSavingProfile(true);
 
     const updatedData: Partial<CustomerUser> = {
@@ -262,24 +301,33 @@ export default function AccountPage() {
       avatar: avatar || undefined,
     };
 
-    IShopStore.updateCustomerUser(updatedData);
-
     // Sync to backend MySQL
     try {
-      await fetch('/api/customers', {
+      const res = await fetch('/api/customers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          id: customerUser?.id,
           name: updatedData.name,
           phone: updatedData.phone,
           email: updatedData.email,
+          birthday: updatedData.birthday,
+          gender: updatedData.gender,
+          city: updatedData.city,
           address: updatedData.address,
         }),
       });
+      const json = await res.json();
+      if (!res.ok) {
+        setPhoneError(json.error || 'Không thể lưu thông tin khách hàng!');
+        setIsSavingProfile(false);
+        return;
+      }
     } catch (err) {
       console.warn('API sync profile notice:', err);
     }
 
+    IShopStore.updateCustomerUser(updatedData);
     setIsSavingProfile(false);
     setProfileFeedback('✓ Cập nhật hồ sơ thông tin thành công!');
     confetti({ particleCount: 40, spread: 50, origin: { y: 0.5 } });
@@ -664,15 +712,29 @@ export default function AccountPage() {
                 </div>
 
                 <div>
-                  <label className="text-slate-700 font-semibold mb-1 block">Số Điện Thoại (Kích hoạt BH): *</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-slate-700 font-semibold block">Số Điện Thoại (Kích hoạt BH): *</label>
+                    <span className={`text-[11px] font-mono font-bold ${phone.length === 10 && !phoneError ? 'text-emerald-600' : 'text-slate-400'}`}>
+                      {phone.length}/10 số
+                    </span>
+                  </div>
                   <input autoComplete="off"
                     type="tel"
+                    inputMode="numeric"
                     required
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder=""
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-amber-800 font-mono font-bold focus:outline-none focus:border-amber-600 focus:bg-white shadow-inner transition-colors"
+                    onChange={(e) => handleProfilePhoneChange(e.target.value)}
+                    placeholder="Số điện thoại (10 số)"
+                    className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border text-amber-800 font-mono font-bold focus:outline-none focus:bg-white shadow-inner transition-colors ${
+                      phoneError ? 'border-rose-400 focus:border-rose-500' : 'border-slate-300 focus:border-amber-600'
+                    }`}
                   />
+                  {phoneError && (
+                    <p className="text-[11px] font-semibold text-rose-600 flex items-center gap-1 mt-1">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{phoneError}</span>
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -712,29 +774,14 @@ export default function AccountPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="text-slate-700 font-semibold mb-1 block">Tỉnh / Thành Phố:</label>
-                  <input autoComplete="off"
-                    type="text"
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
-                    placeholder=""
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 focus:outline-none focus:border-amber-600 focus:bg-white shadow-inner transition-colors"
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="text-slate-700 font-semibold mb-1 block">Địa Chỉ Giao Hàng &amp; Nhận Máy:</label>
-                  <input autoComplete="off"
-                    type="text"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    placeholder=""
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 focus:outline-none focus:border-amber-600 focus:bg-white shadow-inner transition-colors"
-                  />
-                </div>
-              </div>
+              <VietnamAddressPicker
+                initialCity={city}
+                initialAddress={address}
+                onChange={(val) => {
+                  setCity(val.city);
+                  setAddress(val.fullAddress);
+                }}
+              />
 
               <div className="pt-3 flex items-center justify-end gap-3 border-t border-slate-200">
                 <button

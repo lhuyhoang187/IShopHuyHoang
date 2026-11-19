@@ -25,11 +25,15 @@ import {
   LayoutDashboard,
   Smartphone,
   Zap,
-  Check
+  Check,
+  Phone,
+  Calendar,
+  AlertCircle,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { IShopStore } from '@/lib/store';
 import { CustomerUser } from '@/lib/types';
+import { isStrictVietnamPhone } from '@/lib/validation';
 
 interface TestimonialSlide {
   id: number;
@@ -92,6 +96,10 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [birthday, setBirthday] = useState('');
+  const [gender, setGender] = useState('male');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
 
@@ -150,10 +158,49 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
     }
   };
 
+  const handlePhoneChange = (rawVal: string) => {
+    const hasNonDigit = /\D/.test(rawVal);
+    const digitsOnly = rawVal.replace(/\D/g, '');
+
+    if (digitsOnly.length > 10) {
+      setPhone(digitsOnly.slice(0, 10));
+      setPhoneError('Số điện thoại Việt Nam chỉ được nhập tối đa 10 chữ số!');
+      return;
+    }
+
+    setPhone(digitsOnly);
+
+    if (hasNonDigit) {
+      setPhoneError('Số điện thoại chỉ được phép nhập chữ số (0-9)!');
+      return;
+    }
+
+    if (digitsOnly.length === 10 && !isStrictVietnamPhone(digitsOnly)) {
+      setPhoneError('Số điện thoại Việt Nam không hợp lệ (phải bắt đầu bằng 03, 05, 07, 08 hoặc 09)!');
+      return;
+    }
+
+    setPhoneError(null);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) return;
-    if (mode === 'signup' && !firstName) return;
+    if (mode === 'signup') {
+      if (!firstName.trim()) {
+        setAuthError('Vui lòng nhập họ và tên người dùng!');
+        return;
+      }
+      if (!isStrictVietnamPhone(phone)) {
+        const msg =
+          phone.length !== 10
+            ? 'Số điện thoại phải gồm đúng 10 chữ số theo định dạng Việt Nam!'
+            : 'Số điện thoại Việt Nam phải bắt đầu bằng 03, 05, 07, 08 hoặc 09!';
+        setPhoneError(msg);
+        setAuthError(msg);
+        return;
+      }
+    }
 
     setIsLoading(true);
     setAuthError(null);
@@ -165,6 +212,9 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
         body: JSON.stringify({
           mode,
           name: firstName || email.split('@')[0],
+          phone: mode === 'signup' ? phone : undefined,
+          birthday: mode === 'signup' ? (birthday || undefined) : undefined,
+          gender: mode === 'signup' ? gender : undefined,
           email: email,
           password: password,
         }),
@@ -378,30 +428,108 @@ export default function LoginPage({ initialMode = 'login' }: { initialMode?: 'lo
                 <AnimatePresence initial={false}>
                   {mode === 'signup' && (
                     <motion.div
-                      key="field-firstname"
+                      key="field-signup-info"
                       initial={{ opacity: 0, height: 0, y: -10 }}
                       animate={{ opacity: 1, height: 'auto', y: 0 }}
                       exit={{ opacity: 0, height: 0, y: -10 }}
                       transition={{ duration: 0.25 }}
-                      className="space-y-1.5"
+                      className="space-y-4 overflow-hidden"
                     >
-                      <label className="block text-xs font-bold text-slate-700">
-                        First Name / Họ và tên <span className="text-amber-600">*</span>
-                      </label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-amber-600">
-                          <User className="w-4 h-4" />
+                      {/* Họ và tên */}
+                      <div className="space-y-1.5">
+                        <label className="block text-xs font-bold text-slate-700">
+                          Họ và tên <span className="text-amber-600">*</span>
+                        </label>
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-amber-600">
+                            <User className="w-4 h-4" />
+                          </div>
+                          <input
+                            type="text"
+                            name="ishop_customer_name"
+                            autoComplete="off"
+                            required={mode === 'signup'}
+                            value={firstName}
+                            onChange={(e) => setFirstName(e.target.value)}
+                            placeholder="Họ tên người dùng"
+                            className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-medium text-slate-900 placeholder:text-slate-400 hover:border-slate-300 focus:bg-white focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all"
+                          />
                         </div>
-                        <input
-                          type="text"
-                          name="ishop_customer_name"
-                          autoComplete="off"
-                          required={mode === 'signup'}
-                          value={firstName}
-                          onChange={(e) => setFirstName(e.target.value)}
-                          placeholder="Họ tên người dùng"
-                          className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-medium text-slate-900 placeholder:text-slate-400 hover:border-slate-300 focus:bg-white focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all"
-                        />
+                      </div>
+
+                      {/* Số điện thoại (Ràng buộc đúng 10 số VN) */}
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <label className="block text-xs font-bold text-slate-700">
+                            Số điện thoại <span className="text-amber-600">*</span>
+                          </label>
+                          <span className={`text-[11px] font-mono font-bold ${phone.length === 10 && !phoneError ? 'text-emerald-600' : 'text-slate-400'}`}>
+                            {phone.length}/10 số
+                          </span>
+                        </div>
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-amber-600">
+                            <Phone className="w-4 h-4" />
+                          </div>
+                          <input
+                            type="tel"
+                            inputMode="numeric"
+                            name="ishop_customer_phone"
+                            autoComplete="off"
+                            required={mode === 'signup'}
+                            value={phone}
+                            onChange={(e) => handlePhoneChange(e.target.value)}
+                            placeholder="Số điện thoại (10 số)"
+                            className={`w-full pl-10 pr-4 py-3 rounded-xl bg-slate-50 border text-sm font-mono font-medium text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 transition-all ${
+                              phoneError
+                                ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-500/20'
+                                : 'border-slate-200 hover:border-slate-300 focus:border-amber-500 focus:ring-amber-500/20'
+                            }`}
+                          />
+                        </div>
+                        {phoneError && (
+                          <p className="text-[11px] font-semibold text-rose-600 flex items-center gap-1.5 pt-0.5">
+                            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                            <span>{phoneError}</span>
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Ngày sinh & Giới tính */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <label className="block text-xs font-bold text-slate-700">
+                            Ngày sinh
+                          </label>
+                          <div className="relative">
+                            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-amber-600">
+                              <Calendar className="w-4 h-4" />
+                            </div>
+                            <input
+                              type="date"
+                              name="ishop_customer_birthday"
+                              autoComplete="off"
+                              value={birthday}
+                              onChange={(e) => setBirthday(e.target.value)}
+                              className="w-full pl-10 pr-3 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-medium text-slate-900 hover:border-slate-300 focus:bg-white focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="block text-xs font-bold text-slate-700">
+                            Giới tính
+                          </label>
+                          <select
+                            value={gender}
+                            onChange={(e) => setGender(e.target.value)}
+                            className="w-full px-3.5 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-medium text-slate-900 hover:border-slate-300 focus:bg-white focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all"
+                          >
+                            <option value="male">Nam</option>
+                            <option value="female">Nữ</option>
+                            <option value="other">Khác</option>
+                          </select>
+                        </div>
                       </div>
                     </motion.div>
                   )}

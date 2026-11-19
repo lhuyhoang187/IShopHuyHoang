@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { db, SERVER_BOOT_ID } from '@/lib/db';
 import {
   normalizePhone,
-  isValidPhone,
+  isStrictVietnamPhone,
   isValidEmail,
   sanitizeString,
 } from '@/lib/validation';
@@ -22,9 +22,28 @@ export async function POST(request: Request) {
       );
     }
 
-    if (normalizedPhone && !isValidPhone(normalizedPhone)) {
+    if (mode === 'signup') {
+      if (!normalizedPhone) {
+        return NextResponse.json(
+          { success: false, error: 'Vui lòng nhập số điện thoại (10 chữ số Việt Nam) để đăng ký tài khoản!' },
+          { status: 400 }
+        );
+      }
+      if (!isStrictVietnamPhone(normalizedPhone)) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Số điện thoại phải gồm đúng 10 chữ số theo định dạng Việt Nam (bắt đầu bằng 03, 05, 07, 08, 09)!',
+          },
+          { status: 400 }
+        );
+      }
+    } else if (normalizedPhone && !isStrictVietnamPhone(normalizedPhone)) {
       return NextResponse.json(
-        { success: false, error: 'Số điện thoại không đúng định dạng chuẩn 10 số của Việt Nam' },
+        {
+          success: false,
+          error: 'Số điện thoại phải gồm đúng 10 chữ số theo định dạng Việt Nam (bắt đầu bằng 03, 05, 07, 08, 09)!',
+        },
         { status: 400 }
       );
     }
@@ -80,7 +99,7 @@ export async function POST(request: Request) {
     // If not found (only reachable in signup or update mode), create new customer in MySQL
     if (!customer) {
       const customerName = name ? sanitizeString(name, 100) : (cleanEmail ? cleanEmail.split('@')[0] : 'Khách Hàng');
-      const customerPhone = normalizedPhone || ('09' + Math.floor(10000000 + Math.random() * 90000000));
+      const customerPhone = normalizedPhone || '';
       const customerId = 'cust-' + Date.now();
 
       await db.execute(
@@ -96,7 +115,7 @@ export async function POST(request: Request) {
           avatar || null,
           birthday || null,
           gender || 'male',
-          city || 'TP. Hồ Chí Minh',
+          city || null,
           address ? sanitizeString(address, 191) : null,
         ]
       );

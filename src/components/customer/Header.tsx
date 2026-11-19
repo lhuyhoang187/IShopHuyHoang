@@ -47,7 +47,7 @@ export default function Header() {
 
   useEffect(() => {
     updateCounts();
-    IShopStore.verifySessionWithServer().then(() => updateCounts()).catch(() => {});
+    IShopStore.verifySessionWithServer().then(() => updateCounts()).catch(() => { });
     const listener = () => updateCounts();
     window.addEventListener('ishop_data_changed', listener);
     return () => window.removeEventListener('ishop_data_changed', listener);
@@ -91,7 +91,7 @@ export default function Header() {
       name: 'Đặt Lịch Sửa Chữa',
       href: '/repair',
       icon: Wrench,
-      badge: '30 Phút',
+      //badge: '30 Phút',
       badgeColor: 'bg-emerald-100 text-emerald-800 border border-emerald-300',
     },
     {
@@ -221,11 +221,10 @@ export default function Header() {
                                 const tierInfo = getTierByPoints(pts);
                                 return (
                                   <span
-                                    className={`px-1.5 py-0.5 rounded text-[9px] font-bold border shrink-0 ${
-                                      pts >= 1000
+                                    className={`px-1.5 py-0.5 rounded text-[9px] font-bold border shrink-0 ${pts >= 1000
                                         ? 'bg-amber-100 text-amber-800 border-amber-300'
                                         : 'bg-slate-100 text-slate-600 border-slate-300'
-                                    }`}
+                                      }`}
                                   >
                                     {tierInfo.tier}
                                   </span>
@@ -325,11 +324,10 @@ export default function Header() {
                   <Link
                     key={link.href}
                     href={link.href}
-                    className={`flex items-center gap-2 px-3 py-1.5 xl:px-3.5 xl:py-2 rounded-xl transition-all shrink-0 text-xs xl:text-sm font-bold ${
-                      isActive
+                    className={`flex items-center gap-2 px-3 py-1.5 xl:px-3.5 xl:py-2 rounded-xl transition-all shrink-0 text-xs xl:text-sm font-bold ${isActive
                         ? 'bg-amber-500/15 text-amber-900 border border-amber-300 shadow-sm font-black'
                         : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70'
-                    }`}
+                      }`}
                   >
                     <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-amber-600' : 'text-amber-700/80'}`} />
                     <span className="whitespace-nowrap">{link.name}</span>
@@ -362,11 +360,10 @@ export default function Header() {
                       key={link.href}
                       href={link.href}
                       onClick={() => setIsMobileMenuOpen(false)}
-                      className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-bold ${
-                        isActive
+                      className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-bold ${isActive
                           ? 'bg-amber-50 text-amber-900 border border-amber-300'
                           : 'text-slate-700 hover:bg-slate-100'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center gap-3">
                         <Icon className="w-4 h-4 text-amber-600" />
@@ -397,11 +394,10 @@ export default function Header() {
                       key={link.href}
                       href={link.href}
                       onClick={() => setIsMobileMenuOpen(false)}
-                      className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-bold ${
-                        isActive
+                      className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-bold ${isActive
                           ? 'bg-amber-50 text-amber-900 border border-amber-300'
                           : 'text-slate-700 hover:bg-slate-100'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center gap-3">
                         <Icon className="w-4 h-4 text-blue-600" />
@@ -449,11 +445,10 @@ export default function Header() {
                       const tierInfo = getTierByPoints(pts);
                       return (
                         <span
-                          className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
-                            pts >= 1000
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold border ${pts >= 1000
                               ? 'bg-amber-100 text-amber-800 border-amber-300'
                               : 'bg-slate-100 text-slate-600 border-slate-300'
-                          }`}
+                            }`}
                         >
                           {tierInfo.tier}
                         </span>

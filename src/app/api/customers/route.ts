@@ -76,11 +76,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const existing = await db.queryOne('SELECT * FROM customer WHERE phone = ?', [phone]);
+    let existing: any = null;
+    if (body.id) {
+      existing = await db.queryOne('SELECT * FROM customer WHERE id = ?', [sanitizeString(body.id, 64)]);
+    }
+    if (!existing) {
+      existing = await db.queryOne('SELECT * FROM customer WHERE phone = ?', [phone]);
+    }
 
     if (existing) {
-      const setClauses: string[] = ['name = ?', 'updatedAt = NOW()'];
-      const params: any[] = [name];
+      const setClauses: string[] = ['name = ?', 'phone = ?', 'updatedAt = NOW()'];
+      const params: any[] = [name, phone];
 
       if (email !== null) {
         setClauses.push('email = ?');
@@ -89,6 +95,10 @@ export async function POST(request: NextRequest) {
       if (address !== null) {
         setClauses.push('address = ?');
         params.push(address);
+      }
+      if (body.gender) {
+        setClauses.push('gender = ?');
+        params.push(sanitizeString(body.gender, 20));
       }
       if (body.customerType) {
         setClauses.push('customerType = ?');

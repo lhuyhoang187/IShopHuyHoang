@@ -25,6 +25,8 @@ import { IShopStore } from '@/lib/store';
 import { CartItem, Invoice, CustomerUser } from '@/lib/types';
 import { formatVND, generateVietQRUrl, DEFAULT_STORE_BANK } from '@/lib/vietqr';
 import { Lock, UserCheck } from 'lucide-react';
+import { VietnamAddressPicker } from '@/components/common/VietnamAddressPicker';
+import { isStrictVietnamPhone } from '@/lib/validation';
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -43,9 +45,10 @@ export default function CheckoutPage() {
     phone: '',
     email: '',
     address: '',
-    city: 'TP. Hồ Chí Minh',
+    city: '',
     notes: '',
   });
+  const [phoneError, setPhoneError] = useState<string | null>(null);
 
   // Pre-Order & Đặt Cọc % giá trị
   const [isPreOrder, setIsPreOrder] = useState(false);
@@ -63,6 +66,8 @@ export default function CheckoutPage() {
         name: cust.name,
         phone: cust.phone,
         email: cust.email || '',
+        city: cust.city || '',
+        address: cust.address || '',
       }));
     }
   }, []);
@@ -90,9 +95,38 @@ export default function CheckoutPage() {
 
   const [stockError, setStockError] = useState<string | null>(null);
 
+  const handleCheckoutPhoneChange = (rawVal: string) => {
+    const hasNonDigit = /\D/.test(rawVal);
+    const digitsOnly = rawVal.replace(/\D/g, '');
+    if (digitsOnly.length > 10) {
+      setFormData((prev) => ({ ...prev, phone: digitsOnly.slice(0, 10) }));
+      setPhoneError('Số điện thoại Việt Nam chỉ được nhập tối đa 10 chữ số!');
+      return;
+    }
+    setFormData((prev) => ({ ...prev, phone: digitsOnly }));
+    if (hasNonDigit) {
+      setPhoneError('Số điện thoại chỉ được phép nhập chữ số (0-9)!');
+      return;
+    }
+    if (digitsOnly.length === 10 && !isStrictVietnamPhone(digitsOnly)) {
+      setPhoneError('Số điện thoại Việt Nam phải bắt đầu bằng 03, 05, 07, 08 hoặc 09!');
+      return;
+    }
+    setPhoneError(null);
+  };
+
   const handleSubmitOrder = (e: React.FormEvent) => {
     e.preventDefault();
     if (cart.length === 0) return;
+    if (!isStrictVietnamPhone(formData.phone)) {
+      setPhoneError('Số điện thoại phải gồm đúng 10 chữ số theo định dạng Việt Nam!');
+      setStockError('Vui lòng nhập số điện thoại Việt Nam hợp lệ (đúng 10 chữ số)!');
+      return;
+    }
+    if (!formData.address.trim()) {
+      setStockError('Vui lòng chọn đầy đủ địa chỉ nhận hàng (Tỉnh/TP, Quận/Huyện, Phường/Xã và Số nhà, tên đường)!');
+      return;
+    }
     setStockError(null);
 
     // Kiểm tra ràng buộc tồn kho cho cả điện thoại và phụ kiện trước khi chốt đơn
@@ -547,27 +581,43 @@ export default function CheckoutPage() {
                 />
               </div>
               <div>
-                <label className="text-slate-700 font-bold mb-1 block">Số điện thoại liên hệ *:</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-slate-700 font-bold block">Số điện thoại liên hệ *:</label>
+                  <span className={`text-[11px] font-mono font-bold ${formData.phone.length === 10 && !phoneError ? 'text-emerald-600' : 'text-slate-400'}`}>
+                    {formData.phone.length}/10 số
+                  </span>
+                </div>
                 <input autoComplete="off"
                   type="tel"
+                  inputMode="numeric"
                   required
                   value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  placeholder=""
-                  className="w-full p-3 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-blue-500 shadow-sm placeholder:text-slate-400"
+                  onChange={(e) => handleCheckoutPhoneChange(e.target.value)}
+                  placeholder="Số điện thoại (10 số)"
+                  className={`w-full p-3 rounded-xl bg-white border text-slate-900 font-mono focus:outline-none shadow-sm placeholder:text-slate-400 ${
+                    phoneError ? 'border-rose-400 focus:border-rose-500' : 'border-slate-300 focus:border-blue-500'
+                  }`}
                 />
+                {phoneError && (
+                  <p className="text-[11px] font-semibold text-rose-600 flex items-center gap-1 mt-1">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>{phoneError}</span>
+                  </p>
+                )}
               </div>
             </div>
 
             <div className="text-xs">
-              <label className="text-slate-700 font-bold mb-1 block">Địa chỉ nhận hàng chi tiết *:</label>
-              <input autoComplete="off"
-                type="text"
-                required
-                value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                placeholder=""
-                className="w-full p-3 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:border-blue-500 shadow-sm placeholder:text-slate-400"
+              <VietnamAddressPicker
+                initialCity={formData.city}
+                initialAddress={formData.address}
+                onChange={(val) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    city: val.city,
+                    address: val.fullAddress,
+                  }))
+                }
               />
             </div>
 
