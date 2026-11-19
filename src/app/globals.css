@@ -52,6 +52,12 @@ body {
   font-feature-settings: "tnum" 1, "zero" 1;
 }
 
+/* Ẩn biểu tượng mắt xem mật khẩu mặc định của trình duyệt Edge/IE để tránh hiển thị trùng 2 mắt */
+input[type='password']::-ms-reveal,
+input[type='password']::-ms-clear {
+  display: none !important;
+}
+
 /* Ẩn thanh cuộn nhưng vẫn cho phép cuộn mượt */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
