@@ -67,7 +67,7 @@ export default function AdminProfilePage() {
 
   const loadStaffData = async () => {
     setIsLoading(true);
-    let user = IShopStore.getStaffUser();
+    const user = IShopStore.getStaffUser();
 
     // Nếu avatar trong cache bị lỗi cắt ngắn (65535 bytes do giới hạn cũ), tự động dọn dẹp
     if (user?.avatar && user.avatar.length === 65535) {

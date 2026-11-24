@@ -24,7 +24,7 @@ export default function AccessoriesPage() {
     fetch(`/Api/KhoHang/PhuKien?_t=${Date.now()}`, { cache: 'no-store' })
       .then((res) => res.json())
       .then((json) => {
-        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+        if (json.success && Array.isArray(json.data)) {
           setAccessories(json.data);
         }
       })
@@ -33,7 +33,7 @@ export default function AccessoriesPage() {
     fetch(`/Api/KhoHang/PhuKien/DanhMuc?_t=${Date.now()}`, { cache: 'no-store' })
       .then((res) => res.json())
       .then((json) => {
-        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+        if (json.success && Array.isArray(json.data)) {
           setDbCategories(json.data);
         }
       })
@@ -255,12 +255,16 @@ export default function AccessoriesPage() {
               </div>
 
               <Link href={`/PhuKien/${acc.slug}`} className="block my-3 text-center">
-                <div className="relative aspect-square rounded-2xl overflow-hidden bg-gradient-to-b from-slate-100 to-slate-200 border border-slate-200/80 p-3">
-                  <img
-                    src={acc.imageUrl}
-                    alt={acc.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                  />
+                <div className="relative aspect-square rounded-2xl overflow-hidden bg-gradient-to-b from-slate-100 to-slate-200 border border-slate-200/80 p-3 flex items-center justify-center">
+                  {acc.imageUrl ? (
+                    <img
+                      src={acc.imageUrl}
+                      alt={acc.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                    />
+                  ) : (
+                    <Headphones className="w-12 h-12 text-slate-400" />
+                  )}
                 </div>
               </Link>
 

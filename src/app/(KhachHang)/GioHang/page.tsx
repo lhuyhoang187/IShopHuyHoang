@@ -103,12 +103,16 @@ export default function CartPage() {
                 className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
               >
                 <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-xl bg-gradient-to-b from-slate-100 to-slate-200/80 border border-slate-200 p-2 shrink-0">
-                    <img
-                      src={item.imageUrl}
-                      alt={item.name}
-                      className="w-full h-full object-contain"
-                    />
+                  <div className="w-16 h-16 rounded-xl bg-gradient-to-b from-slate-100 to-slate-200/80 border border-slate-200 p-2 shrink-0 flex items-center justify-center overflow-hidden">
+                    {item.imageUrl ? (
+                      <img
+                        src={item.imageUrl}
+                        alt={item.name}
+                        className="w-full h-full object-contain"
+                      />
+                    ) : (
+                      <ShoppingCart className="w-7 h-7 text-slate-400" />
+                    )}
                   </div>
                   <div>
                     <h3 className="text-sm font-bold text-slate-900 line-clamp-1">{item.name}</h3>

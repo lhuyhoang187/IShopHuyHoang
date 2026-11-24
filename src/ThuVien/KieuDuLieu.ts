@@ -227,6 +227,8 @@ export interface InvoiceItem {
   id: string;
   name: string;
   variant?: string; // Color/Capacity
+  color?: string;
+  capacity?: string;
   imei?: string;
   barcode?: string;
   quantity: number;

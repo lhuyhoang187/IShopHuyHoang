@@ -122,9 +122,9 @@ export default function AdminPartnersPage() {
       const json = await res.json();
       if (json.success) {
         showToast(`Đã thanh toán ${formatVND(payAmount)} cho ${selectedSupplier.name} và hạch toán Sổ Quỹ!`);
-        IShopStore.paySupplierDebt(selectedSupplier.id, payAmount, payMethod);
         setSelectedSupplier(null);
         setPayAmount(0);
+        await IShopStore.hydrateFromDatabase(true);
         loadData();
       } else {
         showToast(json.error || 'Lỗi thanh toán công nợ', 'error');
@@ -212,7 +212,7 @@ export default function AdminPartnersPage() {
       const json = await res.json();
       if (json.success) {
         showToast(`Đã xóa khách hàng ${cust.name}!`);
-        IShopStore.deleteCustomer(cust.id);
+        await IShopStore.hydrateFromDatabase(true);
         loadData();
       } else {
         showToast(json.error || 'Lỗi xóa khách hàng', 'error');

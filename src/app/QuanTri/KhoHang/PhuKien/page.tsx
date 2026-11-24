@@ -104,26 +104,22 @@ export default function InventoryAccessoriesPage() {
     setCategories(localCats);
     setRole(IShopStore.getRole());
 
-    // 2. Đồng bộ phụ kiện từ MySQL API
+    // 2. Đồng bộ phụ kiện từ MySQL API (chỉ cập nhật state cục bộ, tránh vòng lặp event)
     fetch('/Api/KhoHang/PhuKien', { cache: 'no-store' })
       .then((res) => res.json())
       .then((res) => {
         if (res.success && Array.isArray(res.data)) {
           setAccessories(res.data);
-          res.data.forEach((acc: AccessoryProduct) => {
-            IShopStore.addAccessory(acc);
-          });
         }
       })
       .catch((err) => console.error('Lỗi tải phụ kiện từ MySQL:', err));
 
     // 3. Đồng bộ danh mục từ API
-    fetch('/Api/KhoHang/PhuKien/DanhMuc')
+    fetch('/Api/KhoHang/PhuKien/DanhMuc', { cache: 'no-store' })
       .then((res) => res.json())
       .then((res) => {
         if (res.success && Array.isArray(res.data) && res.data.length > 0) {
           setCategories(res.data);
-          IShopStore.saveAccessoryCategories(res.data);
         }
       })
       .catch((err) => console.error('Lỗi tải danh mục từ API:', err));

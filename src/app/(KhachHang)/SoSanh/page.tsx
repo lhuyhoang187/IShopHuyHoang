@@ -93,13 +93,13 @@ export default function ComparePage() {
   const getStorageCount = (storage: string) => {
     if (storage === 'All') return allPhones.length;
     return allPhones.filter((p) =>
-      p.capacities.some((c) => c.size.toLowerCase().includes(storage.toLowerCase()))
+      (p.capacities || []).some((c) => c.size.toLowerCase().includes(storage.toLowerCase()))
     ).length;
   };
 
   const filteredPhonesForPicker = allPhones.filter((phone) => {
     if (selectedStorage === 'All') return true;
-    return phone.capacities.some((c) =>
+    return (phone.capacities || []).some((c) =>
       c.size.toLowerCase().includes(selectedStorage.toLowerCase())
     );
   });
@@ -110,8 +110,8 @@ export default function ComparePage() {
       category: 'Giá Bán & Bộ Nhớ',
       icon: Banknote,
       rows: [
-        { key: 'price', label: 'Giá khởi điểm niêm yết', icon: Banknote, getVal: (p: PhoneProduct) => formatVND(p.capacities[0].price), highlightPrice: true },
-        { key: 'storage', label: 'Các phiên bản bộ nhớ', icon: HardDrive, getVal: (p: PhoneProduct) => p.capacities.map((c) => c.size).join(', ') },
+        { key: 'price', label: 'Giá khởi điểm niêm yết', icon: Banknote, getVal: (p: PhoneProduct) => formatVND(p.capacities?.[0]?.price || 0), highlightPrice: true },
+        { key: 'storage', label: 'Các phiên bản bộ nhớ', icon: HardDrive, getVal: (p: PhoneProduct) => (p.capacities || []).map((c) => c.size).join(', ') },
         { key: 'ram', label: 'Bộ nhớ RAM', icon: Cpu, getVal: (p: PhoneProduct) => p.specs.ram },
       ],
     },
@@ -224,12 +224,16 @@ export default function ComparePage() {
                       </button>
 
                       <Link href={`/DienThoai/${phone.slug}`}>
-                        <div className="w-32 h-32 mx-auto mb-3 bg-gradient-to-b from-slate-50 to-slate-100 border border-slate-200/80 rounded-2xl p-2 flex items-center justify-center">
-                          <img
-                            src={phone.colors[0]?.imageUrl}
-                            alt={phone.name}
-                            className="w-full h-full object-contain group-hover:scale-105 transition-transform"
-                          />
+                        <div className="w-32 h-32 mx-auto mb-3 bg-gradient-to-b from-slate-50 to-slate-100 border border-slate-200/80 rounded-2xl p-2 flex items-center justify-center overflow-hidden">
+                          {phone.colors?.[0]?.imageUrl ? (
+                            <img
+                              src={phone.colors[0].imageUrl}
+                              alt={phone.name}
+                              className="w-full h-full object-contain group-hover:scale-105 transition-transform"
+                            />
+                          ) : (
+                            <Smartphone className="w-10 h-10 text-slate-400" />
+                          )}
                         </div>
                         <h3 className="text-sm font-bold text-slate-900 group-hover:text-amber-700 transition-colors line-clamp-2 min-h-[40px]">
                           {phone.name}
@@ -237,7 +241,7 @@ export default function ComparePage() {
                       </Link>
 
                       <div className="mt-2 text-base font-black text-amber-700">
-                        {formatVND(phone.capacities[0].price)}
+                        {formatVND(phone.capacities?.[0]?.price || 0)}
                       </div>
 
                       <div className="mt-3">
@@ -470,11 +474,11 @@ export default function ComparePage() {
                   const isChecked = tempSelectedIds.includes(phone.id);
                   const matchedCap =
                     selectedStorage !== 'All'
-                      ? phone.capacities.find((c) =>
+                      ? (phone.capacities || []).find((c) =>
                           c.size.toLowerCase().includes(selectedStorage.toLowerCase())
                         )
                       : null;
-                  const displayPrice = matchedCap ? matchedCap.price : phone.capacities[0].price;
+                  const displayPrice = matchedCap ? matchedCap.price : phone.capacities?.[0]?.price || 0;
 
                   return (
                     <div
@@ -498,11 +502,17 @@ export default function ComparePage() {
                           {isChecked && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                         </div>
 
-                        <img
-                          src={phone.colors[0]?.imageUrl}
-                          alt={phone.name}
-                          className="w-12 h-12 sm:w-14 sm:h-14 object-contain rounded-xl bg-slate-100 border border-slate-200 p-1 shrink-0"
-                        />
+                        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-slate-100 border border-slate-200 p-1 shrink-0 flex items-center justify-center overflow-hidden">
+                          {phone.colors?.[0]?.imageUrl ? (
+                            <img
+                              src={phone.colors[0].imageUrl}
+                              alt={phone.name}
+                              className="w-full h-full object-contain"
+                            />
+                          ) : (
+                            <Smartphone className="w-6 h-6 text-slate-400" />
+                          )}
+                        </div>
 
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5">

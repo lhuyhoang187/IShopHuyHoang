@@ -85,46 +85,46 @@ export default function AdminUnifiedPage() {
     setEntries(IShopStore.getCashbook());
 
     // Sync from MySQL database for all overview metrics
-    fetch('/Api/DonHang')
+    fetch('/Api/DonHang', { cache: 'no-store' })
       .then((res) => res.json())
       .then((json) => {
-        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+        if (json.success && Array.isArray(json.data)) {
           setInvoices(json.data);
         }
       })
       .catch((err) => console.warn('Orders sync notice:', err));
 
-    fetch('/Api/SuaChua')
+    fetch('/Api/SuaChua', { cache: 'no-store' })
       .then((res) => res.json())
       .then((json) => {
-        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+        if (json.success && Array.isArray(json.data)) {
           setRepairs(json.data);
         }
       })
       .catch((err) => console.warn('Repairs sync notice:', err));
 
-    fetch('/Api/KhoHang/DienThoai')
+    fetch('/Api/KhoHang/DienThoai', { cache: 'no-store' })
       .then((res) => res.json())
       .then((json) => {
-        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+        if (json.success && Array.isArray(json.data)) {
           setPhoneStock(json.data);
         }
       })
       .catch((err) => console.warn('Phone stock sync notice:', err));
 
-    fetch('/Api/KhoHang/PhuKien')
+    fetch('/Api/KhoHang/PhuKien', { cache: 'no-store' })
       .then((res) => res.json())
       .then((json) => {
-        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+        if (json.success && Array.isArray(json.data)) {
           setAccessories(json.data);
         }
       })
       .catch((err) => console.warn('Accessories sync notice:', err));
 
-    fetch('/Api/SoQuy')
+    fetch('/Api/SoQuy', { cache: 'no-store' })
       .then((res) => res.json())
       .then((json) => {
-        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+        if (json.success && Array.isArray(json.data)) {
           setEntries(json.data);
         }
       })
@@ -159,12 +159,13 @@ export default function AdminUnifiedPage() {
 
   const isCashier = role === 'cashier';
 
-  // Metrics calculation
-  const totalRevenue = invoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
+  // Metrics calculation (loại trừ đơn đã từ chối)
+  const validInvoices = invoices.filter((inv) => inv.status !== 'rejected');
+  const totalRevenue = validInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
 
   // Cost calculation
-  const totalCost = invoices.reduce((sum, inv) => {
-    const invCost = inv.items.reduce(
+  const totalCost = validInvoices.reduce((sum, inv) => {
+    const invCost = (inv.items || []).reduce(
       (itemSum, i) => itemSum + (i.costPrice || 0) * i.quantity,
       0
     );
@@ -208,11 +209,12 @@ export default function AdminUnifiedPage() {
   };
 
   const handleRejectLargeOrder = (orderId: string) => {
-    const reason =
-      window.prompt(
-        'Nhập lý do từ chối đơn hàng (hoặc để trống):',
-        'Vượt quá hạn mức số lượng hoặc cần xác minh lại'
-      ) || 'Cần liên hệ trực tiếp';
+    const promptVal = window.prompt(
+      'Nhập lý do từ chối đơn hàng (hoặc để trống):',
+      'Vượt quá hạn mức số lượng hoặc cần xác minh lại'
+    );
+    if (promptVal === null) return;
+    const reason = promptVal.trim() || 'Cần liên hệ trực tiếp';
     const success = IShopStore.rejectLargeOrder(orderId, 'Chủ cửa hàng', reason);
     if (success) {
       setApprovalNotice('✓ Đã từ chối đơn hàng lớn và gửi thông báo qua email.');
@@ -227,8 +229,8 @@ export default function AdminUnifiedPage() {
   let accRevenue = 0;
   let accCost = 0;
 
-  invoices.forEach((inv) => {
-    inv.items.forEach((item) => {
+  validInvoices.forEach((inv) => {
+    (inv.items || []).forEach((item) => {
       if (item.type === 'phone') {
         phoneRevenue += item.total;
         phoneCost += (item.costPrice || 0) * item.quantity;
@@ -274,7 +276,7 @@ export default function AdminUnifiedPage() {
             : categoryLabel;
 
     try {
-      await fetch('/Api/SoQuy', {
+      const res = await fetch('/Api/SoQuy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -287,20 +289,17 @@ export default function AdminUnifiedPage() {
           creator: role === 'admin' ? 'Lê Huy Hoàng' : 'Kế toán',
         }),
       });
-    } catch (err) {
-      console.warn('API cashbook error:', err);
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        alert(json.error || 'Không thể lưu phiếu thu/chi vào CSDL MySQL!');
+        return;
+      }
+    } catch (err: any) {
+      alert('Lỗi kết nối khi lưu phiếu thu/chi: ' + (err?.message || ''));
+      return;
     }
 
-    IShopStore.addCashbookEntry({
-      type: entryType,
-      category: category as any,
-      categoryLabel: label,
-      amount,
-      paymentMethod,
-      description,
-      creator: role === 'admin' ? 'Lê Huy Hoàng' : 'Kế toán',
-    });
-
+    await IShopStore.hydrateFromDatabase(true);
     setIsAddModalOpen(false);
     setDescription('');
     loadData();

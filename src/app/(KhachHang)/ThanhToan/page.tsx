@@ -84,6 +84,7 @@ export default function CheckoutPage() {
   const totalAmount = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   const [stockError, setStockError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleCheckoutPhoneChange = (rawVal: string) => {
     const hasNonDigit = /\D/.test(rawVal);
@@ -105,9 +106,9 @@ export default function CheckoutPage() {
     setPhoneError(null);
   };
 
-  const handleSubmitOrder = (e: React.FormEvent) => {
+  const handleSubmitOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (cart.length === 0) return;
+    if (cart.length === 0 || isSubmitting) return;
 
     // Ràng buộc bắt buộc đăng nhập và cập nhật đầy đủ hồ sơ + địa chỉ trước khi đặt hàng
     if (!customerUser) {
@@ -142,40 +143,30 @@ export default function CheckoutPage() {
         capacity: item.capacity,
       });
 
-      if (available <= 0) {
+      if (!isPreOrder && available <= 0) {
         setStockError(`Sản phẩm "${item.name}" hiện đã hết hàng trong kho. Vui lòng quay lại giỏ hàng để cập nhật!`);
         return;
       }
 
-      if (item.quantity > available) {
+      if (!isPreOrder && item.quantity > available) {
         setStockError(`Sản phẩm "${item.name}" hiện chỉ còn ${available} trong kho (bạn đang đặt ${item.quantity}). Vui lòng điều chỉnh lại số lượng!`);
         return;
       }
     }
 
-    // Check if any phone in cart has available in-stock IMEI
-    const availablePhones = IShopStore.getAvailablePhones();
-
-    const invoiceItems = cart.map((c) => {
-      let matchedImei: string | undefined = undefined;
-      if (c.type === 'phone') {
-        const found = availablePhones.find((p) => p.phoneId === c.productId);
-        if (found) matchedImei = found.imei;
-      }
-
-      return {
-        type: c.type,
-        id: c.productId,
-        name: c.name,
-        variant: `${c.color || ''} ${c.capacity || ''}`.trim(),
-        imei: matchedImei,
-        quantity: c.quantity,
-        unitPrice: c.price,
-        costPrice: Math.round(c.price * 0.85),
-        discount: 0,
-        total: c.price * c.quantity,
-      };
-    });
+    const invoiceItems = cart.map((c) => ({
+      type: c.type,
+      id: c.productId,
+      name: c.name,
+      variant: [c.color, c.capacity].filter(Boolean).join(' / '),
+      color: c.color,
+      capacity: c.capacity,
+      quantity: c.quantity,
+      unitPrice: c.price,
+      costPrice: Math.round(c.price * 0.85),
+      discount: 0,
+      total: c.price * c.quantity,
+    }));
 
     const isLarge =
       totalAmount >= 100000000 ||
@@ -192,57 +183,115 @@ export default function CheckoutPage() {
       : undefined;
 
     const totalEarnedPoints = Math.floor(totalAmount / 10000);
+    const warrantyNoteText = isPreOrder
+      ? `Đơn đặt cọc giữ máy đợt 1 (Cọc ${depositPercent}%). Dự kiến giao ngày ${estimatedDelivery}.`
+      : 'Bảo hành chính hãng 12 tháng tại hệ thống iShop Huy Hoàng.';
+    const orderStatus: Invoice['status'] = isLarge ? 'pending_admin_approval' : 'completed';
 
-    const newInvoice = IShopStore.createInvoice({
-      customerName: formData.name,
-      customerPhone: formData.phone,
-      customerEmail: formData.email.trim() || undefined,
-      items: invoiceItems,
-      subtotal: totalAmount,
-      discount: 0,
-      totalAmount: totalAmount,
-      pointsEarned: totalEarnedPoints,
-      paymentMethod: paymentMethod,
-      cashierName: 'Online Web Store',
-      warrantyNote: isPreOrder
-        ? `Đơn đặt cọc giữ máy đợt 1 (Cọc ${depositPercent}%). Dự kiến giao ngày ${estimatedDelivery}.`
-        : 'Bảo hành chính hãng 12 tháng tại hệ thống iShop Huy Hoàng.',
-      isLargeOrder: isLarge,
-      status: isLarge ? 'pending_admin_approval' : 'completed',
-      isPreOrder,
-      depositPercent: isPreOrder ? depositPercent : undefined,
-      depositAmount: depositAmountVal,
-      remainingBalance: remainingBalanceVal,
-      estimatedDeliveryDate: estimatedDelivery,
-    });
-
-    // Sync order to MySQL Database via /Api/DonHang
-    fetch('/Api/DonHang', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        customerName: formData.name,
-        customerPhone: formData.phone,
-        items: invoiceItems,
-        subtotal: totalAmount,
-        discount: 0,
-        totalAmount: totalAmount,
-        earnedPoints: totalEarnedPoints,
-        paymentMethod: paymentMethod,
-        cashierName: 'Online Web Store',
-      }),
-    }).catch((err) => console.warn('API checkout order notice:', err));
-
-    IShopStore.clearCart();
-    setCompletedInvoice(newInvoice);
+    setIsSubmitting(true);
     try {
-      confetti({
-        particleCount: 120,
-        spread: 80,
-        origin: { y: 0.5 },
-        colors: ['#e2b774', '#10b981', '#06b6d4', '#f59e0b', '#ffffff'],
+      const res = await fetch('/Api/DonHang', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerName: formData.name.trim(),
+          customerPhone: formData.phone.trim(),
+          customerEmail: formData.email.trim() || undefined,
+          items: invoiceItems,
+          subtotal: totalAmount,
+          discount: 0,
+          totalAmount: totalAmount,
+          earnedPoints: totalEarnedPoints,
+          paymentMethod: paymentMethod,
+          cashierName: 'Online Web Store',
+          warrantyNote: warrantyNoteText,
+          isLargeOrder: isLarge,
+          status: orderStatus,
+          isPreOrder,
+          depositPercent: isPreOrder ? depositPercent : undefined,
+          depositAmount: depositAmountVal,
+          remainingBalance: remainingBalanceVal,
+          estimatedDeliveryDate: estimatedDelivery,
+        }),
       });
-    } catch (e) {}
+      const json = await res.json();
+      if (!res.ok || !json.success || !json.data) {
+        setStockError(json.error || 'Không thể lưu đơn hàng vào CSDL. Vui lòng thử lại!');
+        return;
+      }
+
+      const dbOrder = json.data;
+      const finalInvoice: Invoice = {
+        id: dbOrder.id,
+        invoiceCode: dbOrder.invoiceCode,
+        customerName: dbOrder.customerName || formData.name.trim(),
+        customerPhone: dbOrder.customerPhone || formData.phone.trim(),
+        customerEmail: dbOrder.customerEmail || formData.email.trim() || undefined,
+        items: Array.isArray(dbOrder.items) && dbOrder.items.length > 0 ? dbOrder.items : invoiceItems,
+        subtotal: Number(dbOrder.subtotal ?? totalAmount),
+        discount: Number(dbOrder.discount ?? 0),
+        totalAmount: Number(dbOrder.totalAmount ?? totalAmount),
+        pointsEarned: Number(dbOrder.pointsEarned ?? totalEarnedPoints),
+        paymentMethod: dbOrder.paymentMethod || paymentMethod,
+        cashierName: dbOrder.cashierName || 'Online Web Store',
+        warrantyNote: dbOrder.warrantyNote || warrantyNoteText,
+        isLargeOrder: Boolean(dbOrder.isLargeOrder ?? isLarge),
+        status: dbOrder.status || orderStatus,
+        isPreOrder: Boolean(dbOrder.isPreOrder ?? isPreOrder),
+        depositPercent: dbOrder.depositPercent ?? (isPreOrder ? depositPercent : undefined),
+        depositAmount: dbOrder.depositAmount ?? depositAmountVal,
+        remainingBalance: dbOrder.remainingBalance ?? remainingBalanceVal,
+        estimatedDeliveryDate: dbOrder.estimatedDeliveryDate ?? estimatedDelivery,
+        createdAt: dbOrder.createdAt || new Date().toISOString().replace('T', ' ').substring(0, 19),
+      };
+
+      // Update local session points & register allocated IMEIs in Device Passport
+      IShopStore.recordCustomerPurchase(
+        finalInvoice.customerName,
+        finalInvoice.customerPhone,
+        finalInvoice.totalAmount,
+        finalInvoice.pointsEarned
+      );
+      for (const it of finalInvoice.items) {
+        if (it.type === 'phone' && it.imei) {
+          const expiryDate = new Date();
+          expiryDate.setMonth(expiryDate.getMonth() + 12);
+          IShopStore.registerDevice({
+            id: 'dev-' + Date.now() + '-' + it.imei.slice(-4),
+            imei: it.imei,
+            productName: it.name,
+            phoneId: it.id,
+            color: it.color || 'Tiêu chuẩn',
+            capacity: it.capacity || '256GB',
+            customerPhone: finalInvoice.customerPhone,
+            customerName: finalInvoice.customerName,
+            customerEmail: finalInvoice.customerEmail,
+            purchaseInvoiceCode: finalInvoice.invoiceCode,
+            purchaseDate: finalInvoice.createdAt,
+            warrantyExpiryDate: expiryDate.toISOString().split('T')[0],
+            purchasePrice: it.unitPrice,
+            repairHistoryCodes: [],
+          });
+        }
+      }
+
+      IShopStore.clearCart();
+      await IShopStore.hydrateFromDatabase(true);
+      setCompletedInvoice(finalInvoice);
+
+      try {
+        confetti({
+          particleCount: 120,
+          spread: 80,
+          origin: { y: 0.5 },
+          colors: ['#e2b774', '#10b981', '#06b6d4', '#f59e0b', '#ffffff'],
+        });
+      } catch {}
+    } catch {
+      setStockError('Lỗi kết nối máy chủ khi gửi đơn hàng. Vui lòng thử lại!');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const copyAccount = () => {
@@ -358,8 +407,10 @@ export default function CheckoutPage() {
 
             <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs text-left space-y-1.5 max-w-sm mx-auto">
               <div className="flex justify-between">
-                <span className="text-slate-500">Số tiền:</span>
-                <span className="font-bold text-amber-700">{formatVND(completedInvoice.totalAmount)}</span>
+                <span className="text-slate-500">
+                  {completedInvoice.isPreOrder ? `Số tiền đặt cọc (${completedInvoice.depositPercent}%):` : 'Số tiền:'}
+                </span>
+                <span className="font-bold text-amber-700">{formatVND(qrAmount)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Số tài khoản MBBank:</span>
@@ -800,11 +851,17 @@ export default function CheckoutPage() {
               {cart.map((item) => (
                 <div key={item.id} className="flex items-center justify-between gap-3 text-xs">
                   <div className="flex items-center gap-3 truncate">
-                    <img
-                      src={item.imageUrl}
-                      alt={item.name}
-                      className="w-10 h-10 object-contain rounded-lg bg-gradient-to-b from-slate-100 to-slate-200 border border-slate-200 p-1 shrink-0"
-                    />
+                    <div className="w-10 h-10 rounded-lg bg-gradient-to-b from-slate-100 to-slate-200 border border-slate-200 p-1 shrink-0 flex items-center justify-center overflow-hidden">
+                      {item.imageUrl ? (
+                        <img
+                          src={item.imageUrl}
+                          alt={item.name}
+                          className="w-full h-full object-contain"
+                        />
+                      ) : (
+                        <ShoppingBag className="w-5 h-5 text-slate-400" />
+                      )}
+                    </div>
                     <div className="truncate">
                       <h4 className="font-bold text-slate-900 truncate">{item.name}</h4>
                       <span className="text-slate-500 font-medium">SL: {item.quantity}</span>
@@ -882,10 +939,11 @@ export default function CheckoutPage() {
 
             <button
               type="submit"
-              className="w-full py-4 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-sm shadow-lg shadow-blue-600/25 flex items-center justify-center gap-2 transition-transform hover:scale-[1.02] cursor-pointer"
+              disabled={isSubmitting}
+              className="w-full py-4 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:opacity-60 text-white font-bold text-sm shadow-lg shadow-blue-600/25 flex items-center justify-center gap-2 transition-transform hover:scale-[1.02] cursor-pointer"
             >
               <CheckCircle2 className="w-4 h-4" />
-              <span>XÁC NHẬN ĐẶT HÀNG NGAY</span>
+              <span>{isSubmitting ? 'ĐANG XỬ LÝ ĐƠN HÀNG...' : 'XÁC NHẬN ĐẶT HÀNG NGAY'}</span>
             </button>
           </div>
         </div>

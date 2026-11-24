@@ -227,10 +227,8 @@ export default function AdminSettingsPage() {
       setIsDirtyRbac(false);
       IShopStore.setPermissionMatrix(updated);
       try {
-        await fetch('/Api/QuanTri/PhanQuyen', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ permissions: updated }),
+        await fetch(`/Api/QuanTri/PhanQuyen?id=${encodeURIComponent(id)}`, {
+          method: 'DELETE',
         });
       } catch {}
       setRbacSuccessMsg(`✓ Đã xóa phân hệ "${moduleName}" khỏi MySQL!`);

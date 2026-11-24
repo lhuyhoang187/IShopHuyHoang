@@ -465,9 +465,21 @@ export async function PUT(request: NextRequest) {
         'SELECT MaLinhKien AS sparePartId, SoLuong AS quantity FROM LinhKienPhieuSuaChua WHERE SoPhieuSuaChua = ?',
         [ticket.ticketCode]
       );
-      const existingPartIds = new Set(existingParts.map((ep) => ep.sparePartId));
+      const oldQtyByPart = new Map<string, number>();
+      for (const ep of existingParts) {
+        if (ep.sparePartId) {
+          oldQtyByPart.set(ep.sparePartId, (oldQtyByPart.get(ep.sparePartId) || 0) + Number(ep.quantity || 0));
+        }
+      }
 
-      await db.execute('DELETE FROM LinhKienPhieuSuaChua WHERE SoPhieuSuaChua = ?', [ticket.ticketCode]);
+      const newQtyByPart = new Map<string, number>();
+      const preparedParts: Array<{
+        sparePartId: string | null;
+        qty: number;
+        costPrice: number;
+        unitPrice: number;
+        warrantyMonths: number;
+      }> = [];
 
       let partsTotal = 0;
       for (const part of partsUsed) {
@@ -489,21 +501,49 @@ export async function PUT(request: NextRequest) {
           }
         }
 
-        const rtpId = 'rtp_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
-        await db.execute(
-          `INSERT INTO LinhKienPhieuSuaChua (MaChiTietLinhKien, SoPhieuSuaChua, MaLinhKien, SoLuong, GiaVon, DonGia, SoThangBaoHanh, NgayTao)
-           VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
-          [rtpId, ticket.ticketCode, sparePartId, qty, costPrice, unitPrice, Number(part.warrantyMonths || 6)]
-        );
-        partsTotal += unitPrice * qty;
+        if (sparePartId) {
+          newQtyByPart.set(sparePartId, (newQtyByPart.get(sparePartId) || 0) + qty);
+        }
 
-        if (sparePartId && !existingPartIds.has(sparePartId)) {
-          await db.execute(
-            `UPDATE LinhKienSuaChua SET TonKho = GREATEST(0, TonKho - ?), NgayCapNhat = NOW() WHERE MaLinhKien = ?`,
-            [qty, sparePartId]
+        preparedParts.push({
+          sparePartId,
+          qty,
+          costPrice,
+          unitPrice,
+          warrantyMonths: Number(part.warrantyMonths || 6),
+        });
+        partsTotal += unitPrice * qty;
+      }
+
+      await db.transaction(async (conn) => {
+        await conn.execute('DELETE FROM LinhKienPhieuSuaChua WHERE SoPhieuSuaChua = ?', [ticket.ticketCode]);
+
+        for (const p of preparedParts) {
+          const rtpId = 'rtp_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
+          await conn.execute(
+            `INSERT INTO LinhKienPhieuSuaChua (MaChiTietLinhKien, SoPhieuSuaChua, MaLinhKien, SoLuong, GiaVon, DonGia, SoThangBaoHanh, NgayTao)
+             VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
+            [rtpId, ticket.ticketCode, p.sparePartId, p.qty, p.costPrice, p.unitPrice, p.warrantyMonths]
           );
         }
-      }
+
+        // Apply exact stock delta (deduct for added qty, restore for removed/reduced qty)
+        const allPartIds = new Set([...oldQtyByPart.keys(), ...newQtyByPart.keys()]);
+        for (const pid of allPartIds) {
+          const delta = (newQtyByPart.get(pid) || 0) - (oldQtyByPart.get(pid) || 0);
+          if (delta > 0) {
+            await conn.execute(
+              `UPDATE LinhKienSuaChua SET TonKho = GREATEST(0, TonKho - ?), NgayCapNhat = NOW() WHERE MaLinhKien = ?`,
+              [delta, pid]
+            );
+          } else if (delta < 0) {
+            await conn.execute(
+              `UPDATE LinhKienSuaChua SET TonKho = TonKho + ?, NgayCapNhat = NOW() WHERE MaLinhKien = ?`,
+              [Math.abs(delta), pid]
+            );
+          }
+        }
+      });
 
       setClauses.push('TongTien = ?');
       sqlParams.push(finalLaborFee + partsTotal);
@@ -597,6 +637,32 @@ export async function PUT(request: NextRequest) {
     await db.execute(`UPDATE PhieuSuaChua SET ${setClauses.join(', ')} WHERE MaPhieuSuaChua = ?`, sqlParams);
 
     const updated = await db.queryOne(`${REPAIR_SELECT_SQL} WHERE r.MaPhieuSuaChua = ?`, [ticket.id]);
+
+    // Auto-record Cashbook Receipt in MySQL when transitioning to 'delivered' for the first time
+    if (status === 'delivered' && ticket.status !== 'delivered' && updated && Number(updated.totalAmount || 0) > 0) {
+      const existingReceipt = await db.queryOne(
+        `SELECT MaPhieu FROM SoQuy WHERE MaThamChieu = ? AND LoaiPhieu = 'receipt' LIMIT 1`,
+        [ticket.ticketCode]
+      );
+      if (!existingReceipt) {
+        const cntRow = await db.queryOne('SELECT COUNT(*) AS cnt FROM SoQuy');
+        const cashCode = `PT-SC-${String(Number(cntRow?.cnt || 0) + 1).padStart(3, '0')}`;
+        await db.execute(
+          `INSERT INTO SoQuy
+           (MaPhieu, MaCodePhieu, NgayGiaoDich, LoaiPhieu, HangMuc, SoTien, PhuongThucThanhToan, MaThamChieu, MoTa, NguoiTao, NgayTao, NgayCapNhat)
+           VALUES (?, ?, ?, 'receipt', 'repair_service', ?, 'cash', ?, ?, ?, NOW(), NOW())`,
+          [
+            'cb-' + Date.now(),
+            cashCode,
+            now.split(' ')[0],
+            Number(updated.totalAmount),
+            ticket.ticketCode,
+            `Thu tiền sửa chữa máy ${updated.deviceModel} (${ticket.ticketCode})`,
+            actor ? sanitizeString(actor, 100) : 'Kỹ thuật viên',
+          ]
+        );
+      }
+    }
     const updatedParts = await db.query(
       `SELECT ${TICKET_PART_SELECT}
        FROM LinhKienPhieuSuaChua rtp

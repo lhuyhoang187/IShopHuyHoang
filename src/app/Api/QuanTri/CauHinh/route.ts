@@ -94,15 +94,16 @@ export async function POST(request: NextRequest) {
       );
     } else {
       const newStoreName = storeName ? sanitizeString(storeName, 150) : existing.storeName;
-      const newHotline = hotline ? sanitizeString(hotline, 20) : existing.hotline;
-      const newAddress = address ? sanitizeString(address, 191) : existing.address;
-      const newEmail = email ? sanitizeString(email, 100).toLowerCase() : existing.email;
+      const newHotline = hotline !== undefined ? sanitizeString(hotline, 20) : existing.hotline;
+      const newAddress = address !== undefined ? sanitizeString(address, 191) : existing.address;
+      const newEmail = email !== undefined ? sanitizeString(email, 100).toLowerCase() : existing.email;
       const newBankId = bankId ? sanitizeString(bankId, 20) : existing.bankId;
       const newBankAccountNo = bankAccountNo ? sanitizeString(bankAccountNo, 50) : existing.bankAccountNo;
       const newBankAccountName = bankAccountName ? sanitizeString(bankAccountName, 100) : existing.bankAccountName;
-      const newDefaultWarrantyNote = defaultWarrantyNote ? sanitizeString(defaultWarrantyNote, 500) : existing.defaultWarrantyNote;
-      const newReturnPolicy = returnPolicy ? sanitizeString(returnPolicy, 500) : existing.returnPolicy;
-      const newReceiptFooter = receiptFooter ? sanitizeString(receiptFooter, 500) : existing.receiptFooter;
+      const newDefaultWarrantyNote =
+        defaultWarrantyNote !== undefined ? sanitizeString(defaultWarrantyNote, 500) : existing.defaultWarrantyNote;
+      const newReturnPolicy = returnPolicy !== undefined ? sanitizeString(returnPolicy, 500) : existing.returnPolicy;
+      const newReceiptFooter = receiptFooter !== undefined ? sanitizeString(receiptFooter, 500) : existing.receiptFooter;
       const newPosDiscountRequiresApproval =
         posDiscountRequiresApproval !== undefined ? (posDiscountRequiresApproval ? 1 : 0) : existing.posDiscountRequiresApproval;
 

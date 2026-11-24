@@ -54,12 +54,8 @@ export default function PhoneDetailPage() {
     const found = IShopStore.getPhoneBySlug(slug);
     if (found) {
       setPhone(found);
-      const col = found.colors.find((c) => c.id === selectedColor?.id) || found.colors[0];
-      const cap = found.capacities.find((c) => c.size === selectedCapacity?.size) || found.capacities[0];
-      setSelectedColor(col);
-      setSelectedCapacity(cap);
-
-      updateVariantStock(found, col, cap);
+      setSelectedColor((prev) => found.colors.find((c) => c.id === prev?.id) || found.colors[0] || null);
+      setSelectedCapacity((prev) => found.capacities.find((c) => c.size === prev?.size) || found.capacities[0] || null);
     }
     setAccessories(IShopStore.getAccessories());
   };
@@ -70,6 +66,12 @@ export default function PhoneDetailPage() {
     window.addEventListener('ishop_data_changed', listener);
     return () => window.removeEventListener('ishop_data_changed', listener);
   }, [slug]);
+
+  useEffect(() => {
+    if (phone && selectedColor && selectedCapacity) {
+      updateVariantStock(phone, selectedColor, selectedCapacity);
+    }
+  }, [phone, selectedColor, selectedCapacity]);
 
   if (!phone || !selectedColor || !selectedCapacity) {
     return (
@@ -509,11 +511,17 @@ export default function PhoneDetailPage() {
                       >
                         {isChecked && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                       </div>
-                      <img
-                        src={combo.imageUrl}
-                        alt={combo.name}
-                        className="w-10 h-10 object-contain rounded-xl bg-gradient-to-b from-slate-100 to-slate-200 border border-slate-200 p-1"
-                      />
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-b from-slate-100 to-slate-200 border border-slate-200 p-1 flex items-center justify-center overflow-hidden shrink-0">
+                        {combo.imageUrl ? (
+                          <img
+                            src={combo.imageUrl}
+                            alt={combo.name}
+                            className="w-full h-full object-contain"
+                          />
+                        ) : (
+                          <ShoppingCart className="w-4 h-4 text-slate-400" />
+                        )}
+                      </div>
                       <div>
                         <h4 className="text-xs font-bold text-slate-900 line-clamp-1">
                           {combo.name}

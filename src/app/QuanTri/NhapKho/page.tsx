@@ -108,6 +108,84 @@ export default function AdminRestockPage() {
   const [imeiListText, setImeiListText] = useState<string>('');
   const [paidAmount, setPaidAmount] = useState<number>(0);
 
+  // Default fallback colors when no phone model is selected yet
+  const [defaultColors, setDefaultColors] = useState([
+    { id: 'c-default', name: 'Đen (Black)', hex: '#222222', imageUrl: '' },
+    { id: 'c-white', name: 'Trắng (White)', hex: '#f0f0f0', imageUrl: '' },
+  ]);
+
+  // Distinct Brands available (derived from database brands & catalog)
+  const brandList = useMemo(() => {
+    const list: string[] = [];
+    const seen = new Set<string>();
+
+    dbBrands.forEach((b) => {
+      if (b.name && !seen.has(b.name)) {
+        seen.add(b.name);
+        list.push(b.name);
+      }
+    });
+
+    phones.forEach((p) => {
+      if (p.brand && !seen.has(p.brand)) {
+        seen.add(p.brand);
+        list.push(p.brand);
+      }
+    });
+
+    return list;
+  }, [phones, dbBrands]);
+
+  // Phones filtered strictly by selected brand & quick search
+  const filteredPhonesByBrand = useMemo(() => {
+    const base = selectedBrand === 'all' ? phones : phones.filter((p) => p.brand === selectedBrand);
+    if (!modelSearchQuery.trim()) return base;
+    const q = modelSearchQuery.toLowerCase().trim();
+    return base.filter((p) => p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q));
+  }, [phones, selectedBrand, modelSearchQuery]);
+
+  const currentPhone = useMemo(() => {
+    if (filteredPhonesByBrand.length > 0) {
+      const matched = filteredPhonesByBrand.find((p) => p.id === selectedPhoneId);
+      return matched || filteredPhonesByBrand[0];
+    }
+    return phones.find((p) => p.id === selectedPhoneId) || phones[0];
+  }, [phones, selectedPhoneId, filteredPhonesByBrand]);
+
+  // Always merge currentPhone.colors + defaultColors (DanhMucMauSac) so user can pick/add ANY color for 1 model
+  const availableColors = useMemo(() => {
+    const merged: { id: string; name: string; hex: string; imageUrl: string }[] = [];
+    const seen = new Set<string>();
+
+    (currentPhone?.colors || []).forEach((c) => {
+      const key = c.name.trim().toLowerCase();
+      if (key && !seen.has(key)) {
+        seen.add(key);
+        merged.push({
+          id: c.id,
+          name: c.name,
+          hex: c.hex || '#222222',
+          imageUrl: c.imageUrl || '',
+        });
+      }
+    });
+
+    defaultColors.forEach((c) => {
+      const key = c.name.trim().toLowerCase();
+      if (key && !seen.has(key)) {
+        seen.add(key);
+        merged.push({
+          id: c.id,
+          name: c.name,
+          hex: c.hex || '#222222',
+          imageUrl: c.imageUrl || '',
+        });
+      }
+    });
+
+    return merged;
+  }, [currentPhone, defaultColors]);
+
   const uploadLocalImageFile = async (file: File): Promise<string> => {
     if (!file.type.startsWith('image/')) {
       throw new Error('Vui lòng chỉ chọn tệp hình ảnh (JPG, PNG, WEBP, GIF)!');
@@ -164,7 +242,7 @@ export default function AdminRestockPage() {
         setPhones((prev) =>
           prev.map((p) => (p.id === currentPhone.id ? { ...p, colors: updatedColors } : p))
         );
-        IShopStore.updatePhone(currentPhone.id, { colors: updatedColors });
+        await IShopStore.hydrateFromDatabase(true);
         setSuccessMessage(`✓ Đã tải và lưu ảnh cho "${currentPhone.name} - ${color}" vào CSDL!`);
         setTimeout(() => setSuccessMessage(null), 3500);
       }
@@ -227,44 +305,6 @@ export default function AdminRestockPage() {
     return () => window.removeEventListener('ishop_data_changed', listener);
   }, []);
 
-  // Distinct Brands available (derived from database brands & catalog)
-  const brandList = useMemo(() => {
-    const list: string[] = [];
-    const seen = new Set<string>();
-
-    dbBrands.forEach((b) => {
-      if (b.name && !seen.has(b.name)) {
-        seen.add(b.name);
-        list.push(b.name);
-      }
-    });
-
-    phones.forEach((p) => {
-      if (p.brand && !seen.has(p.brand)) {
-        seen.add(p.brand);
-        list.push(p.brand);
-      }
-    });
-
-    return list;
-  }, [phones, dbBrands]);
-
-  // Phones filtered strictly by selected brand & quick search
-  const filteredPhonesByBrand = useMemo(() => {
-    const base = selectedBrand === 'all' ? phones : phones.filter((p) => p.brand === selectedBrand);
-    if (!modelSearchQuery.trim()) return base;
-    const q = modelSearchQuery.toLowerCase().trim();
-    return base.filter((p) => p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q));
-  }, [phones, selectedBrand, modelSearchQuery]);
-
-  const currentPhone = useMemo(() => {
-    if (filteredPhonesByBrand.length > 0) {
-      const matched = filteredPhonesByBrand.find((p) => p.id === selectedPhoneId);
-      return matched || filteredPhonesByBrand[0];
-    }
-    return phones.find((p) => p.id === selectedPhoneId) || phones[0];
-  }, [phones, selectedPhoneId, filteredPhonesByBrand]);
-
   // Handle Brand selection
   const handleBrandChange = (brand: string) => {
     setSelectedBrand(brand);
@@ -275,46 +315,6 @@ export default function AdminRestockPage() {
       }
     }
   };
-
-  // Default fallback colors when no phone model is selected yet
-  const [defaultColors, setDefaultColors] = useState([
-    { id: 'c-default', name: 'Đen (Black)', hex: '#222222', imageUrl: '' },
-    { id: 'c-white', name: 'Trắng (White)', hex: '#f0f0f0', imageUrl: '' },
-  ]);
-
-  // Always merge currentPhone.colors + defaultColors (phonecolorcatalog) so user can pick/add ANY color for 1 model
-  const availableColors = useMemo(() => {
-    const merged: { id: string; name: string; hex: string; imageUrl: string }[] = [];
-    const seen = new Set<string>();
-
-    (currentPhone?.colors || []).forEach((c) => {
-      const key = c.name.trim().toLowerCase();
-      if (key && !seen.has(key)) {
-        seen.add(key);
-        merged.push({
-          id: c.id,
-          name: c.name,
-          hex: c.hex || '#222222',
-          imageUrl: c.imageUrl || '',
-        });
-      }
-    });
-
-    defaultColors.forEach((c) => {
-      const key = c.name.trim().toLowerCase();
-      if (key && !seen.has(key)) {
-        seen.add(key);
-        merged.push({
-          id: c.id,
-          name: c.name,
-          hex: c.hex || '#222222',
-          imageUrl: c.imageUrl || '',
-        });
-      }
-    });
-
-    return merged;
-  }, [currentPhone, defaultColors]);
 
   // Auto-sync selectedSupplierId to first valid supplier from MySQL
   useEffect(() => {

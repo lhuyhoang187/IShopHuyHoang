@@ -29,7 +29,7 @@ import {
 import { formatVND } from '@/ThuVien/ThanhToanVietQR';
 import confetti from 'canvas-confetti';
 import { IShopStore } from '@/ThuVien/KhoDuLieu';
-import { checkCustomerProfileCompleteness } from '@/ThuVien/KiemTraHopLe';
+import { checkCustomerProfileCompleteness, isStrictVietnamPhone } from '@/ThuVien/KiemTraHopLe';
 import { IncompleteProfileCard, IncompleteProfileModal } from '@/ThanhPhan/DungChung/ThongBaoHoSoChuaDayDu';
 import {
   CustomerUser,
@@ -46,6 +46,7 @@ export default function RepairPriceListPage() {
   const [priceSearchQuery, setPriceSearchQuery] = useState<string>('');
   const [showAllPrices, setShowAllPrices] = useState<boolean>(false);
   const [bookingSuccess, setBookingSuccess] = useState(false);
+  const [bookingError, setBookingError] = useState<string | null>(null);
   const [createdTicketCode, setCreatedTicketCode] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -301,24 +302,26 @@ export default function RepairPriceListPage() {
   const visiblePrices = showAllPrices ? displayPrices : displayPrices.slice(0, 8);
 
   useEffect(() => {
-    fetch('/Api/SuaChua/DichVu')
+    fetch('/Api/SuaChua/DichVu', { cache: 'no-store' })
       .then((res) => res.json())
       .then((json) => {
         if (json.success && Array.isArray(json.data) && json.data.length > 0) {
-          // If custom services from API exist, update catalog in store
-          json.data.forEach((s: any) => {
-            IShopStore.addRepairServiceCatalog({
-              id: s.id || 'srv-' + Date.now(),
-              name: s.name,
-              category: s.category || 'other',
-              deviceBrand: s.deviceBrand || 'Apple',
-              deviceModels: s.deviceModels || 'Tất cả dòng máy',
-              price: Number(s.price) || 0,
-              warranty: s.warrantyPeriod || '06 Tháng',
-              estimatedMinutes: Number(s.estimatedMinutes) || 30,
-            });
+          const mapped: RepairServiceCatalogItem[] = json.data.map((s: any) => ({
+            id: s.id || 'srv-' + Date.now(),
+            name: s.name,
+            category: s.category || 'other',
+            deviceBrand: s.deviceBrand || 'Apple',
+            deviceModels: s.deviceModels || 'Tất cả dòng máy',
+            price: Number(s.price) || 0,
+            warranty: s.warrantyPeriod || '06 Tháng',
+            estimatedMinutes: Number(s.estimatedMinutes) || 30,
+          }));
+          setServiceCatalog((prev) => {
+            const byId = new Map<string, RepairServiceCatalogItem>();
+            prev.forEach((item) => byId.set(item.name.toLowerCase(), item));
+            mapped.forEach((item) => byId.set(item.name.toLowerCase(), item));
+            return Array.from(byId.values());
           });
-          setServiceCatalog(IShopStore.getRepairServiceCatalog());
         }
       })
       .catch((e) => console.warn('Could not fetch repair services from API:', e));
@@ -335,6 +338,12 @@ export default function RepairPriceListPage() {
       setShowIncompleteProfileModal(true);
       return;
     }
+    if (!isStrictVietnamPhone(bookingForm.phone.trim())) {
+      setBookingError('Số điện thoại liên hệ phải gồm đúng 10 chữ số hợp lệ (đầu 03, 05, 07, 08, 09)!');
+      return;
+    }
+
+    setBookingError(null);
     setIsSubmitting(true);
 
     const actualModel =
@@ -350,71 +359,71 @@ export default function RepairPriceListPage() {
       partsDescription.push(`Ghi chú thêm: ${extraNotes.trim()}`);
     }
     const finalNotes = partsDescription.join(' | ') || 'Máy đặt hẹn sửa chữa trực tiếp';
+    const generatedSerial = 'OL-' + Math.floor(100000 + Math.random() * 900000);
 
     try {
-      // 1. Create client-side repair ticket in IShopStore
-      const ticket = IShopStore.createRepairTicket({
-        customerName: bookingForm.name,
-        customerPhone: bookingForm.phone,
-        customerAddress: customerUser.address || 'Đặt hẹn online qua website iShop',
-        deviceModel: actualModel,
-        imeiOrSerial: 'OL-' + Math.floor(100000 + Math.random() * 900000),
-        unlockPasscode: 'Chưa cung cấp',
-        appearanceCondition: 'Máy gửi hẹn tiếp nhận online',
-        accessoriesIncluded: 'Khách mang máy trực tiếp đến shop',
-        issueDescription: `${bookingForm.service} (${finalNotes})`,
-        laborFee: 150000,
-        estimatedDeliveryDate: `${bookingForm.date} ${bookingForm.time}:00`,
-        technicianName: 'Trần Trọng Nghĩa',
-        warrantyPeriod: selectedServiceObj?.warranty || 'Bảo hành 12 tháng',
-        status: 'received',
-        receivedAt: new Date().toISOString().replace('T', ' ').substring(0, 19),
-      });
-
-      setCreatedTicketCode(ticket.ticketCode);
-
-      // 2. Sync with Server API asynchronously (Repair Ticket)
-      fetch('/Api/SuaChua', {
+      // 1. Tạo phiếu sửa chữa chính thức trên MySQL trước và lấy đúng mã phiếu thật
+      const ticketRes = await fetch('/Api/SuaChua', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          customerName: bookingForm.name,
-          customerPhone: bookingForm.phone,
+          customerName: bookingForm.name.trim(),
+          customerPhone: bookingForm.phone.trim(),
           customerAddress: customerUser.address || 'Đặt online qua website',
           deviceModel: actualModel,
-          imeiOrSerial: ticket.imeiOrSerial,
+          imeiOrSerial: generatedSerial,
           unlockPasscode: 'Chưa cung cấp',
+          appearanceCondition: 'Máy gửi hẹn tiếp nhận online',
+          accessoriesIncluded: 'Khách mang máy trực tiếp đến shop',
           issueDescription: `${bookingForm.service}. Hẹn: ${bookingForm.date} lúc ${bookingForm.time}. ${finalNotes}`,
           laborFee: 150000,
+          estimatedDeliveryDate: `${bookingForm.date} ${bookingForm.time}:00`,
+          warrantyPeriod: selectedServiceObj?.warranty || 'Bảo hành 12 tháng',
         }),
-      }).catch((err) => console.warn('API sync background notice:', err));
+      });
+      const ticketJson = await ticketRes.json();
 
-      // 3. Save Online Repair Booking in MySQL
-      fetch('/Api/SuaChua/DatLich', {
+      if (!ticketRes.ok || !ticketJson.success || !ticketJson.data?.ticketCode) {
+        setBookingError(ticketJson.error || 'Không thể tạo phiếu sửa chữa trên hệ thống. Vui lòng thử lại!');
+        return;
+      }
+
+      const realTicketCode = String(ticketJson.data.ticketCode);
+      setCreatedTicketCode(realTicketCode);
+
+      // 2. Lưu lịch hẹn sửa chữa online kèm đúng mã phiếu sửa chữa thật
+      await fetch('/Api/SuaChua/DatLich', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: bookingForm.name,
-          phone: bookingForm.phone,
+          name: bookingForm.name.trim(),
+          phone: bookingForm.phone.trim(),
           model: actualModel,
           service: bookingForm.service,
           date: bookingForm.date,
           time: bookingForm.time,
           notes: finalNotes,
+          ticketCode: realTicketCode,
         }),
       }).catch((err) => console.warn('API booking notice:', err));
 
+      // 3. Đồng bộ lại Store từ MySQL
+      await IShopStore.hydrateFromDatabase(true);
+
       // 4. Trigger confetti celebration
-      confetti({
-        particleCount: 90,
-        spread: 80,
-        origin: { y: 0.6 },
-        colors: ['#e2b774', '#10b981', '#3b82f6', '#f59e0b'],
-      });
+      try {
+        confetti({
+          particleCount: 90,
+          spread: 80,
+          origin: { y: 0.6 },
+          colors: ['#e2b774', '#10b981', '#3b82f6', '#f59e0b'],
+        });
+      } catch {}
 
       setBookingSuccess(true);
     } catch (err) {
       console.error(err);
+      setBookingError('Lỗi kết nối máy chủ khi đặt lịch sửa chữa. Vui lòng thử lại!');
     } finally {
       setIsSubmitting(false);
     }
@@ -723,6 +732,12 @@ export default function RepairPriceListPage() {
               )}
 
               <form autoComplete="off" onSubmit={handleBooking} className="space-y-5 text-xs">
+                {bookingError && (
+                  <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-300 text-rose-800 text-xs font-bold flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                    <span>{bookingError}</span>
+                  </div>
+                )}
                 {/* 1. Full name & Phone number (Retained as text inputs as requested) */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>

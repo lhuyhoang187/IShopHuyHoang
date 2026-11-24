@@ -395,6 +395,7 @@ export const IShopStore = {
         repCfgRes,
         cashRes,
         promoRes,
+        permRes,
       ] = await Promise.all([
         fetch(`/Api/KhachHang?_t=${ts}`, noCache).then((r) => r.json()).catch(() => null),
         fetch(`/Api/NhaCungCap?_t=${ts}`, noCache).then((r) => r.json()).catch(() => null),
@@ -409,6 +410,7 @@ export const IShopStore = {
         fetch(`/Api/SuaChua/CauHinh?_t=${ts}`, noCache).then((r) => r.json()).catch(() => null),
         fetch(`/Api/SoQuy?_t=${ts}`, noCache).then((r) => r.json()).catch(() => null),
         fetch(`/Api/KhuyenMai?_t=${ts}`, noCache).then((r) => r.json()).catch(() => null),
+        fetch(`/Api/QuanTri/PhanQuyen?_t=${ts}`, noCache).then((r) => r.json()).catch(() => null),
       ]);
 
       let changed = false;
@@ -467,6 +469,9 @@ export const IShopStore = {
         if (Array.isArray(promoRes.data.promoQRs)) {
           changed = setStorage('promo_qr_codes', promoRes.data.promoQRs, true) || changed;
         }
+      }
+      if (permRes?.success && Array.isArray(permRes.data) && permRes.data.length > 0) {
+        changed = setStorage('permission_matrix', permRes.data, true) || changed;
       }
 
       if (changed || forceNotify) {
@@ -1325,29 +1330,30 @@ export const IShopStore = {
     // Tự động gửi Email cập nhật tiến độ sửa chữa máy hiện tại về hòm thư khách hàng
     if (targetTicket) {
       try {
+        const cust = this.getCustomerByPhone(targetTicket.customerPhone);
         sendRepairStatusUpdateEmail(
           targetTicket,
           statusLabels[newStatus] || newStatus,
           note,
-          actor
+          cust?.email
         );
       } catch (e) {
         console.warn('Lỗi gửi email cập nhật tiến độ:', e);
       }
     }
 
-    // If delivered, record cashbook entry if totalAmount > 0
+    // If newly delivered (prevent duplicates), record cashbook entry if totalAmount > 0
     if (newStatus === 'delivered') {
-      const ticket = repairs.find((r) => r.id === ticketId);
-      if (ticket && ticket.totalAmount > 0) {
+      const prevTicket = repairs.find((r) => r.id === ticketId);
+      if (prevTicket && prevTicket.status !== 'delivered' && prevTicket.totalAmount > 0) {
         this.addCashbookEntry({
           type: 'receipt',
           category: 'repair_service',
           categoryLabel: 'Dịch vụ sửa chữa',
-          amount: ticket.totalAmount,
+          amount: prevTicket.totalAmount,
           paymentMethod: 'cash',
-          referenceCode: ticket.ticketCode,
-          description: `Thu tiền sửa chữa máy ${ticket.deviceModel} (${ticket.ticketCode})`,
+          referenceCode: prevTicket.ticketCode,
+          description: `Thu tiền sửa chữa máy ${prevTicket.deviceModel} (${prevTicket.ticketCode})`,
           creator: actor,
         });
       }
@@ -1655,13 +1661,18 @@ export const IShopStore = {
     // Thống nhất mã sản phẩm: Tự động lưu thiết bị máy bán ra vào danh bạ thiết bị của khách hàng
     invoiceData.items.forEach((item) => {
       if (item.type === 'phone' && item.imei) {
+        const variantParts = item.variant?.includes('/')
+          ? item.variant.split('/').map((s) => s.trim())
+          : item.variant?.includes(' - ')
+          ? item.variant.split(' - ').map((s) => s.trim())
+          : undefined;
         this.registerDevice({
           id: 'dev-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
           imei: item.imei,
           productName: item.name,
           phoneId: item.id,
-          color: item.variant?.split(' ')[0],
-          capacity: item.variant?.split(' ')[1],
+          color: item.color || variantParts?.[0],
+          capacity: item.capacity || variantParts?.[1],
           customerPhone: invoiceData.customerPhone,
           customerName: invoiceData.customerName,
           customerEmail: invoiceData.customerEmail,
@@ -1897,12 +1908,12 @@ export const IShopStore = {
       );
       setStorage('customers', updated);
 
-      // Cập nhật ngay lập tức nếu khách hàng đang đăng nhập tài khoản này
-      const currentCustUser = getStorage<CustomerUser | null>('customer_user', null);
-      if (currentCustUser && (currentCustUser.phone?.trim() === phone.trim() || currentCustUser.name === existing.name)) {
+      // Cập nhật ngay lập tức nếu khách hàng đang đăng nhập tài khoản này (sessionStorage)
+      const currentCustUser = getSessionStorage<CustomerUser | null>('customer_user', null);
+      if (currentCustUser && (currentCustUser.phone?.trim() === phone.trim() || currentCustUser.id === existing.id)) {
         currentCustUser.points = updatedPoints;
         currentCustUser.membershipTier = updatedTier;
-        setStorage('customer_user', currentCustUser);
+        setSessionStorage('customer_user', currentCustUser);
       }
     } else {
       const initialPoints = earnedPoints;
@@ -1920,12 +1931,12 @@ export const IShopStore = {
       };
       setStorage('customers', [newCust, ...customers]);
 
-      // Cập nhật ngay lập tức nếu khách hàng đang đăng nhập tài khoản này
-      const currentCustUser = getStorage<CustomerUser | null>('customer_user', null);
+      // Cập nhật ngay lập tức nếu khách hàng đang đăng nhập tài khoản này (sessionStorage)
+      const currentCustUser = getSessionStorage<CustomerUser | null>('customer_user', null);
       if (currentCustUser && currentCustUser.phone?.trim() === phone.trim()) {
         currentCustUser.points = initialPoints;
         currentCustUser.membershipTier = initialTier;
-        setStorage('customer_user', currentCustUser);
+        setSessionStorage('customer_user', currentCustUser);
       }
     }
   },
@@ -1936,10 +1947,11 @@ export const IShopStore = {
     const customers = this.getCustomers();
     const existing = customers.find((c) => c.phone.trim() === cleanPhone);
     let newPoints = 0;
+    let newTier = getTierByPoints(0).tier;
 
     if (existing) {
       newPoints = Math.max(0, (existing.points || 0) + deltaPoints);
-      const newTier = getTierByPoints(newPoints).tier;
+      newTier = getTierByPoints(newPoints).tier;
       const updated = customers.map((c) =>
         c.phone.trim() === cleanPhone
           ? { ...c, points: newPoints, membershipTier: newTier }
@@ -1948,12 +1960,28 @@ export const IShopStore = {
       setStorage('customers', updated);
     }
 
-    const currentCustUser = getStorage<CustomerUser | null>('customer_user', null);
+    const currentCustUser = getSessionStorage<CustomerUser | null>('customer_user', null);
     if (currentCustUser && currentCustUser.phone?.trim() === cleanPhone) {
-      newPoints = Math.max(0, (currentCustUser.points || 0) + deltaPoints);
+      newPoints = existing ? newPoints : Math.max(0, (currentCustUser.points || 0) + deltaPoints);
+      newTier = getTierByPoints(newPoints).tier;
       currentCustUser.points = newPoints;
-      currentCustUser.membershipTier = getTierByPoints(newPoints).tier;
-      setStorage('customer_user', currentCustUser);
+      currentCustUser.membershipTier = newTier;
+      setSessionStorage('customer_user', currentCustUser);
+    }
+
+    // Đồng bộ số điểm & hạng thẻ mới trực tiếp xuống MySQL
+    if (typeof window !== 'undefined' && (existing || currentCustUser)) {
+      fetch('/Api/KhachHang', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: existing?.id || currentCustUser?.id,
+          name: existing?.name || currentCustUser?.name || 'Khách hàng',
+          phone: cleanPhone,
+          points: newPoints,
+          membershipTier: newTier,
+        }),
+      }).catch((e) => console.warn('Sync customer points API notice:', e));
     }
 
     if (typeof window !== 'undefined') {
@@ -2057,8 +2085,16 @@ export const IShopStore = {
       }
 
       if (color && capacity && phone.variantStocks) {
-        const key = `${color.trim()}_${capacity.trim()}`;
-        const v = phone.variantStocks[key];
+        const targetKey = `${color.trim().toLowerCase()}_${capacity.trim().toLowerCase().replace(/\s+/g, '')}`;
+        const matchedEntry = Object.entries(phone.variantStocks).find(([k]) => {
+          const [kc, kcap] = k.split('_');
+          return (
+            kc &&
+            kcap &&
+            `${kc.trim().toLowerCase()}_${kcap.trim().toLowerCase().replace(/\s+/g, '')}` === targetKey
+          );
+        });
+        const v = matchedEntry ? matchedEntry[1] : phone.variantStocks[`${color.trim()}_${capacity.trim()}`];
         if (v) {
           if (v.isOutOfStock) return 0;
           if (typeof v.stock === 'number') return v.stock;
@@ -2337,11 +2373,19 @@ export const IShopStore = {
     // Khấu trừ điểm khách hàng
     this.updateCustomerPoints(params.customerPhone, -pointsNeeded);
 
-    // Giảm tồn kho phụ kiện quà tặng
+    // Giảm tồn kho phụ kiện quà tặng và đồng bộ xuống MySQL
+    const nextAccStock = Math.max(0, targetAcc.stock - 1);
     const updatedAccessories = accessories.map((a) =>
-      a.id === targetAcc.id ? { ...a, stock: Math.max(0, a.stock - 1) } : a
+      a.id === targetAcc.id ? { ...a, stock: nextAccStock } : a
     );
     setStorage('accessories', updatedAccessories);
+    if (typeof window !== 'undefined') {
+      fetch('/Api/KhoHang/PhuKien', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: targetAcc.id, stock: nextAccStock, action: 'update' }),
+      }).catch((e) => console.warn('Sync redeemed accessory stock API notice:', e));
+    }
 
     // Tạo phiếu nhận quà
     const gifts = this.getRedeemedGifts();
@@ -2499,6 +2543,7 @@ export const IShopStore = {
     const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
     let approved = false;
 
+    const finalNote = note || 'Ban Giám Đốc đã phê duyệt hạn mức và xuất kho thành công.';
     const updated = invoices.map((inv) => {
       if (inv.id === invoiceId) {
         approved = true;
@@ -2507,7 +2552,7 @@ export const IShopStore = {
           status: 'approved' as const,
           approvedBy: adminName,
           approvedAt: now,
-          adminApprovalNote: note || 'Ban Giám Đốc đã phê duyệt hạn mức và xuất kho thành công.',
+          adminApprovalNote: finalNote,
         };
       }
       return inv;
@@ -2515,6 +2560,18 @@ export const IShopStore = {
 
     if (approved) {
       setStorage('invoices', updated);
+      if (typeof window !== 'undefined') {
+        fetch('/Api/DonHang', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: invoiceId,
+            status: 'approved',
+            approvedBy: adminName,
+            adminApprovalNote: finalNote,
+          }),
+        }).catch((e) => console.warn('Sync approve order API notice:', e));
+      }
     }
     return approved;
   },
@@ -2523,6 +2580,7 @@ export const IShopStore = {
     const invoices = this.getInvoices();
     const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
     let rejected = false;
+    const finalNote = `Từ chối duyệt đơn: ${reason}`;
 
     const updated = invoices.map((inv) => {
       if (inv.id === invoiceId) {
@@ -2532,7 +2590,7 @@ export const IShopStore = {
           status: 'rejected' as const,
           approvedBy: adminName,
           approvedAt: now,
-          adminApprovalNote: `Từ chối duyệt đơn: ${reason}`,
+          adminApprovalNote: finalNote,
         };
       }
       return inv;
@@ -2540,6 +2598,18 @@ export const IShopStore = {
 
     if (rejected) {
       setStorage('invoices', updated);
+      if (typeof window !== 'undefined') {
+        fetch('/Api/DonHang', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: invoiceId,
+            status: 'rejected',
+            approvedBy: adminName,
+            adminApprovalNote: finalNote,
+          }),
+        }).catch((e) => console.warn('Sync reject order API notice:', e));
+      }
     }
     return rejected;
   },

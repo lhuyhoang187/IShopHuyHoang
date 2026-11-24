@@ -108,39 +108,37 @@ export default function AccountPage() {
       setAddress(user.address || '');
       setAvatar(user.avatar || '');
 
-      // Load related invoices & repairs
+      // Load related invoices & repairs (match strictly by phone; fallback to exact name only when user has no real phone)
+      const hasValidPhone = Boolean(user.phone && !user.phone.startsWith('CHUA_CAP_NHAT'));
+      const cleanUserPhone = (user.phone || '').trim();
+      const cleanUserName = (user.name || '').trim().toLowerCase();
+
       const allInvoices = IShopStore.getInvoices();
-      const userInvoices = allInvoices.filter(
-        (inv) =>
-          (user.phone && inv.customerPhone.trim() === user.phone.trim()) ||
-          inv.customerName.toLowerCase().includes(user.name.toLowerCase())
-      );
+      const userInvoices = allInvoices.filter((inv) => {
+        if (hasValidPhone) {
+          return (inv.customerPhone || '').trim() === cleanUserPhone;
+        }
+        return cleanUserName !== '' && (inv.customerName || '').trim().toLowerCase() === cleanUserName;
+      });
       setCustomerOrders(userInvoices);
 
-      // Tính tổng điểm tích lũy từ các đơn hàng thực tế đã phát sinh
-      const invoicePoints = userInvoices.reduce((sum, inv) => {
-        const earned = typeof inv.pointsEarned === 'number' ? inv.pointsEarned : Math.floor(inv.totalAmount / 10000);
-        return sum + earned;
-      }, 0);
+      // Giữ đúng điểm tích lũy thực tế từ CSDL (không cộng đè từ hóa đơn để tránh hồi điểm sau khi đổi quà)
+      const currentUserPoints = Math.max(0, Number(user.points) || 0);
+      const syncedTier = getTierByPoints(currentUserPoints).tier;
 
-      // Tài khoản chưa sử dụng dịch vụ có 0 điểm và chưa xếp hạng (chỉ tính điểm thực tế từ hóa đơn / CSDL)
-      const basePoints = 0;
-      const calculatedTotalPoints = Math.max(user.points || 0, basePoints + invoicePoints);
-      const newTier = getTierByPoints(calculatedTotalPoints).tier;
-
-      if (user.points !== calculatedTotalPoints || user.membershipTier !== newTier) {
-        user.points = calculatedTotalPoints;
-        user.membershipTier = newTier;
-        IShopStore.updateCustomerUser({ points: calculatedTotalPoints, membershipTier: newTier });
-        setCustomerUser({ ...user, points: calculatedTotalPoints, membershipTier: newTier });
+      if (user.membershipTier !== syncedTier) {
+        user.membershipTier = syncedTier;
+        IShopStore.updateCustomerUser({ membershipTier: syncedTier });
+        setCustomerUser({ ...user, membershipTier: syncedTier });
       }
 
       const allRepairs = IShopStore.getRepairs();
-      const userRepairs = allRepairs.filter(
-        (rep) =>
-          (user.phone && rep.customerPhone.trim() === user.phone.trim()) ||
-          rep.customerName.toLowerCase().includes(user.name.toLowerCase())
-      );
+      const userRepairs = allRepairs.filter((rep) => {
+        if (hasValidPhone) {
+          return (rep.customerPhone || '').trim() === cleanUserPhone;
+        }
+        return cleanUserName !== '' && (rep.customerName || '').trim().toLowerCase() === cleanUserName;
+      });
       setCustomerRepairs(userRepairs);
     }
     setIsLoading(false);

@@ -61,18 +61,18 @@ export default function PhoneVariantStockModal({
 
       return {
         ...c,
-        stock: c.stock !== undefined ? c.stock : count > 0 ? count : 5,
+        stock: c.stock !== undefined ? c.stock : count,
         isOutOfStock: c.isOutOfStock || false,
       };
     });
 
     const initialColors = phone.colors.map((c) => {
       const colNorm = c.name.toLowerCase().trim();
-      const count = inStockPhones.filter((p) => p.color.toLowerCase().trim().includes(colNorm)).length;
+      const count = inStockPhones.filter((p) => p.color.toLowerCase().trim() === colNorm).length;
 
       return {
         ...c,
-        stock: c.stock !== undefined ? c.stock : count > 0 ? count : 5,
+        stock: c.stock !== undefined ? c.stock : count,
         isOutOfStock: c.isOutOfStock || false,
       };
     });
@@ -92,7 +92,7 @@ export default function PhoneVariantStockModal({
               p.capacity.toLowerCase().replace(/\s+/g, '') === cap.size.toLowerCase().replace(/\s+/g, '')
           );
           initialMatrix[key] = {
-            stock: matched.length > 0 ? matched.length : 3,
+            stock: matched.length,
             isOutOfStock: false,
           };
         }

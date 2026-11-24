@@ -170,24 +170,32 @@ export async function POST(
               `UPDATE BienTheDienThoai SET HetHang = 1, NgayCapNhat = NOW() WHERE MaMauSac = ?`,
               [cid]
             );
+          } else if (col.isOutOfStock === false) {
+            await conn.execute(
+              `UPDATE BienTheDienThoai SET HetHang = 0, NgayCapNhat = NOW() WHERE MaMauSac = ?`,
+              [cid]
+            );
           }
         }
       }
 
       if (Array.isArray(capacities)) {
         for (const cap of capacities) {
-          if (cap.size && Number(cap.price) > 0) {
+          if (cap.size) {
+            const capPrice = Number(cap.price || 0);
             for (const cid of colorIdByName.values()) {
               const [exVar]: any = await conn.query(
-                'SELECT MaBienThe AS id FROM BienTheDienThoai WHERE MaMauSac = ? AND DungLuong = ?',
+                'SELECT MaBienThe AS id, GiaBan AS price, GiaGoc AS originalPrice FROM BienTheDienThoai WHERE MaMauSac = ? AND DungLuong = ?',
                 [cid, cap.size]
               );
               if (exVar[0]?.id) {
+                const nextPrice = capPrice > 0 ? capPrice : Number(exVar[0].price || 0);
+                const nextOrig = cap.originalPrice ? Number(cap.originalPrice) : exVar[0].originalPrice;
                 await conn.execute(
                   `UPDATE BienTheDienThoai SET GiaBan = ?, GiaGoc = ?, HetHang = ?, NgayCapNhat = NOW() WHERE MaBienThe = ?`,
                   [
-                    Number(cap.price),
-                    cap.originalPrice ? Number(cap.originalPrice) : null,
+                    nextPrice,
+                    nextOrig,
                     cap.isOutOfStock || cap.stock === 0 ? 1 : 0,
                     exVar[0].id,
                   ]
@@ -201,7 +209,7 @@ export async function POST(
                     varId,
                     cid,
                     cap.size,
-                    Number(cap.price),
+                    capPrice,
                     cap.originalPrice ? Number(cap.originalPrice) : null,
                     cap.isOutOfStock || cap.stock === 0 ? 1 : 0,
                   ]
@@ -209,11 +217,13 @@ export async function POST(
               }
             }
 
-            await conn.execute(
-              `UPDATE KhoDienThoai SET GiaBan = ?, NgayCapNhat = NOW()
-               WHERE MaDienThoai = ? AND DungLuong = ? AND TrangThai = 'in_stock'`,
-              [Number(cap.price), phone.id, cap.size]
-            );
+            if (capPrice > 0) {
+              await conn.execute(
+                `UPDATE KhoDienThoai SET GiaBan = ?, NgayCapNhat = NOW()
+                 WHERE MaDienThoai = ? AND DungLuong = ? AND TrangThai = 'in_stock'`,
+                [capPrice, phone.id, cap.size]
+              );
+            }
           }
         }
       }

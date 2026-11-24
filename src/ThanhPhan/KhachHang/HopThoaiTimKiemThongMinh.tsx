@@ -25,10 +25,6 @@ export default function SmartSearchModal({ isOpen, onClose }: Props) {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-        e.preventDefault();
-        // Toggle search
-      }
       if (e.key === 'Escape' && isOpen) {
         onClose();
       }
@@ -135,11 +131,17 @@ export default function SmartSearchModal({ isOpen, onClose }: Props) {
                         className="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50 hover:bg-slate-100 transition-all border border-slate-200 hover:border-slate-300 group shadow-sm"
                       >
                         <div className="flex items-center gap-3">
-                          <img
-                            src={phone.colors[0]?.imageUrl}
-                            alt={phone.name}
-                            className="w-12 h-12 object-cover rounded-xl bg-white p-1 border border-slate-200"
-                          />
+                          <div className="w-12 h-12 rounded-xl bg-white p-1 border border-slate-200 flex items-center justify-center overflow-hidden shrink-0">
+                            {phone.colors?.[0]?.imageUrl ? (
+                              <img
+                                src={phone.colors[0].imageUrl}
+                                alt={phone.name}
+                                className="w-full h-full object-cover rounded-lg"
+                              />
+                            ) : (
+                              <Smartphone className="w-6 h-6 text-slate-400" />
+                            )}
+                          </div>
                           <div>
                             <h4 className="text-sm font-bold text-slate-900 group-hover:text-amber-600 transition-colors">
                               {phone.name}
@@ -149,10 +151,10 @@ export default function SmartSearchModal({ isOpen, onClose }: Props) {
                         </div>
                         <div className="text-right">
                           <span className="text-sm font-black text-amber-600 block">
-                            {formatVND(phone.capacities[0].price)}
+                            {formatVND(phone.capacities?.[0]?.price || 0)}
                           </span>
                           <span className="text-[10px] text-amber-700 font-bold block">
-                            +{Math.floor(phone.capacities[0].price / 10000).toLocaleString('vi-VN')} pts
+                            +{Math.floor((phone.capacities?.[0]?.price || 0) / 10000).toLocaleString('vi-VN')} pts
                           </span>
                           <span className="flex items-center text-xs text-slate-500 group-hover:text-amber-600 justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity font-medium">
                             Xem máy <ArrowRight className="w-3 h-3" />
@@ -180,11 +182,17 @@ export default function SmartSearchModal({ isOpen, onClose }: Props) {
                         className="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50 hover:bg-slate-100 transition-all border border-slate-200 hover:border-slate-300 group shadow-sm"
                       >
                         <div className="flex items-center gap-3">
-                          <img
-                            src={acc.imageUrl}
-                            alt={acc.name}
-                            className="w-12 h-12 object-cover rounded-xl bg-white p-1 border border-slate-200"
-                          />
+                          <div className="w-12 h-12 rounded-xl bg-white p-1 border border-slate-200 flex items-center justify-center overflow-hidden shrink-0">
+                            {acc.imageUrl ? (
+                              <img
+                                src={acc.imageUrl}
+                                alt={acc.name}
+                                className="w-full h-full object-cover rounded-lg"
+                              />
+                            ) : (
+                              <Headphones className="w-6 h-6 text-slate-400" />
+                            )}
+                          </div>
                           <div>
                             <h4 className="text-sm font-bold text-slate-900 group-hover:text-emerald-700 transition-colors">
                               {acc.name}

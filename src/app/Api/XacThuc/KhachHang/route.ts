@@ -97,7 +97,8 @@ export async function POST(request: Request) {
 
     if (!customer) {
       const customerName = name ? sanitizeString(name, 100) : (cleanEmail ? cleanEmail.split('@')[0] : 'Khách Hàng');
-      const customerPhone = normalizedPhone || '';
+      // Avoid UNIQUE constraint collision on SoDienThoai when signing in via social email without phone yet
+      const customerPhone = normalizedPhone || `CHUA_CAP_NHAT_${Date.now().toString(36).slice(-6)}`;
       const customerId = 'cust-' + Date.now();
 
       await db.execute(

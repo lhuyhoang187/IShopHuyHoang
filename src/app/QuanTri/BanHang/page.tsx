@@ -240,29 +240,27 @@ export default function POSPage() {
       repairCount: 0,
     };
 
-    IShopStore.addCustomer(newCust);
-    setCustomersList(IShopStore.getCustomers());
-
     try {
-      await fetch('/Api/KhachHang', {
+      const res = await fetch('/Api/KhachHang', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: newCust.name,
-          phone: newCust.phone,
-          email: newCust.email,
-          address: newCust.address,
-          points: newCust.points,
-        }),
+        body: JSON.stringify(newCust),
       });
-    } catch (err) {
-      console.warn('API save customer notice:', err);
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        alert(json.error || 'Không thể lưu khách hàng mới vào CSDL MySQL!');
+        return;
+      }
+      const savedCust: Customer = json.data || newCust;
+      await IShopStore.hydrateFromDatabase(true);
+      setCustomersList(IShopStore.getCustomers());
+      handleSelectCustomer(savedCust);
+      setIsAddCustomerOpen(false);
+      setCustomerFeedback(`✓ Đã thêm và chọn khách hàng mới: ${savedCust.name}!`);
+      setTimeout(() => setCustomerFeedback(null), 3000);
+    } catch (err: any) {
+      alert('Lỗi kết nối khi lưu khách hàng: ' + (err?.message || ''));
     }
-
-    handleSelectCustomer(newCust);
-    setIsAddCustomerOpen(false);
-    setCustomerFeedback(`✓ Đã thêm và chọn khách hàng mới: ${newCust.name}!`);
-    setTimeout(() => setCustomerFeedback(null), 3000);
   };
 
   const handleOpenEditCustomer = () => {
@@ -320,31 +318,27 @@ export default function POSPage() {
       notes: formCustNotes.trim() || undefined,
     };
 
-    if (selectedCustomerId) {
-      IShopStore.updateCustomer(selectedCustomerId, updatedData);
-    } else {
-      IShopStore.addCustomer({
-        id: targetId,
-        name: formCustName.trim(),
-        phone: formCustPhone.trim(),
-        email: formCustEmail.trim() || undefined,
-        address: formCustAddress.trim() || undefined,
-        customerType: formCustType,
-        membershipTier: formCustTier,
-        points: Number(formCustPoints) || 0,
-        taxCode: formCustTaxCode.trim() || undefined,
-        birthday: formCustBirthday || undefined,
-        city: formCustCity.trim() || undefined,
-        notes: formCustNotes.trim() || undefined,
-        totalSpent: 0,
-        createdAt: new Date().toISOString().substring(0, 10),
-        purchaseCount: 1,
-        repairCount: 0,
+    try {
+      const res = await fetch('/Api/KhachHang', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: selectedCustomerId || targetId,
+          ...updatedData,
+        }),
       });
-      setSelectedCustomerId(targetId);
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        alert(json.error || 'Không thể cập nhật thông tin khách hàng trong CSDL!');
+        return;
+      }
+      if (json.data?.id) setSelectedCustomerId(json.data.id);
+      await IShopStore.hydrateFromDatabase(true);
+      setCustomersList(IShopStore.getCustomers());
+    } catch (err: any) {
+      alert('Lỗi kết nối khi cập nhật khách hàng: ' + (err?.message || ''));
+      return;
     }
-
-    setCustomersList(IShopStore.getCustomers());
 
     setCustomerName(formCustName.trim());
     setCustomerPhone(formCustPhone.trim());
@@ -352,22 +346,6 @@ export default function POSPage() {
     setCustomerMembership(formCustTier);
     setCustomerPoints(Number(formCustPoints) || 0);
     setCustomerType(formCustType);
-
-    try {
-      await fetch('/Api/KhachHang', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: formCustName.trim(),
-          phone: formCustPhone.trim(),
-          email: formCustEmail.trim(),
-          address: formCustAddress.trim(),
-          points: Number(formCustPoints) || 0,
-        }),
-      });
-    } catch (err) {
-      console.warn('API update customer notice:', err);
-    }
 
     setIsEditCustomerOpen(false);
     setCustomerFeedback(`✓ Đã cập nhật thông tin khách hàng: ${formCustName.trim()}!`);
@@ -425,7 +403,9 @@ export default function POSPage() {
       type: 'phone',
       id: stockItem.phoneId,
       name: stockItem.phoneName,
-      variant: `${stockItem.color} - ${stockItem.capacity}`,
+      variant: `${stockItem.color} / ${stockItem.capacity}`,
+      color: stockItem.color,
+      capacity: stockItem.capacity,
       imei: stockItem.imei,
       quantity: 1,
       unitPrice: stockItem.sellingPrice,
@@ -438,7 +418,7 @@ export default function POSPage() {
     setPosItems([...posItems, newItem]);
   };
 
-  // Add accessory
+  // Add accessory (ràng buộc không vượt tồn kho)
   const addAccessoryToOrder = (acc: AccessoryProduct) => {
     const rewardPoints = calculateProductRewardPoints({
       type: 'accessory',
@@ -447,11 +427,17 @@ export default function POSPage() {
     });
 
     const existing = posItems.find((i) => i.type === 'accessory' && i.id === acc.id);
+    const nextQty = existing ? existing.quantity + 1 : 1;
+    if (nextQty > (acc.stock ?? 0)) {
+      alert(`Phụ kiện "${acc.name}" hiện chỉ còn ${acc.stock ?? 0} sản phẩm trong kho!`);
+      return;
+    }
+
     if (existing) {
       setPosItems(
         posItems.map((i) =>
           i.type === 'accessory' && i.id === acc.id
-            ? { ...i, quantity: i.quantity + 1, total: (i.quantity + 1) * i.unitPrice }
+            ? { ...i, quantity: nextQty, total: nextQty * i.unitPrice }
             : i
         )
       );
@@ -476,6 +462,14 @@ export default function POSPage() {
     if (newQty <= 0) {
       setPosItems(posItems.filter((_, idx) => idx !== index));
     } else {
+      const target = posItems[index];
+      if (target?.type === 'accessory') {
+        const acc = accessories.find((a) => a.id === target.id);
+        if (acc && newQty > acc.stock) {
+          alert(`Kho hiện chỉ còn ${acc.stock} sản phẩm "${acc.name}"!`);
+          return;
+        }
+      }
       setPosItems(
         posItems.map((item, idx) =>
           idx === index ? { ...item, quantity: newQty, total: newQty * item.unitPrice } : item
@@ -530,9 +524,10 @@ export default function POSPage() {
     const cashierName =
       role === 'admin' ? 'Chủ shop Huy Hoàng' : role === 'cashier' ? 'Thu ngân quầy' : 'KTV quầy';
 
-    // 1. Post to live MySQL Database
+    // 1. Post to live MySQL Database and verify success before printing receipt
+    let savedDbInvoice: Invoice | null = null;
     try {
-      await fetch('/Api/DonHang', {
+      const res = await fetch('/Api/DonHang', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -547,14 +542,22 @@ export default function POSPage() {
           cashReceived: paymentMethod === 'cash' ? cashGiven : undefined,
           cashChange: paymentMethod === 'cash' ? changeAmount : undefined,
           cashierName,
+          warrantyNote: 'Bảo hành 12 tháng máy mới / 12 tháng phụ kiện 1 đổi 1.',
         }),
       });
-    } catch (err) {
-      console.warn('API order checkout notice:', err);
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        alert(json.error || 'Không thể thanh toán đơn hàng vào CSDL MySQL!');
+        return;
+      }
+      savedDbInvoice = json.data || null;
+    } catch (err: any) {
+      alert('Lỗi kết nối máy chủ khi thanh toán: ' + (err?.message || ''));
+      return;
     }
 
-    // 2. Also save to client store for immediate reactivity and printing
-    const invoice = IShopStore.createInvoice({
+    // 2. Update client reactivity & register device passport with real DB invoiceCode
+    const localInvoice = IShopStore.createInvoice({
       customerName: customerName.trim() || 'Khách Mua Tại Quầy',
       customerPhone: customerPhone.trim() || '0900000000',
       customerTier: currentTierConfig.tier,
@@ -570,7 +573,11 @@ export default function POSPage() {
       warrantyNote: 'Bảo hành 12 tháng máy mới / 12 tháng phụ kiện 1 đổi 1.',
     });
 
-    setCompletedInvoice(invoice);
+    setCompletedInvoice(
+      savedDbInvoice
+        ? { ...localInvoice, id: savedDbInvoice.id, invoiceCode: savedDbInvoice.invoiceCode, status: savedDbInvoice.status }
+        : localInvoice
+    );
     setPosItems([]);
     setDiscountMode('auto');
     setCustomDiscountPercent(0);

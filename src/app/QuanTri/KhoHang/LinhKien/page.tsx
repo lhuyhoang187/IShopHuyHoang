@@ -61,26 +61,22 @@ export default function InventorySparePartsPage() {
     setCategories(localCats);
     setRole(IShopStore.getRole());
 
-    // 2. Đồng bộ từ MySQL API
+    // 2. Đồng bộ từ MySQL API (chỉ cập nhật state cục bộ, tránh vòng lặp event)
     fetch('/Api/KhoHang/LinhKien', { cache: 'no-store' })
       .then((res) => res.json())
       .then((res) => {
         if (res.success && Array.isArray(res.data)) {
           setParts(res.data);
-          res.data.forEach((p: SparePartItem) => {
-            IShopStore.addSparePart(p);
-          });
         }
       })
       .catch((err) => console.error('Lỗi tải linh kiện từ MySQL:', err));
 
     // 3. Đồng bộ danh mục từ MySQL API
-    fetch('/Api/KhoHang/LinhKien/DanhMuc')
+    fetch('/Api/KhoHang/LinhKien/DanhMuc', { cache: 'no-store' })
       .then((res) => res.json())
       .then((res) => {
         if (res.success && Array.isArray(res.data) && res.data.length > 0) {
           setCategories(res.data);
-          IShopStore.saveSparePartCategories(res.data);
         }
       })
       .catch((err) => console.error('Lỗi tải danh mục linh kiện:', err));

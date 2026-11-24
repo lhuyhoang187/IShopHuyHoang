@@ -42,17 +42,12 @@ function RepairTrackingContent() {
     if (!key) return;
     setSearchedKey(key);
 
-    // 1. Try local storage first
-    const found = IShopStore.getRepairByCode(key);
-    if (found) {
-      setTicket(found);
-      return;
-    }
-
-    // 2. Fetch from backend API
+    // 1. Query live MySQL API first so customers always see real-time technician updates
     setIsLoading(true);
     try {
-      const res = await fetch(`/Api/SuaChua?code=${encodeURIComponent(key)}`);
+      const res = await fetch(`/Api/SuaChua?code=${encodeURIComponent(key)}&_t=${Date.now()}`, {
+        cache: 'no-store',
+      });
       if (res.ok) {
         const json = await res.json();
         if (json.success && json.data) {
@@ -60,9 +55,12 @@ function RepairTrackingContent() {
           return;
         }
       }
-      setTicket(null);
+      // 2. Fallback to local cache only if API returned no match
+      const found = IShopStore.getRepairByCode(key);
+      setTicket(found || null);
     } catch {
-      setTicket(null);
+      const found = IShopStore.getRepairByCode(key);
+      setTicket(found || null);
     } finally {
       setIsLoading(false);
     }

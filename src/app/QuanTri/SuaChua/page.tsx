@@ -186,10 +186,10 @@ export default function AdminRepairsPage() {
     refreshLocalState();
 
     // 2. Fetch live data from API once on mount
-    fetch('/Api/SuaChua')
+    fetch('/Api/SuaChua', { cache: 'no-store' })
       .then((res) => res.json())
       .then((json) => {
-        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+        if (json.success && Array.isArray(json.data)) {
           setRepairs(json.data);
         }
       })
@@ -452,11 +452,11 @@ export default function AdminRepairsPage() {
 
   const handleCreateTicket = async (e: React.FormEvent) => {
     e.preventDefault();
-    const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
 
-    // 1. Post to live MySQL Database with Technician Assignment & SLA Deadline
+    // 1. Post to live MySQL Database FIRST and validate response (avoid ghost tickets)
+    let created: RepairTicket | null = null;
     try {
-      await fetch('/Api/SuaChua', {
+      const res = await fetch('/Api/SuaChua', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -476,39 +476,28 @@ export default function AdminRepairsPage() {
           assignedBy: intakeForm.assignedBy,
           technicianId: intakeForm.technicianId,
           technicianName: intakeForm.technicianName,
+          warrantyPeriod: intakeForm.warrantyPeriod,
         }),
       });
-    } catch (err) {
-      console.warn('API repair ticket notice:', err);
+      const json = await res.json();
+      if (!res.ok || !json.success || !json.data) {
+        alert(json.error || 'Không thể tiếp nhận phiếu sửa chữa vào CSDL MySQL!');
+        return;
+      }
+      created = json.data as RepairTicket;
+    } catch (err: any) {
+      alert('Lỗi kết nối máy chủ khi tạo phiếu sửa chữa: ' + (err?.message || ''));
+      return;
     }
 
-    // 2. Also save to client store for immediate receipt printing
-    const created = IShopStore.createRepairTicket({
-      customerName: intakeForm.customerName,
-      customerPhone: intakeForm.customerPhone,
-      customerAddress: intakeForm.customerAddress,
-      deviceModel: intakeForm.deviceModel,
-      imeiOrSerial: intakeForm.imeiOrSerial || 'Chưa rõ',
-      unlockPasscode: intakeForm.unlockPasscode || 'Không có',
-      appearanceCondition: intakeForm.appearanceCondition,
-      accessoriesIncluded: intakeForm.accessoriesIncluded,
-      issueDescription: intakeForm.issueDescription,
-      status: 'received',
-      laborFee: Number(intakeForm.laborFee) || 0,
-      estimatedDeliveryDate: intakeForm.deadlineTime || intakeForm.estimatedDeliveryDate,
-      deadlineTime: intakeForm.deadlineTime,
-      deadlineMinutes: Number(intakeForm.deadlineMinutes) || 60,
-      assignedBy: intakeForm.assignedBy,
-      receivedAt: now,
-      technicianId: intakeForm.technicianId,
-      technicianName: intakeForm.technicianName,
-      warrantyPeriod: intakeForm.warrantyPeriod,
-    });
-
+    if (created.imeiOrSerial) {
+      IShopStore.linkRepairToDevice(created.imeiOrSerial, created.ticketCode);
+    }
+    await IShopStore.hydrateFromDatabase(true);
     setIsCreateModalOpen(false);
     setPrintTicket(created);
     refreshLocalState();
-    showToast(`Đã tiếp nhận máy ${created.ticketCode} - KTV: ${created.technicianName} - Hạn: ${created.deadlineTime?.split(' ')[1] || '60p'}!`);
+    showToast(`Đã tiếp nhận máy ${created.ticketCode} - KTV: ${created.technicianName || intakeForm.technicianName} - Hạn: ${created.deadlineTime?.split(' ')[1] || '60p'}!`);
   };
 
   const handleOpenTicket = (ticket: RepairTicket) => {

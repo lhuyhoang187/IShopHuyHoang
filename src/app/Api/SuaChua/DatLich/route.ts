@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, phone, model, service, date, time, notes, branchName } = body;
+    const { name, phone, model, service, date, time, notes, branchName, ticketCode } = body;
 
     const customerName = sanitizeString(name, 100);
     const rawPhone = String(phone || '');
@@ -122,11 +122,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    let verifiedTicketCode: string | null = null;
+    if (ticketCode) {
+      const foundTicket = await db.queryOne(
+        'SELECT SoPhieuSuaChua FROM PhieuSuaChua WHERE SoPhieuSuaChua = ?',
+        [sanitizeString(ticketCode, 50)]
+      );
+      if (foundTicket) verifiedTicketCode = foundTicket.SoPhieuSuaChua;
+    }
+
     const bookingId = 'rb_' + Date.now();
     await db.execute(
       `INSERT INTO LichHenSuaChua
-       (MaLichHen, SoLichHen, MaKhachHang, DongMay, TenDichVu, NgayHen, GioHen, GhiChu, ChiNhanh, TrangThai, NgayTao, NgayCapNhat)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW(), NOW())`,
+       (MaLichHen, SoLichHen, MaKhachHang, DongMay, TenDichVu, NgayHen, GioHen, GhiChu, SoPhieuSuaChua, ChiNhanh, TrangThai, NgayTao, NgayCapNhat)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW(), NOW())`,
       [
         bookingId,
         bookingCode,
@@ -136,6 +145,7 @@ export async function POST(request: NextRequest) {
         String(date || new Date().toISOString().substring(0, 10)),
         String(time || '10:00'),
         notes ? sanitizeString(notes, 500) : null,
+        verifiedTicketCode,
         branchName || 'iShop Huy Hoàng - Chi Nhánh Thủ Đức',
       ]
     );

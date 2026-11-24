@@ -15,6 +15,7 @@ import {
   Sparkles,
   AlertCircle,
   Check,
+  Headphones,
 } from 'lucide-react';
 import { IShopStore } from '@/ThuVien/KhoDuLieu';
 import { AccessoryProduct } from '@/ThuVien/KieuDuLieu';
@@ -92,11 +93,18 @@ export default function AccessoryDetailPage() {
         <div className="lg:col-span-6 space-y-4">
           <div className="bg-white rounded-3xl p-8 border border-slate-200 text-center relative shadow-lg">
             <div className="relative aspect-square max-w-md mx-auto rounded-2xl overflow-hidden bg-gradient-to-b from-slate-100 to-slate-200/80 border border-slate-200 p-6 flex items-center justify-center">
-              <img
-                src={accessory.imageUrl}
-                alt={accessory.name}
-                className="w-full h-full object-contain"
-              />
+              {accessory.imageUrl ? (
+                <img
+                  src={accessory.imageUrl}
+                  alt={accessory.name}
+                  className="w-full h-full object-contain"
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center gap-2 text-slate-400">
+                  <Headphones className="w-14 h-14" />
+                  <span className="text-xs font-semibold">Chưa có ảnh phụ kiện</span>
+                </div>
+              )}
             </div>
             <div className="text-xs text-slate-500 mt-3">
               Mã Barcode: <strong className="font-mono text-slate-900 font-bold">{accessory.barcode}</strong>

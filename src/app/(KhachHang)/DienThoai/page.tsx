@@ -24,7 +24,7 @@ export default function PhonesPage() {
     fetch(`/Api/DienThoai?_t=${Date.now()}`, { cache: 'no-store' })
       .then((res) => res.json())
       .then((json) => {
-        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+        if (json.success && Array.isArray(json.data)) {
           setPhones(json.data);
         }
       })
@@ -80,8 +80,8 @@ export default function PhonesPage() {
 
   const handleQuickAddToCart = (phone: PhoneProduct) => {
     const qty = phoneQuantities[phone.id] || 1;
-    const lowestCapacity = phone.capacities[0];
-    const defaultColor = phone.colors[0];
+    const lowestCapacity = phone.capacities?.[0];
+    const defaultColor = phone.colors?.[0];
 
     const result = IShopStore.addToCart({
       productId: phone.id,

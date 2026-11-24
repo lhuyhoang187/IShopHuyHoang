@@ -61,7 +61,7 @@ export default function AdminLayout({
   const [isAuthenticating, setIsAuthenticating] = useState(false);
 
   const loadAdminState = () => {
-    let user = IShopStore.getStaffUser();
+    const user = IShopStore.getStaffUser();
     if (user?.avatar && user.avatar.length === 65535) {
       user.avatar = undefined;
     }

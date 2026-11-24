@@ -569,7 +569,7 @@ export default function RevenueAnalyticsSection({
     }
 
     let pPct = Math.round((pRev / totalRaw) * 100);
-    let aPct = Math.round((aRev / totalRaw) * 100);
+    const aPct = Math.round((aRev / totalRaw) * 100);
     let rPct = 100 - pPct - aPct;
 
     if (rPct < 0) {

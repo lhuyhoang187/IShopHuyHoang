@@ -317,21 +317,6 @@ export default function AdminPromotionsPage() {
     );
   };
 
-  // Select all / toggle for phones
-  const handleToggleSelectAllPhones = () => {
-    if (selectedPhoneIds.length === filteredPhones.length) {
-      setSelectedPhoneIds([]);
-    } else {
-      setSelectedPhoneIds(filteredPhones.map((p) => p.id));
-    }
-  };
-
-  const handleToggleSelectPhone = (id: string) => {
-    setSelectedPhoneIds((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-    );
-  };
-
   // Filtered phones list
   const filteredPhones = useMemo(() => {
     return phones.filter((p) => {
@@ -352,6 +337,21 @@ export default function AdminPromotionsPage() {
       return true;
     });
   }, [phones, phoneBrandFilter, phoneDiscountFilter, phoneSearch]);
+
+  // Select all / toggle for phones
+  const handleToggleSelectAllPhones = () => {
+    if (selectedPhoneIds.length === filteredPhones.length) {
+      setSelectedPhoneIds([]);
+    } else {
+      setSelectedPhoneIds(filteredPhones.map((p) => p.id));
+    }
+  };
+
+  const handleToggleSelectPhone = (id: string) => {
+    setSelectedPhoneIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
 
   // Unique brands
   const phoneBrands = useMemo(() => {

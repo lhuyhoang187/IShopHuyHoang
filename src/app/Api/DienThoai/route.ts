@@ -343,7 +343,7 @@ export async function POST(request: NextRequest) {
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)+/g, '');
 
-    let brandRow = await db.queryOne(
+    const brandRow = await db.queryOne(
       'SELECT MaThuongHieu AS id FROM ThuongHieuDienThoai WHERE TenThuongHieu = ? OR DuongDan = ?',
       [cleanBrand, brandSlug]
     );
