@@ -1,0 +1,478 @@
+erDiagram
+    %% ======================================================
+    %% iShop Huy Hoàng - Sơ Đồ Quan Hệ Cơ Sở Dữ Liệu 3NF (28 Bảng, 22 Khóa Ngoại)
+    %% Tất cả tên bảng và cột đã chuẩn hóa sang Tiếng Việt PascalCase
+    %% ======================================================
+
+    DanhMucLinhKien ||--o{ LinhKienSuaChua : "MaDanhMuc"
+    DanhMucPhuKien ||--o{ SanPhamPhuKien : "MaDanhMuc"
+    DonNhapHang ||--o{ ChiTietDonNhapHang : "SoDonNhap"
+    HoaDon ||--o{ ChiTietHoaDon : "SoHoaDon"
+    HoaDon ||--o{ KhoDienThoai : "SoHoaDonBan"
+    KhachHang ||--o{ HoaDon : "MaKhachHang"
+    KhachHang ||--o{ LichHenSuaChua : "MaKhachHang"
+    KhachHang ||--o{ PhieuSuaChua : "MaKhachHang"
+    LinhKienSuaChua ||--o{ LinhKienPhieuSuaChua : "MaLinhKien"
+    LinhKienSuaChua ||--o{ TuongThichLinhKien : "MaLinhKien"
+    MauSacDienThoai ||--o{ BienTheDienThoai : "MaMauSac"
+    NguoiDung ||--o{ PhieuSuaChua : "MaKyThuatVien"
+    NhaCungCap ||--o{ DonNhapHang : "MaNhaCungCap"
+    NhaCungCap ||--o{ KhoDienThoai : "MaNhaCungCap"
+    PhieuSuaChua ||--o{ LichHenSuaChua : "SoPhieuSuaChua"
+    PhieuSuaChua ||--o{ LichSuTrangThaiSuaChua : "SoPhieuSuaChua"
+    PhieuSuaChua ||--o{ LinhKienPhieuSuaChua : "SoPhieuSuaChua"
+    SanPhamDienThoai ||--o{ KhoDienThoai : "MaDienThoai"
+    SanPhamDienThoai ||--o{ MauSacDienThoai : "MaDienThoai"
+    ThuongHieuDienThoai ||--o{ DichVuSuaChua : "MaThuongHieu"
+    ThuongHieuDienThoai ||--o{ SanPhamDienThoai : "MaThuongHieu"
+    ThuongHieuDienThoai ||--o{ TuyChonDatLichSuaChua : "MaThuongHieu"
+
+    %% ======================================================
+    %% CHI TIẾT 28 THỰC THỂ CHUẨN HÓA 3NF
+    %% ======================================================
+
+    BienTheDienThoai {
+        varchar MaBienThe PK
+        varchar MaMauSac FK
+        varchar DungLuong
+        double GiaBan
+        double GiaGoc
+        tinyint HetHang
+        datetime NgayTao
+        datetime NgayCapNhat
+    }
+
+    CauHinhCuaHang {
+        varchar MaCauHinh PK
+        varchar TenCuaHang
+        varchar DuongDayNong
+        varchar DiaChi
+        varchar Email
+        varchar MaNganHang
+        varchar SoTaiKhoan
+        varchar TenTaiKhoan
+        varchar GhiChuBaoHanhMacDinh
+        datetime NgayCapNhat
+        tinyint DuyetGiamGiaBanHang
+        varchar ChanTrangHoaDon
+        varchar ChinhSachDoiTra
+    }
+
+    ChiTietDonNhapHang {
+        varchar MaChiTietNhap PK
+        varchar SoDonNhap FK
+        varchar LoaiSanPham
+        varchar MaSanPham
+        varchar TenSanPham
+        varchar MauSac
+        varchar DungLuong
+        int SoLuong
+        double DonGiaNhap
+        double ThanhTien
+        varchar SoIMEI
+        datetime NgayTao
+    }
+
+    ChiTietHoaDon {
+        varchar MaChiTiet PK
+        varchar SoHoaDon FK
+        varchar LoaiSanPham
+        varchar MaSanPham
+        varchar TenSanPham
+        varchar SoIMEI
+        varchar MauSac
+        varchar DungLuong
+        double DonGia
+        double GiaVon
+        int SoLuong
+        double GiamGia
+        double ThanhTien
+        int SoThangBaoHanh
+        datetime NgayTao
+        datetime NgayCapNhat
+    }
+
+    DanhMucLinhKien {
+        varchar MaDanhMuc PK
+        varchar MaCode UK
+        varchar TenDanhMuc
+        text MoTa
+        int ThuTuHienThi
+        tinyint DangHoatDong
+        datetime NgayTao
+        datetime NgayCapNhat
+    }
+
+    DanhMucMauSac {
+        varchar MaMauDanhMuc PK
+        varchar TenMau UK
+        varchar MaMauHex
+        int ThuTuHienThi
+        datetime NgayTao
+        datetime NgayCapNhat
+    }
+
+    DanhMucPhuKien {
+        varchar MaDanhMuc PK
+        varchar MaCode UK
+        varchar TenDanhMuc
+        text MoTa
+        varchar BieuTuong
+        int ThuTuHienThi
+        tinyint DangHoatDong
+        datetime NgayTao
+        datetime NgayCapNhat
+    }
+
+    DichVuSuaChua {
+        varchar MaDichVu PK
+        varchar TenDichVu
+        varchar DanhMuc
+        varchar MaThuongHieu FK
+        text CacDongMay
+        double GiaDichVu
+        double GiaGoc
+        varchar ThoiHanBaoHanh
+        int ThoiGianDuKienPhut
+        text MoTa
+        tinyint DichVuNoiBat
+        tinyint DangHoatDong
+        datetime NgayTao
+        datetime NgayCapNhat
+    }
+
+    DonNhapHang {
+        varchar MaDonNhap PK
+        varchar SoDonNhap UK
+        varchar MaNhaCungCap FK
+        varchar NgayNhap
+        varchar LoaiNhap
+        text TomTatSanPham
+        double TongTien
+        double DaThanhToan
+        double ConNo
+        varchar TrangThai
+        text GhiChu
+        datetime NgayTao
+        datetime NgayCapNhat
+    }
+
+    HoaDon {
+        varchar MaHoaDon PK
+        varchar SoHoaDon UK
+        varchar MaKhachHang FK
+        double TamTinh
+        double GiamGia
+        double TongTien
+        varchar PhuongThucThanhToan
+        double TienKhachDua
+        double TienThua
+        varchar TenThuNgan
+        datetime NgayTao
+        text GhiChuBaoHanh
+        datetime NgayCapNhat
+        text GhiChuDuyet
+        datetime NgayDuyet
+        varchar NguoiDuyet
+        double TienCoc
+        double PhanTramCoc
+        varchar NgayGiaoDuKien
+        tinyint LaDonLon
+        tinyint LaDonDatTruoc
+        int DiemTichDuoc
+        double TienConLai
+        varchar TrangThai
+    }
+
+    KhachHang {
+        varchar MaKhachHang PK
+        varchar HoTen
+        varchar SoDienThoai UK
+        varchar Email
+        varchar DiaChi
+        double TongChiTieu
+        int DiemTichLuy
+        int SoLanMua
+        int SoLanSuaChua
+        datetime NgayTao
+        datetime NgayCapNhat
+        longtext AnhDaiDien
+        varchar NgaySinh
+        varchar ThanhPho
+        varchar LoaiKhachHang
+        varchar GioiTinh
+        varchar HangThanhVien
+        text GhiChu
+        varchar MatKhau
+        varchar MaSoThue
+    }
+
+    KhoDienThoai {
+        varchar SoIMEI PK
+        varchar MaDienThoai FK
+        varchar MauSac
+        varchar DungLuong
+        double GiaVon
+        double GiaBan
+        varchar MaNhaCungCap FK
+        varchar NgayNhap
+        varchar TrangThai
+        int SoThangBaoHanh
+        varchar NgayBan
+        varchar SoHoaDonBan FK
+        datetime NgayTao
+        datetime NgayCapNhat
+        int DiemThuong
+    }
+
+    KhuyenMai {
+        varchar MaKhuyenMai PK
+        varchar LoaiKhuyenMai
+        varchar MaGiamGia UK
+        varchar TieuDe
+        text MoTa
+        varchar NhanHienThi
+        varchar LoaiGiamGia
+        double GiaTriGiam
+        double DonToiThieu
+        datetime NgayBatDau
+        datetime NgayKetThuc
+        tinyint DangHoatDong
+        varchar DanhMucApDung
+        varchar KieuBanner
+        text DuLieuQR
+        datetime NgayTao
+        datetime NgayCapNhat
+    }
+
+    LichHenSuaChua {
+        varchar MaLichHen PK
+        varchar SoLichHen UK
+        varchar MaKhachHang FK
+        varchar DongMay
+        varchar TenDichVu
+        varchar NgayHen
+        varchar GioHen
+        text GhiChu
+        varchar TrangThai
+        varchar SoPhieuSuaChua FK
+        varchar ChiNhanh
+        datetime NgayTao
+        datetime NgayCapNhat
+    }
+
+    LichSuTrangThaiSuaChua {
+        varchar MaLichSu PK
+        varchar SoPhieuSuaChua FK
+        varchar TrangThai
+        varchar TenTrangThai
+        text GhiChu
+        varchar NguoiCapNhat
+        datetime NgayTao
+    }
+
+    LinhKienPhieuSuaChua {
+        varchar MaChiTietLinhKien PK
+        varchar SoPhieuSuaChua FK
+        varchar MaLinhKien FK
+        int SoLuong
+        double GiaVon
+        double DonGia
+        int SoThangBaoHanh
+        datetime NgayTao
+    }
+
+    LinhKienSuaChua {
+        varchar MaLinhKien PK
+        varchar TenLinhKien
+        varchar MaDanhMuc FK
+        varchar MaVach UK
+        double GiaVon
+        double GiaThayThe
+        int TonKho
+        varchar DonViTinh
+        int SoThangBaoHanh
+        datetime NgayTao
+        datetime NgayCapNhat
+    }
+
+    MauSacDienThoai {
+        varchar MaMauSac PK
+        varchar MaDienThoai FK
+        varchar TenMau
+        varchar MaMauHex
+        text HinhAnh
+        int ThuTuHienThi
+        datetime NgayTao
+        datetime NgayCapNhat
+    }
+
+    NguoiDung {
+        varchar MaNguoiDung PK
+        varchar TenDangNhap UK
+        varchar MatKhau
+        varchar HoTen
+        varchar VaiTro
+        longtext AnhDaiDien
+        datetime NgayTao
+        varchar Email UK
+        tinyint DangHoatDong
+        varchar SoDienThoai
+        datetime NgayCapNhat
+        varchar DiaChi
+        text GioiThieu
+        varchar NgaySinh
+        varchar PhongBan
+    }
+
+    NhaCungCap {
+        varchar MaNhaCungCap PK
+        varchar TenNhaCungCap
+        varchar SoDienThoai
+        varchar Email
+        varchar DiaChi
+        varchar NguoiLienHe
+        double TongGiaTriNhap
+        double CongNoHienTai
+        datetime NgayTao
+        datetime NgayCapNhat
+    }
+
+    PhanQuyenVaiTro {
+        varchar MaQuyen PK
+        varchar PhanHe
+        varchar NhomChucNang
+        text MoTa
+        tinyint QuyenQuanTri
+        tinyint QuyenKyThuat
+        tinyint QuyenThuNgan
+        datetime NgayTao
+        datetime NgayCapNhat
+    }
+
+    PhieuSuaChua {
+        varchar MaPhieuSuaChua PK
+        varchar SoPhieuSuaChua UK
+        varchar MaKhachHang FK
+        varchar DongMay
+        varchar SoIMEIHoacSerial
+        varchar MatKhauMoKhoa
+        text TinhTrangNgoaiHinh
+        text PhuKienKemTheo
+        text MoTaLoi
+        text GhiChuKyThuatVien
+        varchar TrangThai
+        double TienCong
+        double TongTien
+        varchar NgayTraDuKien
+        varchar ThoiGianTiepNhan
+        varchar ThoiGianBanGiao
+        varchar MaKyThuatVien FK
+        text ThoiHanBaoHanh
+        datetime NgayTao
+        datetime NgayCapNhat
+        varchar NguoiPhanCong
+        int HanXuLyPhut
+        varchar ThoiHanHoanThanh
+    }
+
+    SanPhamDienThoai {
+        varchar MaDienThoai PK
+        varchar TenDienThoai
+        varchar DuongDan UK
+        varchar MaThuongHieu FK
+        text MoTa
+        double DanhGia
+        int SoLuotDanhGia
+        tinyint SanPhamNoiBat
+        tinyint SanPhamMoi
+        varchar ManHinh
+        varchar ChipXuLy
+        varchar Ram
+        varchar BoNhoTrong
+        varchar CameraSau
+        varchar CameraTruoc
+        varchar DungLuongPin
+        varchar CongNgheSac
+        varchar HeDieuHanh
+        varchar Sim
+        varchar KhangNuoc
+        varchar TrongLuong
+        text ThongTinBaoHanh
+        datetime NgayTao
+        datetime NgayCapNhat
+    }
+
+    SanPhamPhuKien {
+        varchar MaPhuKien PK
+        varchar TenPhuKien
+        varchar DuongDan UK
+        varchar MaDanhMuc FK
+        varchar MaVach UK
+        varchar ThuongHieu
+        double GiaVon
+        double GiaBan
+        double GiaGoc
+        int TonKho
+        int CanhBaoTonToiThieu
+        text HinhAnh
+        text MoTa
+        text ThongSo
+        text TuongThich
+        int GiamGiaKhiMuaKem
+        datetime NgayTao
+        datetime NgayCapNhat
+        int DiemDoiQua
+        int DiemThuong
+    }
+
+    SoQuy {
+        varchar MaPhieu PK
+        varchar MaCodePhieu UK
+        varchar NgayGiaoDich
+        varchar LoaiPhieu
+        varchar HangMuc
+        double SoTien
+        varchar PhuongThucThanhToan
+        varchar MaThamChieu
+        text MoTa
+        varchar NguoiTao
+        datetime NgayTao
+        datetime NgayCapNhat
+    }
+
+    ThuongHieuDienThoai {
+        varchar MaThuongHieu PK
+        varchar TenThuongHieu UK
+        varchar DuongDan UK
+        text Logo
+        text MoTa
+        varchar QuocGia
+        int ThuTuHienThi
+        tinyint DangHoatDong
+        datetime NgayTao
+        datetime NgayCapNhat
+    }
+
+    TuongThichLinhKien {
+        varchar MaTuongThich PK
+        varchar MaLinhKien FK
+        varchar DongMay
+        datetime NgayTao
+    }
+
+    TuyChonDatLichSuaChua {
+        varchar MaTuyChon PK
+        varchar LoaiTuyChon
+        varchar MaThuongHieu FK
+        varchar MaCode
+        varchar TenHienThi
+        varchar NhanPhu
+        text MoTa
+        varchar BieuTuong
+        int ThuTuHienThi
+        tinyint DangHoatDong
+        datetime NgayTao
+        datetime NgayCapNhat
+    }
+

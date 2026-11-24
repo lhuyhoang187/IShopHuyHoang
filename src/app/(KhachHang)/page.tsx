@@ -1,0 +1,1599 @@
+'use client';
+
+import React, { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
+import { motion } from 'framer-motion';
+import {
+  Smartphone,
+  ShieldCheck,
+  Zap,
+  ArrowRight,
+  ArrowUp,
+  Scale,
+  Wrench,
+  Headphones,
+  CheckCircle2,
+  Tag,
+  Clock,
+  Sparkles,
+  Search,
+  Flame,
+  Star,
+  ChevronRight,
+  Award,
+  MapPin,
+  Phone,
+  Users,
+  Building2,
+  QrCode,
+  ShoppingCart,
+  Compass,
+  Plus,
+  Minus,
+  Check,
+  Mic,
+  AlertCircle,
+  AlertTriangle,
+  PackageCheck,
+} from 'lucide-react';
+import { IShopStore } from '@/ThuVien/KhoDuLieu';
+import { PhoneProduct, AccessoryProduct } from '@/ThuVien/KieuDuLieu';
+import { formatVND } from '@/ThuVien/ThanhToanVietQR';
+function FadeInUp({
+  children,
+  delay = 0,
+  className = '',
+}: {
+  children: React.ReactNode;
+  delay?: number;
+  className?: string;
+}) {
+  const [isVisible, setIsVisible] = useState(false);
+  const domRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+        }
+      },
+      { threshold: 0.1, rootMargin: '0px 0px -40px 0px' }
+    );
+
+    const current = domRef.current;
+    if (current) observer.observe(current);
+    return () => {
+      if (current) observer.unobserve(current);
+    };
+  }, []);
+
+  return (
+    <div
+      ref={domRef}
+      style={{ transitionDelay: `${delay}ms` }}
+      className={`transition-all duration-1000 ease-out transform ${
+        isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
+      } ${className}`}
+    >
+      {children}
+    </div>
+  );
+}
+
+function BrandMarquee() {
+  const brands = [
+    { name: 'Apple Authorized', label: 'APPLE AUTHORIZED' },
+    { name: 'Pisen Official', label: 'PISEN VIỆT NAM' },
+    { name: 'KingKong Armor', label: 'KINGKONG ARMOR' },
+    { name: 'Anker Prime', label: 'ANKER PRIME' },
+    { name: 'VietQR Napas', label: 'VIETQR NAPAS 247' },
+  ];
+  const repeated = [...brands, ...brands, ...brands, ...brands];
+
+  return (
+    <div
+      className="w-full overflow-hidden"
+      style={{
+        maskImage: 'linear-gradient(to right, transparent, black 15%, black 85%, transparent)',
+        WebkitMaskImage: 'linear-gradient(to right, transparent, black 15%, black 85%, transparent)',
+      }}
+    >
+      <div className="flex w-max animate-marquee items-center text-gray-400">
+        {repeated.map((brand, idx) => (
+          <div
+            key={`${brand.name}-${idx}`}
+            className="flex-shrink-0 px-8 opacity-75 hover:opacity-100 transition-opacity flex items-center gap-2 font-mono text-xs tracking-widest text-gray-200 uppercase font-bold"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+            <span>{brand.label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function StaggeredWords({
+  text,
+  startDelay = 0.5,
+  stagger = 0.08,
+  className = '',
+}: {
+  text: string;
+  startDelay?: number;
+  stagger?: number;
+  className?: string;
+}) {
+  const words = text.split(' ');
+  return (
+    <span className={className}>
+      {words.map((word, index) => (
+        <span
+          key={`${word}-${index}`}
+          className="inline-block whitespace-pre"
+          style={{
+            animation: 'fadeSlideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+            animationDelay: `${startDelay + index * stagger}s`,
+            opacity: 0,
+          }}
+        >
+          {word}
+          {index < words.length - 1 ? ' ' : ''}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+export default function CustomerHomePage() {
+  const [phones, setPhones] = useState<PhoneProduct[]>([]);
+  const [accessories, setAccessories] = useState<AccessoryProduct[]>([]);
+  const [selectedBrand, setSelectedBrand] = useState<string>('All');
+  const [homeSearch, setHomeSearch] = useState<string>('');
+  const [homeStorage, setHomeStorage] = useState<string>('All');
+  const [homeSort, setHomeSort] = useState<'default' | 'asc' | 'desc'>('default');
+  const [showAllHomePhones, setShowAllHomePhones] = useState<boolean>(false);
+  const [compareIds, setCompareIds] = useState<string[]>([]);
+  const [heroColorIdx, setHeroColorIdx] = useState<number>(0);
+  const [phoneQuantities, setPhoneQuantities] = useState<Record<string, number>>({});
+  const [toastMessage, setToastMessage] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  // Scroll Motion & Direction State
+  const [scrollProgress, setScrollProgress] = useState<number>(0);
+  const [scrollDirection, setScrollDirection] = useState<'up' | 'down'>('down');
+  const [showScrollTop, setShowScrollTop] = useState<boolean>(false);
+  const lastScrollY = useRef<number>(0);
+
+  // Video Hero Controls
+  const [videoLoaded, setVideoLoaded] = useState<boolean>(true);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
+
+  const videoUrl = 'https://cdn.sceneai.art/Hero%20Section%20Video/1bcc8fa3-37f6-4c53-8591-0347e4c7f8ac.mp4';
+
+  // Đảm bảo video nền luôn tự động phát (autoplay) mượt mà không bị chặn
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.defaultMuted = true;
+      videoRef.current.muted = true;
+      videoRef.current.play().catch(() => {});
+    }
+  }, [videoUrl]);
+
+  const loadData = () => {
+    setPhones(IShopStore.getPhones());
+    setAccessories(IShopStore.getAccessories());
+    setCompareIds(IShopStore.getComparisonList());
+  };
+
+  useEffect(() => {
+    loadData();
+    const listener = () => loadData();
+    window.addEventListener('ishop_data_changed', listener);
+    return () => window.removeEventListener('ishop_data_changed', listener);
+  }, []);
+
+  // Lắng nghe thao tác cuộn con trỏ (Scroll Tracking: hướng cuộn + tiến trình % cuộn)
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentY = window.scrollY;
+      const totalHeight = document.documentElement.scrollHeight - window.innerHeight;
+      const progress = totalHeight > 0 ? (currentY / totalHeight) * 100 : 0;
+
+      setScrollProgress(Math.min(100, Math.max(0, Math.round(progress))));
+      setShowScrollTop(currentY > 280);
+
+      if (currentY < lastScrollY.current - 5) {
+        setScrollDirection('up');
+      } else if (currentY > lastScrollY.current + 5) {
+        setScrollDirection('down');
+      }
+      lastScrollY.current = currentY;
+
+      // Đồng bộ thanh tiến trình trên đỉnh màn hình
+      const bar = document.getElementById('scroll-progress-bar');
+      if (bar) {
+        bar.style.transform = `scaleX(${progress / 100})`;
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Hiệu ứng cuộn con trỏ từ ngoài di chuyển vào (IntersectionObserver)
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-revealed');
+          }
+        });
+      },
+      {
+        threshold: 0.08,
+        rootMargin: '0px 0px -40px 0px',
+      }
+    );
+
+    const elements = document.querySelectorAll(
+      '.reveal-on-scroll, .reveal-fly-left, .reveal-fly-right, .reveal-zoom-in, .reveal-fly-up'
+    );
+    elements.forEach((el) => observer.observe(el));
+
+    return () => observer.disconnect();
+  }, [phones, accessories]);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const availableBrands = Array.from(new Set(phones.map((p) => p.brand).filter(Boolean)));
+  const availableStorages = Array.from(
+    new Set(phones.flatMap((p) => (p.capacities || []).map((c) => c.size)).filter(Boolean))
+  );
+
+  const filteredPhones = phones
+    .filter((p) => (selectedBrand === 'All' ? true : p.brand === selectedBrand))
+    .filter((p) => {
+      if (homeStorage === 'All') return true;
+      return (p.capacities || []).some((c) => c.size.includes(homeStorage));
+    })
+    .filter((p) => {
+      if (!homeSearch.trim()) return true;
+      const q = homeSearch.toLowerCase().trim();
+      return (
+        p.name.toLowerCase().includes(q) ||
+        p.brand.toLowerCase().includes(q) ||
+        (p.specs?.chip && p.specs.chip.toLowerCase().includes(q))
+      );
+    })
+    .sort((a, b) => {
+      if (homeSort === 'asc') return (a.capacities?.[0]?.price || 0) - (b.capacities?.[0]?.price || 0);
+      if (homeSort === 'desc') return (b.capacities?.[0]?.price || 0) - (a.capacities?.[0]?.price || 0);
+      return 0;
+    });
+
+  const displayedHomePhones = showAllHomePhones ? filteredPhones : filteredPhones.slice(0, 6);
+
+  const showcaseFallbackColors = [
+    {
+      id: 'showcase-desert',
+      name: 'Titan Sa Mạc',
+      hex: '#c8a986',
+      imageUrl: '/HinhAnh/TrungBay/iPhone18TitanSaMac.jpg',
+    },
+    {
+      id: 'showcase-black',
+      name: 'Titan Đen',
+      hex: '#1f2328',
+      imageUrl: '/HinhAnh/TrungBay/iPhone18TitanDen.jpg',
+    },
+    {
+      id: 'showcase-natural',
+      name: 'Titan Tự Nhiên',
+      hex: '#b8b6b0',
+      imageUrl: '/HinhAnh/TrungBay/iPhone18TitanTuNhien.jpg',
+    },
+  ];
+
+  const heroPhone = phones.find((p) => p.slug === 'iphone-18-pro-max' || p.slug === 'iphone-duo') || phones[0];
+  const heroColors = heroPhone?.colors && heroPhone.colors.length > 0 ? heroPhone.colors : showcaseFallbackColors;
+  const activeHeroColor = heroColors[heroColorIdx] || heroColors[0];
+  const heroDisplayName = heroPhone?.name || 'iPhone 18 Pro Max';
+  const heroDisplayStorage = heroPhone?.capacities?.[0]?.size || '256GB';
+  const heroDisplayPrice = heroPhone?.capacities?.[0]?.price || 34990000;
+  const heroDisplayOriginalPrice = heroPhone?.capacities?.[0]?.originalPrice || 36990000;
+
+  return (
+    <div className="space-y-28 pb-28 relative">
+      {/* 0. Thanh Chỉ Báo Tiến Trình Cuộn Con Trỏ (Scroll Progress Bar 2026) */}
+      <div
+        id="scroll-progress-bar"
+        aria-hidden="true"
+        style={{ transform: `scaleX(${scrollProgress / 100})` }}
+      />
+
+      {/* Injected Custom Keyframe Animations */}
+      <style>{`
+        @keyframes fadeSlideUp {
+          0% {
+            opacity: 0;
+            transform: translateY(28px);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes fadeIn {
+          0% {
+            opacity: 0;
+          }
+          100% {
+            opacity: 1;
+          }
+        }
+
+        @keyframes shimmerGlow {
+          0%, 100% {
+            box-shadow: 0 0 25px rgba(226, 183, 116, 0.25);
+          }
+          50% {
+            box-shadow: 0 0 45px rgba(226, 183, 116, 0.55);
+          }
+        }
+
+        .cta-btn-animation {
+          animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          animation-delay: 2.3s;
+          opacity: 0;
+        }
+
+        .shimmer-badge {
+          animation: shimmerGlow 3s infinite ease-in-out;
+        }
+      `}</style>
+
+      {/* 1. CINEMATIC VIDEO HERO SECTION - Chữ to, nổi bật, video chuyển động mượt mà */}
+      <section className="hero-theme-section relative min-h-[88vh] sm:min-h-screen w-full text-white overflow-hidden flex flex-col justify-between border-b border-amber-500/20 shadow-2xl">
+        {/* Full Screen Background Video */}
+        {/* Cinematic Video Background with Harmonious Titanium Desert Blend */}
+        <div className="absolute inset-0 w-full h-full overflow-hidden z-0">
+          <video
+            ref={videoRef}
+            autoPlay
+            loop
+            muted
+            playsInline
+            preload="auto"
+            onLoadedData={() => setVideoLoaded(true)}
+            onCanPlay={() => setVideoLoaded(true)}
+            onPlay={() => setVideoLoaded(true)}
+            className="absolute inset-0 w-full h-full object-cover scale-105 opacity-90 z-0 transition-opacity duration-700"
+            src={videoUrl}
+          >
+            <source src={videoUrl} type="video/mp4" />
+          </video>
+          
+          {/* Lớp phủ sáng nhẹ trong suốt, giữ trọn ánh sáng rực rỡ sắc nét của video */}
+          <div className="absolute inset-0 bg-slate-950/20 z-10" />
+          
+          {/* Gradient mềm mại chuyển tiếp tự nhiên */}
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-950/35 via-transparent to-slate-950/50 pointer-events-none z-10" />
+          
+          {/* Quầng sáng đa sắc Apple Intelligence trung tâm (Luminous Aurora Ambient Aura) */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[750px] h-[500px] bg-gradient-to-r from-amber-400/20 via-sky-400/15 to-purple-400/20 rounded-full blur-[140px] pointer-events-none z-10" />
+        </div>
+
+        {/* Main Center Content with Word-By-Word Staggered Animation & Cỡ Chữ To Lớn */}
+        <div className="relative z-20 flex-1 flex flex-col items-center justify-center text-center px-6 sm:px-12 py-16 max-w-5xl mx-auto my-auto">
+          {/* Top Badge */}
+          <FadeInUp delay={100}>
+            <div className="px-4 py-2 rounded-full bg-slate-950/60 border border-white/20 text-xs font-bold text-slate-100 mb-8 backdrop-blur-md inline-flex items-center gap-2 shadow-lg">
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              <span>✨ Showroom Flagship 2026 • iShop Huy Hoàng</span>
+            </div>
+          </FadeInUp>
+
+          {/* Main Heading */}
+          <FadeInUp delay={250}>
+            <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight mb-6 text-center leading-[1.12] text-white drop-shadow-2xl">
+              Đẳng cấp Apple <br className="hidden sm:inline" />
+              cho những{' '}
+              <span className="font-serif italic font-normal text-amber-300 inline-block whitespace-nowrap drop-shadow-lg">
+                quyết định.
+              </span>
+            </h1>
+          </FadeInUp>
+
+          {/* Secondary Text */}
+          <FadeInUp delay={400}>
+            <p className="text-[17px] text-slate-100 max-w-2xl text-center leading-relaxed mb-10 mx-auto drop-shadow-md font-medium">
+              Hệ thống bán lẻ iPhone 18 Series &amp; siêu phẩm màn hình gập iPhone Duo 100% nguyên seal chưa active, bảo hành 1 đổi 1 trong 30 ngày và dịch vụ sửa chữa iCare 30 phút lấy liền minh bạch số 1 TP.HCM.
+            </p>
+          </FadeInUp>
+
+          {/* CTA Buttons - Vào thẳng trang chủ */}
+          <FadeInUp delay={550}>
+            <div className="flex flex-wrap items-center justify-center gap-4">
+              <Link
+                href="/DienThoai"
+                className="bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white text-sm font-extrabold px-8 py-3.5 rounded-full shadow-[0_0_30px_rgba(245,158,11,0.4)] hover:scale-105 transition-all"
+              >
+                Khám Phá iPhone 18 &amp; Duo
+              </Link>
+              <Link
+                href="/GioiThieu"
+                className="bg-slate-950/80 hover:bg-slate-900 text-white text-sm font-bold px-8 py-3.5 rounded-full border border-white/20 backdrop-blur-md shadow-lg transition-all hover:scale-105"
+              >
+                Tìm Hiểu Về Shop
+              </Link>
+            </div>
+          </FadeInUp>
+
+          {/* Marquee: Được các nhà lãnh đạo ngành tin dùng */}
+          <div className="w-full mt-20">
+            <FadeInUp delay={700}>
+              <p className="text-sm text-slate-200 font-bold mb-8 text-center drop-shadow-md">
+                Được các nhà lãnh đạo ngành & hơn 50.000 khách hàng tin dùng
+              </p>
+              <BrandMarquee />
+            </FadeInUp>
+          </div>
+
+          {/* 4 Feature Chips - Di chuyển vào mềm mại */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 mt-12 w-full max-w-4xl opacity-95">
+            <Link
+              href="/DienThoai/iphone-18-pro-max"
+              className="p-4 rounded-2xl bg-slate-950/60 hover:bg-slate-900/80 border border-white/20 hover:border-amber-400/80 backdrop-blur-md text-left transition-all group shadow-xl"
+            >
+              <div className="flex items-center gap-2 text-amber-400 mb-1.5">
+                <Smartphone className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                <span className="text-sm sm:text-base font-extrabold text-white">iPhone 18 &amp; Duo</span>
+              </div>
+              <p className="text-xs sm:text-sm text-slate-200 font-medium">Chip A20 Pro 2nm, 100% Seal</p>
+            </Link>
+
+            <Link
+              href="/BaoHanh"
+              className="p-4 rounded-2xl bg-slate-950/60 hover:bg-slate-900/80 border border-white/20 hover:border-emerald-400/80 backdrop-blur-md text-left transition-all group shadow-xl"
+            >
+              <div className="flex items-center gap-2 text-emerald-400 mb-1.5">
+                <ShieldCheck className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                <span className="text-sm sm:text-base font-extrabold text-white">Bảo Hành IMEI</span>
+              </div>
+              <p className="text-xs sm:text-sm text-slate-200 font-medium">12 tháng 1 đổi 1 tận nơi</p>
+            </Link>
+
+            <Link
+              href="/SuaChua"
+              className="p-4 rounded-2xl bg-slate-950/60 hover:bg-slate-900/80 border border-white/20 hover:border-cyan-400/80 backdrop-blur-md text-left transition-all group shadow-xl"
+            >
+              <div className="flex items-center gap-2 text-cyan-400 mb-1.5">
+                <Wrench className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                <span className="text-sm sm:text-base font-extrabold text-white">iCare 30 Phút</span>
+              </div>
+              <p className="text-xs sm:text-sm text-slate-200 font-medium">Xem trực tiếp, lấy liền</p>
+            </Link>
+
+            <Link
+              href="/ThanhToan"
+              className="p-4 rounded-2xl bg-slate-950/60 hover:bg-slate-900/80 border border-white/20 hover:border-purple-400/80 backdrop-blur-md text-left transition-all group shadow-xl"
+            >
+              <div className="flex items-center gap-2 text-purple-400 mb-1.5">
+                <Zap className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                <span className="text-sm sm:text-base font-extrabold text-white">Napas 247</span>
+              </div>
+              <p className="text-xs sm:text-sm text-slate-200 font-medium">VietQR thanh toán 0% phí</p>
+            </Link>
+          </div>
+        </div>
+
+        {/* Bottom Trust Line */}
+        <div className="hero-trust-line relative z-20 w-full px-6 sm:px-12 py-4 flex flex-col sm:flex-row items-center justify-between text-xs sm:text-sm text-gray-300 border-t border-white/10 backdrop-blur-md font-medium">
+          <div className="flex items-center gap-2.5">
+            <span>Hệ Thống Phân Phối Apple & Dịch Vụ iCare Chính Hãng 2026</span>
+          </div>
+
+          <div className="flex items-center gap-4 mt-2 sm:mt-0 font-mono text-xs sm:text-sm text-gray-300">
+            <span>Chi nhánh 1: 168 Đường 3/2, Q.10</span>
+            <span>•</span>
+            <span>Chi nhánh 2: 45 Lê Văn Việt, TP. Thủ Đức</span>
+            <span>•</span>
+            <span className="text-amber-400 font-bold">Hotline: 0988.888.999</span>
+          </div>
+        </div>
+      </section>
+
+      {/* 2. TEASER BANNER: VỀ iSHOP HUY HOÀNG - Tách ra trang riêng /about */}
+      <section
+        id="about-shop"
+        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 scroll-mt-28"
+      >
+        <div className="glass-panel rounded-3xl p-8 sm:p-12 border border-amber-300/70 relative overflow-hidden flex flex-col lg:flex-row items-center justify-between gap-8 shadow-xl">
+          {/* Subtle Background Nebula */}
+          <div className="absolute top-0 right-0 w-[450px] h-[450px] bg-amber-500/10 blur-[130px] rounded-full pointer-events-none" />
+
+          <div className="space-y-4 max-w-2xl text-center lg:text-left">
+            <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full badge-glow-gold text-xs sm:text-sm font-bold">
+              <Building2 className="w-4 h-4 text-amber-600" />
+              <span>CÂU CHUYỆN THƯƠNG HIỆU • 10 NĂM TỪ 2016</span>
+            </div>
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 leading-tight tracking-tight">
+              Về iShop Huy Hoàng <br />
+              <span className="text-gradient-gold">Đẳng Cấp Apple & Dịch Vụ iCare Số 1 TP.HCM</span>
+            </h2>
+            <p className="text-base sm:text-lg text-slate-600 font-normal leading-relaxed">
+              Hơn 10 năm phục vụ trên 50.000 khách hàng với tiêu chuẩn 100% nguyên seal chưa active, chính sách 1 đổi 1 trong 30 ngày và trung tâm kỹ thuật iCare sửa chữa minh bạch lấy liền trong 30 phút.
+            </p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-center gap-4 shrink-0">
+            <Link
+              href="/GioiThieu"
+              className="btn-dark px-8 py-4 rounded-full bg-slate-900 text-white font-black text-sm sm:text-base hover:bg-black transition-all shadow-xl hover:scale-105 inline-flex items-center gap-2"
+            >
+              <span className="text-white font-bold">Xem Câu Chuyện & Showroom</span>
+              <ArrowRight className="w-4 h-4 text-amber-400" />
+            </Link>
+            <Link
+              href="/GioiThieu"
+              className="px-6 py-4 rounded-full bg-white hover:bg-slate-50 text-slate-800 font-bold text-sm sm:text-base border border-slate-200 shadow-sm transition-all"
+            >
+              4 Cam Kết Vàng
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* =========================================================================
+          FEATURE 1: SHOWROOM SỐ & TRỢ LÝ TƯ VẤN iSHOP (id="features")
+          ========================================================================= */}
+      <section
+        id="features"
+        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 scroll-mt-28 overflow-hidden"
+      >
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+          {/* Văn bản bên trái: Bay từ TRÁI vào */}
+          <motion.div
+            initial={{ opacity: 0, x: -60 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true, amount: 0.15 }}
+            transition={{ duration: 1.4, ease: [0.25, 1, 0.5, 1] }}
+            style={{ willChange: 'transform, opacity' }}
+            className="space-y-6"
+          >
+            <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-700 bg-amber-50 px-3.5 py-1.5 rounded-full border border-amber-200">
+              <Sparkles className="w-4 h-4 text-amber-600" />
+              <span>✨ Showroom Số &amp; Trợ Lý Tư Vấn iShop</span>
+            </div>
+
+            <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900 leading-tight">
+              Nơi công nghệ gặp gỡ trải nghiệm mua sắm đỉnh cao.
+            </h2>
+
+            <p className="text-slate-600 text-base leading-relaxed">
+              Trợ lý thông minh giúp bạn lựa chọn phiên bản iPhone 18 Pro Max &amp; siêu phẩm màn hình gập iPhone Duo phù hợp nhất, so sánh dung lượng 256GB - 1TB, tính toán giá thu cũ đổi mới và kiểm tra tình trạng kho máy nguyên seal theo thời gian thực.
+            </p>
+
+            <div>
+              <Link
+                href="/DienThoai"
+                className="btn-dark inline-flex items-center gap-2 bg-slate-900 hover:bg-black text-white text-sm font-bold px-6 py-3.5 rounded-full shadow-lg transition-colors group"
+              >
+                <span className="text-white font-bold">Xem Kho Máy Nguyên Seal</span>
+                <ArrowRight className="w-4 h-4 text-amber-400 group-hover:translate-x-1 transition-transform" />
+              </Link>
+            </div>
+          </motion.div>
+
+          {/* Bản mô phỏng bên phải: Bay từ PHẢI vào */}
+          <motion.div
+            initial={{ opacity: 0, x: 60 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true, amount: 0.15 }}
+            transition={{ duration: 1.4, ease: [0.25, 1, 0.5, 1], delay: 0.15 }}
+            style={{ willChange: 'transform, opacity' }}
+          >
+            <div className="rounded-3xl overflow-hidden p-6 sm:p-8 border border-amber-200/70 relative min-h-[420px] flex flex-col justify-end shadow-2xl">
+              <video
+                autoPlay
+                loop
+                muted
+                playsInline
+                className="absolute inset-0 object-cover w-full h-full"
+                src="https://cdn.sceneai.art/Hero%20Section%20Video/736fd4a0-70ac-4f44-9633-55769ead6aca.mp4"
+              />
+              <div className="absolute inset-0 bg-black/20" />
+
+              {/* Thẻ phần tử UI nổi: Thẩm định giá thu cũ & Trợ giá lên đời trực tiếp */}
+              <div className="bg-white/95 backdrop-blur-xl border border-amber-200/80 rounded-2xl p-5 shadow-2xl relative z-10 space-y-3.5 text-slate-800">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="px-3 py-1 rounded-full bg-amber-50 text-xs text-amber-800 border border-amber-200 font-bold">
+                    ✨ Titan Sa Mạc 256GB
+                  </span>
+                  <span className="px-3 py-1 rounded-full bg-emerald-50 text-xs text-emerald-800 border border-emerald-200 font-bold">
+                    1 Đổi 1 trong 30 ngày
+                  </span>
+                  <span className="px-3 py-1 rounded-full bg-blue-50 text-xs text-blue-800 border border-blue-200 font-bold">
+                    Bảo Hành IMEI 12T
+                  </span>
+                </div>
+
+                {/* Khối Thẩm Định Trợ Giá Thu Cũ & Trạng Thái Kho (Thay thế thanh tìm kiếm) */}
+                <div className="p-3.5 rounded-xl bg-amber-50/50 border border-amber-300/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-extrabold text-emerald-700 uppercase tracking-wider">
+                        Kho Sẵn Hàng • Giao Hỏa Tốc 1H
+                      </span>
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-xs text-slate-600 font-semibold">Trợ giá lên đời:</span>
+                      <span className="text-amber-700 font-black text-base sm:text-lg">
+                        +2.000.000₫
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 font-medium">
+                      Bù chênh lệch từ 15.990.000₫ khi lên đời từ iPhone 16 / 17 Pro Max
+                    </p>
+                  </div>
+
+                  <Link
+                    href="/SoSanh"
+                    className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white font-black text-xs shadow-md hover:scale-105 transition-all flex items-center justify-center gap-1.5 shrink-0"
+                  >
+                    <Zap className="w-3.5 h-3.5" />
+                    <span>Định Giá Máy Cũ</span>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* =========================================================================
+          FEATURE 2: KỸ THUẬT iCARE & QR TRACKING 30 PHÚT
+          ========================================================================= */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 overflow-hidden">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+          {/* Bản mô phỏng bên trái: Bay từ TRÁI vào (Phiếu Kỹ Thuật Số & Tiến Độ iCare Trực Tuyến) */}
+          <motion.div
+            initial={{ opacity: 0, x: -60 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true, amount: 0.15 }}
+            transition={{ duration: 1.4, ease: [0.25, 1, 0.5, 1] }}
+            style={{ willChange: 'transform, opacity' }}
+            className="order-2 lg:order-1"
+          >
+            <div className="rounded-3xl overflow-hidden p-6 sm:p-8 border border-amber-200/60 relative min-h-[420px] flex flex-col justify-end shadow-2xl">
+              <video
+                autoPlay
+                loop
+                muted
+                playsInline
+                className="absolute inset-0 object-cover w-full h-full"
+                src="https://cdn.sceneai.art/Hero%20Section%20Video/736fd4a0-70ac-4f44-9633-55769ead6aca.mp4"
+              />
+              <div className="absolute inset-0 bg-black/20" />
+
+              {/* Thẻ Phiếu Kỹ Thuật Số & Tiến Độ Sửa Chữa Live iCare (Thay thế thanh ghi âm) */}
+              <div className="bg-white/95 backdrop-blur-xl border border-amber-200/80 rounded-2xl p-5 shadow-2xl relative z-10 space-y-3.5 text-slate-800">
+                {/* Header phiếu: Mã phiếu & Trạng thái Live */}
+                <div className="flex items-center justify-between text-xs pb-2 border-b border-slate-200">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-800 font-bold text-[11px]">
+                      <span>ĐANG THAO TÁC TRỰC TIẾP</span>
+                    </span>
+                    <span className="font-mono font-extrabold text-slate-700">#iCare-9824</span>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 text-amber-700 font-mono font-bold text-xs">
+                    <Clock className="w-3.5 h-3.5 text-amber-600" />
+                    <span>22:45 / 30:00 Phút</span>
+                  </div>
+                </div>
+
+                {/* Thông tin thiết bị & Kỹ thuật viên */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-extrabold text-slate-900">iPhone 15 Pro Max (Titan Tự Nhiên)</span>
+                    <span className="text-[11px] text-slate-500 font-medium">KTV: Chris (Phòng Lab 01)</span>
+                  </div>
+                  <p className="text-[11px] text-emerald-700 font-semibold">
+                    Hạng mục: Ép kính OLED zin vô trùng &amp; Test áp suất kháng nước
+                  </p>
+                </div>
+
+                {/* 4 Bước Tiến Độ Thực Tế (Visual Progress Tracker) */}
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center justify-between text-[10px] text-slate-500 font-semibold">
+                    <span className="text-emerald-700 font-bold flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600" /> 1. Tiếp nhận
+                    </span>
+                    <span className="text-emerald-700 font-bold flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600" /> 2. Ký linh kiện
+                    </span>
+                    <span className="text-amber-700 font-bold flex items-center gap-1">
+                      3. Ép kính vô trùng
+                    </span>
+                    <span className="text-slate-400">4. Trả máy</span>
+                  </div>
+
+                  {/* Thanh tiến độ đa sắc */}
+                  <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-emerald-500 via-teal-500 to-amber-500 rounded-full w-[75%] transition-all duration-500" />
+                  </div>
+                </div>
+
+                {/* Dòng tóm tắt & Nút tra cứu QR phiếu K80 */}
+                <div className="flex items-center justify-between pt-1 text-xs">
+                  <div className="flex items-center gap-2 text-slate-600 text-[11px] font-medium">
+                    <QrCode className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>In kèm mã QR phiếu nhiệt K80</span>
+                  </div>
+
+                  <Link
+                    href="/SuaChua/TheoDoi"
+                    className="btn-dark inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-black text-white font-bold text-[11px] transition-all hover:scale-105 shadow-sm"
+                  >
+                    <span className="text-white font-bold">Xem Live QR</span>
+                    <ArrowRight className="w-3 h-3 text-amber-400" />
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Văn bản bên phải: Bay từ PHẢI vào */}
+          <motion.div
+            initial={{ opacity: 0, x: 60 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true, amount: 0.15 }}
+            transition={{ duration: 1.4, ease: [0.25, 1, 0.5, 1], delay: 0.15 }}
+            style={{ willChange: 'transform, opacity' }}
+            className="space-y-6 order-1 lg:order-2"
+          >
+            <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 px-3.5 py-1.5 rounded-full border border-emerald-200">
+              <Sparkles className="w-4 h-4 text-emerald-600" />
+              <span>✨ Kỹ Thuật iCare &amp; QR Tracking 30 Phút</span>
+            </div>
+
+            <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900 leading-tight">
+              Sửa chữa minh bạch, tốc độ và chính xác tuyệt đối.
+            </h2>
+
+            <p className="text-slate-600 text-base leading-relaxed">
+              Tự động số hóa quy trình tiếp nhận trong 30 giây, in phiếu nhiệt K80 kèm mã QR tra cứu tiến độ thời gian thực. Khách hàng ngồi xem trực tiếp kỹ thuật viên thao tác, ký tên lên linh kiện và nhận máy ngay trong 30 phút.
+            </p>
+
+            <div>
+              <Link
+                href="/SuaChua"
+                className="btn-dark inline-flex items-center gap-2 bg-slate-900 hover:bg-black text-white text-sm font-bold px-6 py-3.5 rounded-full shadow-lg transition-colors group"
+              >
+                <span className="text-white font-bold">Đặt Lịch Sửa Chữa Ngay</span>
+                <ArrowRight className="w-4 h-4 text-amber-400 group-hover:translate-x-1 transition-transform" />
+              </Link>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* 3. SHOWROOM 3D INTERACTIVE HERO CARD (Bên trái bay từ TRÁI, Thẻ máy bay từ PHẢI) */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center glass-panel rounded-3xl p-8 sm:p-14 border border-amber-300/70 relative overflow-hidden shadow-xl">
+          {/* Cột thông tin: Bay từ Trái sang */}
+          <div className="lg:col-span-7 space-y-6 text-center lg:text-left reveal-fly-left">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-50 border border-amber-300 text-amber-900 text-xs sm:text-sm font-bold shadow-sm">
+              <Sparkles className="w-4 h-4 text-amber-600 animate-spin" />
+              <span>TRẢI NGHIỆM ĐỔI MÀU MÁY THỰC TẾ</span>
+            </div>
+
+            <h2 className="text-3xl sm:text-5xl lg:text-6xl font-black text-slate-900 leading-tight tracking-tight">
+              iPhone 18 Series &amp; Duo <br />
+              <span className="text-gradient-gold">Titan Sa Mạc Luxury 2026</span>
+            </h2>
+
+            <p className="text-base sm:text-lg text-slate-600 font-normal leading-relaxed">
+              Thiết kế viền mỏng nhất lịch sử Apple, Face ID ẩn dưới màn hình Super Retina XDR 6.9 inch &amp; tuyệt tác màn hình gập kép iPhone Duo 7.9 inch cùng chip Apple A20 Pro 2nm và hệ thống 3 camera 48MP zoom quang học 10x. Bạn có thể bấm chọn màu vỏ máy bên dưới để chiêm ngưỡng ánh sáng phản chiếu trực tiếp!
+            </p>
+
+            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 pt-3">
+              <Link
+                href={heroPhone ? `/DienThoai/${heroPhone.slug}` : '/DienThoai'}
+                className="btn-gold px-8 py-4 rounded-2xl text-sm sm:text-base flex items-center gap-2.5 font-black shadow-xl hover:scale-105 transition-all text-white"
+              >
+                <span className="text-white">Xem Cấu Hình & Mua Ngay</span>
+                <ArrowRight className="w-5 h-5 text-white" />
+              </Link>
+
+              <Link
+                href="/SoSanh"
+                className="px-6 py-4 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 font-bold text-sm sm:text-base flex items-center gap-2.5 transition-all shadow-sm"
+              >
+                <Scale className="w-5 h-5 text-sky-600" />
+                <span>So Sánh 3 Máy</span>
+              </Link>
+            </div>
+          </div>
+
+          {/* Interactive 3D Card with Color Picker: Bay từ Phải sang */}
+          <div className="lg:col-span-5 relative flex justify-center reveal-fly-right">
+            <div className="relative w-full max-w-md">
+              <div
+                style={{
+                  boxShadow: `0 0 85px 12px ${
+                    heroColorIdx === 0
+                      ? 'rgba(226, 183, 116, 0.25)'
+                      : 'rgba(59, 130, 246, 0.2)'
+                  }`,
+                }}
+                className="rounded-3xl transition-all duration-500"
+              >
+                <div className="glass-card rounded-3xl p-7 border border-amber-200/80 relative overflow-hidden backdrop-blur-2xl shadow-xl">
+                  <div className="relative aspect-square rounded-2xl overflow-hidden mb-6 bg-slate-100 border border-slate-200/80 flex items-center justify-center">
+                    <img
+                      key={activeHeroColor?.imageUrl}
+                      src={activeHeroColor?.imageUrl}
+                      alt={heroDisplayName}
+                      className="w-full h-full object-cover hover:scale-105 transition-all duration-500 animate-in fade-in"
+                    />
+                    <div className="absolute top-3 left-3 px-3 py-1.5 rounded-full text-xs font-black bg-gradient-to-r from-amber-400 to-amber-500 text-white shadow-md">
+                      HOT NHẤT 2026
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-xl font-black text-slate-900">{heroDisplayName}</h3>
+                      <p className="text-sm text-amber-700 font-bold mt-0.5">
+                        {activeHeroColor?.name} • {heroDisplayStorage}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      {heroDisplayOriginalPrice > heroDisplayPrice && (
+                        <span className="text-xs sm:text-sm text-slate-400 line-through block">
+                          {formatVND(heroDisplayOriginalPrice)}
+                        </span>
+                      )}
+                      <span className="text-2xl font-black text-amber-700">
+                        {formatVND(heroDisplayPrice)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Interactive Color Switcher */}
+                  <div className="mt-6 pt-4 border-t border-slate-200 flex items-center justify-between text-sm">
+                    <span className="text-xs sm:text-sm text-slate-600 font-bold">Bấm chọn màu vỏ máy:</span>
+                    <div className="flex items-center gap-2.5">
+                      {heroColors.map((c, idx) => (
+                        <button
+                          key={c.id}
+                          onClick={() => setHeroColorIdx(idx)}
+                          title={c.name}
+                          style={{ backgroundColor: c.hex }}
+                          className={`w-7 h-7 rounded-full border transition-all cursor-pointer ${
+                            heroColorIdx === idx
+                              ? 'border-amber-600 scale-125 shadow-[0_0_12px_rgba(217,119,6,0.5)] ring-2 ring-amber-400/40'
+                              : 'border-slate-300 opacity-80 hover:opacity-100'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 4. FLASH SALE BANNER NEON - Phóng to và phát sáng từ trung tâm */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 reveal-zoom-in">
+        <div className="relative rounded-3xl p-7 sm:p-11 bg-gradient-to-r from-amber-50/90 via-orange-50/80 to-rose-50/90 border-2 border-amber-300/80 overflow-hidden shadow-[0_15px_40px_rgba(245,158,11,0.18)]">
+          {/* Vùng hiệu ứng ánh sáng nền dịu nhẹ */}
+          <div className="absolute -top-24 -left-24 w-72 h-72 bg-amber-400/20 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-24 -right-24 w-72 h-72 bg-rose-400/20 rounded-full blur-3xl pointer-events-none" />
+
+          <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+            <div className="space-y-3 text-center md:text-left">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-rose-100/80 text-rose-700 font-black text-xs sm:text-sm border border-rose-300/80 animate-pulse">
+                <Flame className="w-4 h-4 text-rose-600 fill-rose-500" />
+                <span>FLASH SALE GIỜ VÀNG HÔM NAY</span>
+              </div>
+              <h3 className="text-2xl sm:text-4xl font-black text-slate-900 leading-tight">
+                Giảm Đến <span className="text-amber-600">2.000.000đ</span> Cho Khách Hàng Đặt Trước Qua VietQR
+              </h3>
+              <p className="text-sm sm:text-base text-slate-600 font-medium">
+                Tặng kèm củ sạc GaN 65W + Kính cường lực KingKong + Voucher sửa chữa iCare trị giá 500.000đ.
+              </p>
+            </div>
+
+            <Link
+              href="/DienThoai"
+              className="btn-dark px-8 py-4 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 text-white font-black text-sm sm:text-base shadow-xl shadow-amber-500/30 shrink-0 transition-transform hover:scale-105 inline-flex items-center gap-2"
+            >
+              <span className="text-white font-bold">Săn Deal Ngay ⚡</span>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* 5. SHOWROOM DANH SÁCH MÁY MỚI (Tồn kho & IMEI Thực tế) - Di chuyển từ TRÁI và PHẢI so le */}
+      <section
+        id="phones-showroom"
+        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-9 scroll-mt-28"
+      >
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 reveal-fly-left">
+          <div>
+            <span className="inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider text-amber-800 bg-amber-50 border border-amber-200 mb-2">
+              Showroom Apple Flagship
+            </span>
+            <h2 className="text-3xl sm:text-5xl font-black text-slate-900 tracking-tight">
+              Kho Điện Thoại iPhone Mới 100%
+            </h2>
+            <p className="text-sm sm:text-base text-slate-600 mt-1.5 font-medium">
+              Quản lý chính xác từng số IMEI cụ thể, tự động kích hoạt bảo hành điện tử 12 tháng.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Smart Brand Dropdown Selector */}
+            <select
+              value={selectedBrand}
+              onChange={(e) => setSelectedBrand(e.target.value)}
+              className="px-4 py-2.5 rounded-xl bg-white border border-amber-300 text-slate-900 text-xs sm:text-sm font-bold shadow-sm focus:outline-none focus:border-amber-500 cursor-pointer"
+            >
+              <option value="All">📱 Tất cả thương hiệu ({phones.length} model)</option>
+              {availableBrands.map((b) => {
+                const cnt = phones.filter((p) => p.brand === b).length;
+                return (
+                  <option key={b} value={b}>
+                    Hãng {b} ({cnt} máy)
+                  </option>
+                );
+              })}
+            </select>
+
+            {/* Smart Capacity Dropdown Selector */}
+            <select
+              value={homeStorage}
+              onChange={(e) => setHomeStorage(e.target.value)}
+              className="px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-800 text-xs sm:text-sm font-bold shadow-sm focus:outline-none focus:border-amber-500 cursor-pointer"
+            >
+              <option value="All">💾 Tất cả dung lượng</option>
+              {availableStorages.map((st) => (
+                <option key={st} value={st}>
+                  Bản {st}
+                </option>
+              ))}
+            </select>
+
+            {/* Smart Sort Selector */}
+            <select
+              value={homeSort}
+              onChange={(e) => setHomeSort(e.target.value as any)}
+              className="px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-800 text-xs sm:text-sm font-bold shadow-sm focus:outline-none focus:border-amber-500 cursor-pointer"
+            >
+              <option value="default">⚡ Sắp xếp mặc định</option>
+              <option value="asc">↑ Giá thấp đến cao</option>
+              <option value="desc">↓ Giá cao đến thấp</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Smart Quick Search & Brand Quick Chips Bar */}
+        <div className="glass-panel rounded-2xl p-3.5 border border-amber-200/80 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="relative w-full sm:max-w-xs">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input autoComplete="off"
+              type="text"
+              value={homeSearch}
+              onChange={(e) => setHomeSearch(e.target.value)}
+              placeholder=""
+              className="w-full pl-9 pr-4 py-2 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-amber-500 font-medium"
+            />
+          </div>
+
+          <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
+            <button
+              onClick={() => setSelectedBrand('All')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer ${
+                selectedBrand === 'All'
+                  ? 'btn-gold text-white font-black shadow-sm'
+                  : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
+              }`}
+            >
+              Tất cả ({phones.length})
+            </button>
+            {availableBrands.map((brand) => (
+              <button
+                key={brand}
+                onClick={() => setSelectedBrand(brand)}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer ${
+                  selectedBrand === brand
+                    ? 'btn-gold text-white font-black shadow-sm'
+                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                {brand} ({phones.filter((p) => p.brand === brand).length})
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-7">
+          {displayedHomePhones.map((phone, idx) => {
+            const isComparing = compareIds.includes(phone.id);
+            const lowestCapacity = phone.capacities[0];
+            const availableStock = IShopStore.getProductAvailableStock({
+              productId: phone.id,
+              type: 'phone',
+              color: phone.colors[0]?.name,
+              capacity: lowestCapacity?.size,
+            });
+            const isOutOfStock = availableStock <= 0;
+            // So le: chẵn từ TRÁI sang, lẻ từ PHẢI sang
+            const flyClass = idx % 2 === 0 ? 'reveal-fly-left' : 'reveal-fly-right';
+
+            return (
+              <div
+                key={phone.id}
+                style={{ transitionDelay: `${(idx % 3) * 150}ms` }}
+                className={`glass-card rounded-3xl p-7 border border-amber-200/80 hover:border-amber-400/80 flex flex-col justify-between transition-all duration-300 group shadow-sm hover:shadow-xl ${flyClass}`}
+              >
+                <div>
+                  <div className="relative aspect-square rounded-2xl overflow-hidden bg-gradient-to-b from-slate-100 to-slate-200 border border-slate-200/80 mb-6 p-5 flex items-center justify-center">
+                    <img
+                      src={phone.colors[0]?.imageUrl}
+                      alt={phone.name}
+                      className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
+                    />
+                    <div className="absolute top-3 left-3 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 shadow-sm">
+                      Mới 100% Nguyên Seal
+                    </div>
+
+                    {/* Stock badge top-right */}
+                    <div className="absolute top-3 right-3">
+                      {availableStock > 5 ? (
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-800 border border-emerald-300 shadow-sm flex items-center gap-1.5 backdrop-blur-xs">
+                          Còn {availableStock} máy
+                        </span>
+                      ) : availableStock > 0 ? (
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-amber-50 text-amber-900 border border-amber-300 shadow-sm flex items-center gap-1.5 backdrop-blur-xs">
+                          Chỉ còn {availableStock} máy
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-rose-50 text-rose-700 border border-rose-300 shadow-sm backdrop-blur-xs">
+                          ✕ Tạm hết hàng
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between text-sm mb-1.5">
+                    <span className="text-slate-500 font-bold">{phone.brand}</span>
+                    <span className={`font-mono font-bold flex items-center gap-1.5 ${availableStock > 0 ? (availableStock <= 3 ? 'text-amber-800' : 'text-emerald-700') : 'text-rose-600'}`}>
+                      {availableStock > 0 ? `Kho sẵn: ${availableStock} máy` : 'Tạm hết hàng'}
+                    </span>
+                  </div>
+
+                  <h3 className="text-lg sm:text-xl font-black text-slate-900 group-hover:text-amber-700 transition-colors">
+                    {phone.name}
+                  </h3>
+
+                  <div className="flex items-center gap-2 mt-2.5">
+                    {phone.colors.map((c) => (
+                      <span
+                        key={c.id}
+                        style={{ backgroundColor: c.hex }}
+                        className="w-4 h-4 rounded-full border border-slate-300 shadow-sm"
+                        title={c.name}
+                      />
+                    ))}
+                  </div>
+
+                  <div className="mt-5 pt-4 border-t border-slate-200 flex items-baseline justify-between">
+                    <div>
+                      <span className="text-xs sm:text-sm text-slate-500 font-medium block">Giá niêm yết từ:</span>
+                      <span className="text-xl sm:text-2xl font-black text-amber-700">
+                        {formatVND(phone.capacities[0]?.price || 0)}
+                      </span>
+                    </div>
+                    {(phone.capacities[0]?.originalPrice || 0) > (phone.capacities[0]?.price || 0) && (
+                      <span className="text-xs sm:text-sm text-slate-400 line-through font-medium">
+                        {formatVND(phone.capacities[0]?.originalPrice || 0)}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Thông tin số lượng hiện đang có ở kho */}
+                  <div className="mt-3 flex items-center justify-between bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl text-xs">
+                    <span className="text-slate-600 font-bold flex items-center gap-1.5">
+                      <PackageCheck className="w-3.5 h-3.5 text-blue-600" />
+                      <span>Tồn kho hiện có:</span>
+                    </span>
+                    {availableStock > 0 ? (
+                      <span className={`font-mono font-black ${availableStock <= 3 ? 'text-amber-800' : 'text-emerald-700'}`}>
+                        Còn <span className="underline">{availableStock}</span> máy ({lowestCapacity?.size})
+                      </span>
+                    ) : (
+                      <span className="font-bold text-rose-600">
+                        Tạm hết hàng ({lowestCapacity?.size})
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Hiển thị điểm thưởng theo giá sản phẩm */}
+                  <div className="mt-2 flex items-center justify-between bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-xl">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-amber-700">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Tích lũy điểm:</span>
+                    </div>
+                    <span className="text-xs font-black text-amber-900 bg-amber-100 px-2 py-0.5 rounded-lg border border-amber-300">
+                      +{Math.floor(((phone.capacities[0]?.price || 0) * (phoneQuantities[phone.id] || 1)) / 10000).toLocaleString('vi-VN')} pts
+                    </span>
+                  </div>
+                </div>
+
+                <div className="pt-4 mt-3 border-t border-slate-200 space-y-2.5">
+                  {/* Bộ nút dấu cộng (+) và trừ (-) để tiện đặt 1 lần nhiều máy */}
+                  <div className="flex items-center justify-between bg-slate-50 p-2 rounded-xl border border-slate-200">
+                    <span className="text-xs font-bold text-slate-700">Số lượng đặt:</span>
+                    <div className="flex items-center gap-2 bg-white px-2 py-1 rounded-lg border border-slate-300 shadow-sm">
+                      <button
+                        type="button"
+                        disabled={isOutOfStock || (phoneQuantities[phone.id] || 1) <= 1}
+                        onClick={() => {
+                          setPhoneQuantities((prev) => ({
+                            ...prev,
+                            [phone.id]: Math.max(1, (prev[phone.id] || 1) - 1),
+                          }));
+                        }}
+                        className="p-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors disabled:opacity-30 cursor-pointer"
+                        title="Giảm số lượng"
+                      >
+                        <Minus className="w-3.5 h-3.5" />
+                      </button>
+                      <span className="text-xs font-black text-slate-900 w-6 text-center">
+                        {isOutOfStock ? 0 : (phoneQuantities[phone.id] || 1)}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={isOutOfStock || (phoneQuantities[phone.id] || 1) >= availableStock}
+                        onClick={() => {
+                          const current = phoneQuantities[phone.id] || 1;
+                          if (current >= availableStock) {
+                            setToastMessage({
+                              message: `Kho hiện chỉ còn ${availableStock} máy (${lowestCapacity?.size}). Không thể chọn thêm!`,
+                              type: 'error',
+                            });
+                            setTimeout(() => setToastMessage(null), 3000);
+                            return;
+                          }
+                          setPhoneQuantities((prev) => ({
+                            ...prev,
+                            [phone.id]: current + 1,
+                          }));
+                        }}
+                        className="p-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors disabled:opacity-30 cursor-pointer"
+                        title="Tăng số lượng"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const qty = phoneQuantities[phone.id] || 1;
+                        const cap = phone.capacities[0];
+                        const col = phone.colors[0];
+                        const result = IShopStore.addToCart({
+                          productId: phone.id,
+                          type: 'phone',
+                          name: phone.name,
+                          slug: phone.slug,
+                          imageUrl: col?.imageUrl,
+                          color: col?.name,
+                          capacity: cap?.size,
+                          price: cap?.price || 0,
+                          originalPrice: cap?.originalPrice || cap?.price || 0,
+                          quantity: qty,
+                        });
+                        setToastMessage({
+                          message: result.message,
+                          type: result.success ? 'success' : 'error',
+                        });
+                        setTimeout(() => setToastMessage(null), 3000);
+                      }}
+                      className="py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all hover:scale-[1.02] cursor-pointer"
+                    >
+                      <ShoppingCart className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Thêm Giỏ</span>
+                    </button>
+
+                    <Link
+                      href={`/DienThoai/${phone.slug}`}
+                      className="btn-gold py-2.5 px-3 rounded-xl text-xs font-black text-center flex items-center justify-center gap-1 shadow-md text-white hover:scale-[1.02] transition-all"
+                    >
+                      <span className="text-white">Chi Tiết</span>
+                      <ChevronRight className="w-3.5 h-3.5 text-white" />
+                    </Link>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      IShopStore.toggleComparison(phone.id);
+                      setCompareIds(IShopStore.getComparisonList());
+                    }}
+                    className={`w-full py-2 rounded-xl text-xs font-bold border transition-colors flex items-center justify-center gap-1.5 ${
+                      isComparing
+                        ? 'bg-sky-100 text-sky-800 border-sky-300 font-bold shadow-sm'
+                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100 hover:text-slate-900 shadow-sm'
+                    }`}
+                  >
+                    <Scale className="w-3.5 h-3.5" />
+                    <span>{isComparing ? 'Đang so sánh' : 'So sánh model này'}</span>
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {filteredPhones.length > 6 && (
+          <div className="flex justify-center pt-2">
+            <button
+              type="button"
+              onClick={() => setShowAllHomePhones(!showAllHomePhones)}
+              className="px-6 py-3 rounded-2xl bg-white hover:bg-amber-50 text-slate-800 hover:text-amber-800 border border-amber-300 font-bold text-xs sm:text-sm shadow-sm transition-all flex items-center gap-2 cursor-pointer"
+            >
+              <span>
+                {showAllHomePhones
+                  ? 'Thu gọn danh sách hiển thị'
+                  : `Xem toàn bộ ${filteredPhones.length} dòng máy trong kho`}
+              </span>
+              <ArrowRight className={`w-4 h-4 transition-transform ${showAllHomePhones ? '-rotate-90' : ''}`} />
+            </button>
+          </div>
+        )}
+      </section>
+
+      {/* 6. DỊCH VỤ SỬA CHỮA iCARE & TRA CỨU TIẾN ĐỘ QR (Nội dung từ Trái, Phiếu từ Phải) */}
+      <section
+        id="icare-desk"
+        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 scroll-mt-28"
+      >
+        <div className="glass-panel rounded-3xl p-8 sm:p-14 border border-amber-300/70 relative overflow-hidden shadow-xl">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
+            {/* Cột mô tả iCare: Bay từ TRÁI vào */}
+            <div className="lg:col-span-6 space-y-6 reveal-fly-left">
+              <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-purple-50 border border-purple-200 text-purple-900 text-xs sm:text-sm font-bold shadow-sm">
+                <Wrench className="w-4 h-4 text-purple-700" />
+                <span>TRUNG TÂM KỸ THUẬT iCARE CHUYÊN SÂU</span>
+              </div>
+
+              <h2 className="text-3xl sm:text-5xl font-black text-slate-900 leading-tight tracking-tight">
+                Sửa Chữa Lấy Ngay Trong 30 Phút <br />
+                <span className="text-gradient-amethyst">Theo Dõi Tiến Độ Bằng Mã QR</span>
+              </h2>
+
+              <p className="text-base sm:text-lg text-slate-600 leading-relaxed font-normal">
+                Mỗi lượt sửa chữa đều được in một phiếu biên nhận nhiệt K80 có kèm **Mã QR Tra Cứu**. Khách hàng chỉ cần quét mã bằng điện thoại là có thể theo dõi từng bước thay màn hình, ép kính, thay pin theo thời gian thực!
+              </p>
+
+              <div className="space-y-3 text-sm sm:text-base text-slate-700 font-medium">
+                <div className="flex items-center gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                  <span>Linh kiện zin bóc máy / Pin Pisen chính hãng bảo hành 12 tháng.</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                  <span>Xem trực tiếp quá trình tháo lắp, ký tên lên linh kiện an tâm 100%.</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                  <span>Tuyệt đối không phát sinh phụ phí ngoài báo giá niêm yết.</span>
+                </div>
+              </div>
+
+              <div className="pt-4 flex flex-wrap items-center gap-4">
+                <Link
+                  href="/SuaChua"
+                  className="px-7 py-4 rounded-2xl bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-600 hover:to-indigo-600 text-white font-bold text-sm sm:text-base shadow-lg shadow-purple-700/25 transition-all hover:scale-105"
+                >
+                  Xem Bảng Giá & Đặt Hẹn
+                </Link>
+
+                <Link
+                  href="/SuaChua/TheoDoi"
+                  className="px-7 py-4 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 font-bold text-sm sm:text-base shadow-sm transition-all"
+                >
+                  Tra Cứu Mã Phiếu (QR)
+                </Link>
+              </div>
+            </div>
+
+            {/* Right Preview Card of Repair Cyber Stepper: Bay từ PHẢI vào */}
+            <div className="lg:col-span-6 bg-white rounded-3xl p-7 border border-amber-200/80 shadow-xl space-y-5 text-slate-800 reveal-fly-right">
+              <div className="flex items-center justify-between pb-4 border-b border-slate-200 text-sm">
+                <div className="flex items-center gap-2.5">
+                  <span className="font-extrabold text-slate-900">Phiếu Tiếp Nhận: SC-2608-001</span>
+                </div>
+                <span className="px-3 py-1 rounded-full bg-blue-50 text-blue-700 font-bold text-xs border border-blue-200">
+                  Đang sửa chữa
+                </span>
+              </div>
+
+              <div className="space-y-4 py-2">
+                {[
+                  { step: '1. Tiếp nhận máy & Chụp ảnh tình trạng', done: true, time: '09:15' },
+                  { step: '2. Kiểm tra kỹ thuật & Báo giá khách duyệt', done: true, time: '09:30' },
+                  { step: '3. Xuất kho màn hình OLED zin & Thao tác', current: true, time: '10:10' },
+                  { step: '4. Kiểm tra QC xuất xưởng & Đo áp suất', done: false, time: 'Dự kiến 11:00' },
+                  { step: '5. Sẵn sàng bàn giao kèm hóa đơn K80', done: false, time: 'Dự kiến 11:30' },
+                ].map((s, idx) => (
+                  <div key={idx} className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-3.5">
+                      <span
+                        className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                          s.done
+                            ? 'bg-emerald-600 text-white shadow-sm'
+                            : s.current
+                            ? 'bg-sky-600 text-white font-black animate-pulse shadow-sm'
+                            : 'bg-slate-100 text-slate-400'
+                        }`}
+                      >
+                        ✓
+                      </span>
+                      <span
+                        className={
+                          s.current
+                            ? 'text-sky-800 font-bold'
+                            : s.done
+                            ? 'text-slate-800 font-semibold'
+                            : 'text-slate-400'
+                        }
+                      >
+                        {s.step}
+                      </span>
+                    </div>
+                    <span className="text-xs sm:text-sm text-slate-500 font-mono font-medium">{s.time}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="pt-4 border-t border-slate-200 text-center">
+                <Link
+                  href="/SuaChua/TheoDoi?code=SC-2608-001"
+                  className="text-sm text-sky-700 hover:text-sky-800 font-bold inline-flex items-center gap-1.5"
+                >
+                  <span>Thử tra cứu trực tiếp phiếu này</span>
+                  <ArrowRight className="w-4 h-4 text-amber-600" />
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* =========================================================================
+          MỤC CÂU HỎI THƯỜNG GẶP (id="faq")
+          ========================================================================= */}
+      <section
+        id="faq"
+        className="py-32 px-6 max-w-3xl mx-auto scroll-mt-28"
+      >
+        <FadeInUp>
+          {/* Tiêu đề: Chúng tôi có câu trả lời */}
+          <h2 className="text-4xl md:text-5xl font-extrabold mb-12 text-center tracking-tight text-slate-900">
+            Chúng tôi có câu trả lời
+          </h2>
+
+          {/* Vùng chứa: border border-slate-200 rounded-2xl bg-white shadow-md */}
+          <div className="border border-amber-200/80 rounded-2xl bg-white/95 shadow-md overflow-hidden">
+            {[
+              {
+                question: 'Dữ liệu và thiết bị của tôi có được bảo mật an toàn 100% không?',
+                answer:
+                  'Hoàn toàn an toàn. Mọi giao dịch, lịch sử bảo hành theo số IMEI và quy trình tiếp nhận sửa chữa iCare đều được mã hóa trên nền tảng đám mây. Khách hàng ký tên trực tiếp lên linh kiện trước khi kỹ thuật viên thao tác và theo dõi minh bạch qua mã QR.',
+              },
+              {
+                question: 'Chính sách 1 đổi 1 trong 30 ngày đầu được áp dụng như thế nào?',
+                answer:
+                  'Tất cả sản phẩm điện thoại iPhone mới nguyên seal bán ra tại hệ thống nếu phát sinh bất kỳ lỗi phần cứng nào từ nhà sản xuất trong 30 ngày đầu tiên, bạn sẽ được đổi ngay một máy mới nguyên hộp mà không mất thời gian chờ đợi thẩm định phức tạp.',
+              },
+              {
+                question: 'Dịch vụ sửa chữa iCare 30 phút có phát sinh thêm phụ phí không?',
+                answer:
+                  'Tuyệt đối không. Bảng giá thay màn hình, ép kính, thay pin Pisen chính hãng tại iCare Desk được niêm yết công khai và báo trọn gói trước khi khách duyệt. Mọi bước kỹ thuật đều in rõ ràng trên hóa đơn nhiệt K80.',
+              },
+              {
+                question: 'Tôi có thể tra cứu bảo hành mà không cần giữ lại hóa đơn giấy không?',
+                answer:
+                  'Có. Hệ thống quản lý thông minh 2.0 lưu trữ bảo hành điện tử trọn đời theo 15 số IMEI của máy. Bạn chỉ cần nhập IMEI trên website hoặc quét mã QR là có thể tra cứu ngày kích hoạt và thời hạn bảo hành bất cứ lúc nào.',
+              },
+              {
+                question: 'Hệ thống hỗ trợ những phương thức thanh toán và trả góp nào?',
+                answer:
+                  'Chúng tôi hỗ trợ chuyển khoản siêu tốc VietQR Napas 247 hoàn toàn 0% phí, quét mã VNPAY, thẻ Visa/Mastercard và chương trình trả góp 0% lãi suất qua thẻ tín dụng hoặc CCCD gắn chip lấy máy ngay trong 15 phút.',
+              },
+            ].map((faq, index, arr) => {
+              const isOpen = openFaqIndex === index;
+              const isLast = index === arr.length - 1;
+
+              return (
+                <div
+                  key={index}
+                  className={`${!isLast ? 'border-b border-slate-100' : ''}`}
+                >
+                  <button
+                    onClick={() => setOpenFaqIndex(isOpen ? null : index)}
+                    className="w-full py-6 px-6 flex items-center justify-between text-left focus:outline-none group hover:bg-slate-50/70 transition-colors"
+                  >
+                    <span className="text-base text-slate-800 font-bold group-hover:text-amber-700 transition-colors pr-4">
+                      {faq.question}
+                    </span>
+
+                    <span
+                      className={`transition-transform duration-300 transform shrink-0 ${
+                        isOpen ? 'rotate-45 text-amber-600' : 'rotate-0 text-slate-400'
+                      }`}
+                    >
+                      <Plus className="w-5 h-5" />
+                    </span>
+                  </button>
+
+                  <div
+                    className={`grid transition-[grid-template-rows] duration-300 ease-out ${
+                      isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+                    }`}
+                  >
+                    <div className="overflow-hidden">
+                      <p className="text-slate-600 text-sm pb-6 px-6 leading-relaxed font-normal">
+                        {faq.answer}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </FadeInUp>
+      </section>
+
+      {/* =========================================================================
+          PHẦN CHÂN TRANG CTA (id="contact") - Giao diện Apple Flagship như Hero Hình 2
+          ========================================================================= */}
+      <section
+        id="contact"
+        className="hero-theme-section relative z-0 pt-32 pb-24 px-6 overflow-hidden scroll-mt-28 bg-[#0a0d14] border-t border-slate-800/80 shadow-2xl"
+      >
+        <div className="absolute inset-0 overflow-hidden -z-10 pointer-events-none">
+          <video
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="w-full h-full object-cover scale-105 opacity-90 transition-opacity duration-700"
+            src="https://cdn.sceneai.art/Hero%20Section%20Video/1bcc8fa3-37f6-4c53-8591-0347e4c7f8ac.mp4"
+          />
+          {/* Lớp phủ sáng nhẹ trong suốt, giữ trọn ánh sáng rực rỡ sắc nét của video */}
+          <div className="absolute inset-0 bg-slate-950/20" />
+          
+          {/* Gradient mềm mại chuyển tiếp tự nhiên */}
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-950/40 via-transparent to-slate-950/60 pointer-events-none" />
+          
+          {/* Quầng sáng đa sắc Apple Intelligence trung tâm (Luminous Aurora Ambient Aura) */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[750px] h-[500px] bg-gradient-to-r from-amber-400/20 via-sky-400/15 to-purple-400/20 rounded-full blur-[140px] pointer-events-none" />
+        </div>
+
+        <div className="max-w-5xl mx-auto text-center relative z-10">
+          <FadeInUp>
+            <div className="px-4 py-2 rounded-full bg-slate-950/60 border border-white/20 text-xs font-bold text-slate-100 mb-8 backdrop-blur-md inline-flex items-center gap-2 shadow-lg">
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              <span>✨ Showroom Flagship 2026 • iShop Huy Hoàng</span>
+            </div>
+
+            <h2 className="text-4xl md:text-6xl lg:text-7xl font-extrabold tracking-tight mb-6 text-white drop-shadow-2xl leading-[1.15]">
+              Sẵn sàng sở hữu thiết bị Apple <br className="hidden sm:inline" />
+              <span className="font-serif italic font-normal text-amber-300 inline-block whitespace-nowrap drop-shadow-lg">
+                đẳng cấp?
+              </span>
+            </h2>
+
+            <p className="text-[17px] text-slate-100 max-w-2xl text-center leading-relaxed mb-10 mx-auto drop-shadow-md font-medium">
+              Hệ thống bán lẻ iPhone 18 Series &amp; siêu phẩm màn hình gập iPhone Duo 100% nguyên seal chưa active, bảo hành 1 đổi 1 trong 30 ngày và dịch vụ sửa chữa iCare 30 phút lấy liền minh bạch số 1 TP.HCM.
+            </p>
+
+            <div className="flex flex-wrap items-center justify-center gap-4">
+              <Link
+                href="/DienThoai"
+                className="bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white text-sm sm:text-base font-extrabold px-8 py-3.5 rounded-full shadow-[0_0_30px_rgba(245,158,11,0.4)] hover:scale-105 transition-all inline-flex items-center gap-2"
+              >
+                <span>Mua iPhone Ngay Hôm Nay</span>
+                <ArrowRight className="w-4 h-4 text-white" />
+              </Link>
+              <Link
+                href="/GioiThieu"
+                className="btn-dark bg-slate-950/80 hover:bg-slate-900 text-white text-sm sm:text-base font-bold px-8 py-3.5 rounded-full border border-white/20 backdrop-blur-md shadow-lg transition-all hover:scale-105 inline-flex items-center gap-2"
+              >
+                <span className="text-white font-bold">Khám Phá Showroom</span>
+              </Link>
+            </div>
+          </FadeInUp>
+        </div>
+      </section>
+
+      {/* 7. THANH ĐIỀU KHIỂN NỔI THÔNG MINH KHI CUỘN (Cyber Floating Scroll Cockpit) */}
+      {/* 8. Floating Action Bar: Scroll Progress + Jump Links + Back to Top */}
+      {showScrollTop && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 p-2 rounded-full bg-white/95 border border-amber-200/80 backdrop-blur-2xl shadow-xl animate-in slide-in-from-bottom-5 duration-300 text-slate-800">
+          {/* Scroll percentage badge */}
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-xs font-mono font-bold">
+            <span>{scrollProgress}%</span>
+          </div>
+
+          {/* Quick Anchor Jumps */}
+          <div className="hidden sm:flex items-center gap-1 text-xs text-slate-600 font-bold px-1">
+            <a
+              href="#about-shop"
+              className="px-2.5 py-1 rounded-full hover:bg-slate-100 hover:text-slate-900 transition-colors"
+            >
+              Về Shop
+            </a>
+            <a
+              href="#phones-showroom"
+              className="px-2.5 py-1 rounded-full hover:bg-slate-100 hover:text-slate-900 transition-colors"
+            >
+              iPhone
+            </a>
+            <a
+              href="#icare-desk"
+              className="px-2.5 py-1 rounded-full hover:bg-slate-100 hover:text-slate-900 transition-colors"
+            >
+              iCare
+            </a>
+          </div>
+
+          {/* Back to Top button */}
+          <button
+            onClick={scrollToTop}
+            className="p-2 sm:px-3 sm:py-1.5 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white font-black text-xs flex items-center gap-1 transition-all shadow-md shadow-amber-500/25 hover:scale-105 active:scale-95 cursor-pointer"
+            title="Cuộn lên đầu trang"
+          >
+            <ArrowUp className="w-4 h-4 text-white" />
+            <span className="hidden sm:inline text-white">Lên Đầu</span>
+          </button>
+        </div>
+      )}
+
+      {/* Toast thông báo đặt hàng & cảnh báo tồn kho */}
+      {toastMessage && (
+        <div
+          className={`fixed bottom-6 right-6 z-50 p-4 rounded-2xl shadow-2xl flex items-center gap-3 border animate-in slide-in-from-bottom duration-200 max-w-md ${
+            toastMessage.type === 'error'
+              ? 'bg-red-950/95 text-red-100 border-red-500/80 shadow-red-950/50'
+              : 'bg-slate-900/95 text-white border-amber-400/40 shadow-slate-950/50'
+          }`}
+        >
+          {toastMessage.type === 'error' ? (
+            <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
+          ) : (
+            <Check className="w-5 h-5 text-emerald-400 shrink-0" />
+          )}
+          <span className="text-xs font-bold leading-relaxed">{toastMessage.message}</span>
+        </div>
+      )}
+    </div>
+  );
+}

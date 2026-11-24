@@ -1,0 +1,2155 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import {
+  ShoppingCart,
+  Smartphone,
+  Headphones,
+  Search,
+  Trash2,
+  Printer,
+  CheckCircle2,
+  User,
+  Plus,
+  Minus,
+  Barcode,
+  X,
+  Sparkles,
+  Edit,
+  UserPlus,
+  UserCheck,
+  Award,
+  Phone,
+  MapPin,
+  Lock,
+  Unlock,
+  ShieldAlert,
+  Percent,
+  Gift,
+  ShieldCheck,
+} from 'lucide-react';
+import { IShopStore } from '@/ThuVien/KhoDuLieu';
+import { PhoneStockItem, AccessoryProduct, Role, Invoice, InvoiceItem, Customer } from '@/ThuVien/KieuDuLieu';
+import { formatVND, generateVietQRUrl } from '@/ThuVien/ThanhToanVietQR';
+import {
+  MEMBERSHIP_TIERS,
+  getTierByPoints,
+  calculateProductRewardPoints,
+} from '@/ThuVien/TichDiem';
+
+export default function POSPage() {
+  const [role, setRole] = useState<Role>('admin');
+  const [activeTab, setActiveTab] = useState<'phones' | 'accessories'>('phones');
+
+  const [availablePhones, setAvailablePhones] = useState<PhoneStockItem[]>([]);
+  const [accessories, setAccessories] = useState<AccessoryProduct[]>([]);
+
+  // Search queries & Smart Category Filters
+  const [phoneSearch, setPhoneSearch] = useState('');
+  const [posPhoneModelFilter, setPosPhoneModelFilter] = useState('all');
+  const [posPhoneCapacityFilter, setPosPhoneCapacityFilter] = useState('all');
+  const [accessorySearch, setAccessorySearch] = useState('');
+  const [posAccCategoryFilter, setPosAccCategoryFilter] = useState('all');
+
+  // POS Order & Customer State (Mẫu IncomSoft: Chọn, Xóa, Thêm, Sửa)
+  const [posItems, setPosItems] = useState<InvoiceItem[]>([]);
+  const [customersList, setCustomersList] = useState<Customer[]>([]);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const [customerName, setCustomerName] = useState('Khách Mua Tại Quầy');
+  const [customerPhone, setCustomerPhone] = useState('0900000000');
+  const [customerAddress, setCustomerAddress] = useState('');
+  const [customerMembership, setCustomerMembership] = useState('Thành viên mới');
+  const [customerPoints, setCustomerPoints] = useState<number>(0);
+  const [customerType, setCustomerType] = useState('Khách lẻ');
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'vietqr'>('cash');
+  const [cashGiven, setCashGiven] = useState<number>(0);
+
+  // Loyalty & Custom Discount Permission State
+  const [discountMode, setDiscountMode] = useState<'auto' | 'custom'>('auto');
+  const [customDiscountType, setCustomDiscountType] = useState<'percent' | 'fixed'>('percent');
+  const [customDiscountPercent, setCustomDiscountPercent] = useState<number>(0);
+  const [customDiscountFixed, setCustomDiscountFixed] = useState<number>(0);
+  const [isDiscountOverrideUnlocked, setIsDiscountOverrideUnlocked] = useState(false);
+  const [isManagerAuthModalOpen, setIsManagerAuthModalOpen] = useState(false);
+  const [managerPinInput, setManagerPinInput] = useState('');
+  const [managerPinError, setManagerPinError] = useState<string | null>(null);
+  const [isTiersModalOpen, setIsTiersModalOpen] = useState(false);
+
+  // Customer Management Modals
+  const [isSelectCustomerOpen, setIsSelectCustomerOpen] = useState(false);
+  const [isAddCustomerOpen, setIsAddCustomerOpen] = useState(false);
+  const [isEditCustomerOpen, setIsEditCustomerOpen] = useState(false);
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [customerTierFilter, setCustomerTierFilter] = useState('all');
+  const [customerFeedback, setCustomerFeedback] = useState<string | null>(null);
+
+  // Customer Form State (for Add & Edit)
+  const [formCustName, setFormCustName] = useState('');
+  const [formCustPhone, setFormCustPhone] = useState('');
+  const [formCustEmail, setFormCustEmail] = useState('');
+  const [formCustAddress, setFormCustAddress] = useState('');
+  const [formCustType, setFormCustType] = useState('Khách lẻ');
+  const [formCustTier, setFormCustTier] = useState('Thành viên mới');
+  const [formCustPoints, setFormCustPoints] = useState<number>(0);
+  const [formCustTaxCode, setFormCustTaxCode] = useState('');
+  const [formCustBirthday, setFormCustBirthday] = useState('');
+  const [formCustCity, setFormCustCity] = useState('TP. Hồ Chí Minh');
+  const [formCustNotes, setFormCustNotes] = useState('');
+
+  // Print Receipt Modal
+  const [completedInvoice, setCompletedInvoice] = useState<Invoice | null>(null);
+  const [printFormat, setPrintFormat] = useState<'k80' | 'a5'>('k80');
+
+  const loadStock = () => {
+    setRole(IShopStore.getRole());
+    setAvailablePhones(IShopStore.getAvailablePhones());
+    setAccessories(IShopStore.getAccessories());
+
+    const custs = IShopStore.getCustomers();
+    setCustomersList(custs);
+
+    // Sync live in-stock phones from MySQL
+    fetch('/Api/KhoHang/DienThoai?status=in_stock')
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && Array.isArray(json.data)) {
+          setAvailablePhones(json.data);
+        }
+      })
+      .catch((err) => console.warn('POS stock sync notice:', err));
+
+    // Sync live accessories from MySQL
+    fetch('/Api/KhoHang/PhuKien')
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && Array.isArray(json.data)) {
+          setAccessories(json.data);
+        }
+      })
+      .catch((err) => console.warn('POS accessories sync notice:', err));
+
+    // Sync live customers from MySQL
+    fetch('/Api/KhachHang')
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+          setCustomersList(json.data);
+        }
+      })
+      .catch((err) => console.warn('Customer sync notice:', err));
+  };
+
+  // Customer Action Handlers
+  const handleSelectCustomer = (cust: Customer) => {
+    setSelectedCustomerId(cust.id);
+    setCustomerName(cust.name);
+    setCustomerPhone(cust.phone);
+    setCustomerAddress(cust.address || '');
+    const points = cust.points || 0;
+    setCustomerPoints(points);
+    const tierConfig = getTierByPoints(points);
+    setCustomerMembership(tierConfig.tier);
+    setCustomerType(cust.customerType || 'Khách lẻ');
+    setDiscountMode('auto');
+    setIsSelectCustomerOpen(false);
+    setCustomerFeedback(
+      `✓ Đã chọn: ${cust.name} (${tierConfig.tier} - Chiết khấu ${tierConfig.discountPercent}%)!`
+    );
+    setTimeout(() => setCustomerFeedback(null), 3000);
+  };
+
+  const handleClearCustomer = () => {
+    setSelectedCustomerId(null);
+    setCustomerName('Khách Lẻ Cửa Hàng');
+    setCustomerPhone('');
+    setCustomerAddress('');
+    setCustomerMembership('Thành viên mới');
+    setCustomerPoints(0);
+    setCustomerType('Khách lẻ');
+    setDiscountMode('auto');
+    setCustomDiscountPercent(0);
+    setCustomDiscountFixed(0);
+    setCustomerFeedback('✓ Đã bỏ chọn, quay về Khách Lẻ Cửa Hàng (0% chiết khấu)!');
+    setTimeout(() => setCustomerFeedback(null), 2500);
+  };
+
+  const handleRequestCustomDiscount = () => {
+    if (canEditDiscount) {
+      setDiscountMode('custom');
+    } else {
+      setIsManagerAuthModalOpen(true);
+      setManagerPinInput('');
+      setManagerPinError(null);
+    }
+  };
+
+  const handleVerifyManagerPin = (e: React.FormEvent) => {
+    e.preventDefault();
+    const pin = managerPinInput.trim();
+    if (pin === '1807' || pin === 'admin' || pin === 'admin123' || pin === '8888') {
+      setIsDiscountOverrideUnlocked(true);
+      setDiscountMode('custom');
+      setIsManagerAuthModalOpen(false);
+      setManagerPinInput('');
+      setManagerPinError(null);
+      setCustomerFeedback('✓ Quản lý / Chủ shop đã phê duyệt quyền chỉnh sửa chiết khấu!');
+      setTimeout(() => setCustomerFeedback(null), 3500);
+    } else {
+      setManagerPinError('Mã PIN không đúng! Mặc định là 1807 hoặc mật khẩu quản trị.');
+    }
+  };
+
+  const handleOpenAddCustomer = () => {
+    setFormCustName('');
+    setFormCustPhone('');
+    setFormCustEmail('');
+    setFormCustAddress('');
+    setFormCustType('Khách lẻ');
+    setFormCustTier('Thẻ Bạch Kim');
+    setFormCustPoints(0);
+    setFormCustTaxCode('');
+    setFormCustBirthday('');
+    setFormCustCity('TP. Hồ Chí Minh');
+    setFormCustNotes('');
+    setIsAddCustomerOpen(true);
+  };
+
+  const handleSaveNewCustomer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formCustName.trim() || !formCustPhone.trim()) {
+      alert('Vui lòng nhập Tên và Số điện thoại khách hàng!');
+      return;
+    }
+
+    const newCust: Customer = {
+      id: 'cust-' + Date.now(),
+      name: formCustName.trim(),
+      phone: formCustPhone.trim(),
+      email: formCustEmail.trim() || undefined,
+      address: formCustAddress.trim() || undefined,
+      customerType: formCustType,
+      membershipTier: formCustTier,
+      points: Number(formCustPoints) || 0,
+      taxCode: formCustTaxCode.trim() || undefined,
+      birthday: formCustBirthday || undefined,
+      city: formCustCity.trim() || undefined,
+      notes: formCustNotes.trim() || undefined,
+      totalSpent: 0,
+      createdAt: new Date().toISOString().substring(0, 10),
+      purchaseCount: 0,
+      repairCount: 0,
+    };
+
+    IShopStore.addCustomer(newCust);
+    setCustomersList(IShopStore.getCustomers());
+
+    try {
+      await fetch('/Api/KhachHang', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newCust.name,
+          phone: newCust.phone,
+          email: newCust.email,
+          address: newCust.address,
+          points: newCust.points,
+        }),
+      });
+    } catch (err) {
+      console.warn('API save customer notice:', err);
+    }
+
+    handleSelectCustomer(newCust);
+    setIsAddCustomerOpen(false);
+    setCustomerFeedback(`✓ Đã thêm và chọn khách hàng mới: ${newCust.name}!`);
+    setTimeout(() => setCustomerFeedback(null), 3000);
+  };
+
+  const handleOpenEditCustomer = () => {
+    const existing = selectedCustomerId
+      ? customersList.find((c) => c.id === selectedCustomerId)
+      : customersList.find((c) => c.phone === customerPhone);
+
+    if (existing) {
+      setFormCustName(existing.name);
+      setFormCustPhone(existing.phone);
+      setFormCustEmail(existing.email || '');
+      setFormCustAddress(existing.address || customerAddress);
+      setFormCustType(existing.customerType || customerType);
+      setFormCustTier(existing.membershipTier || customerMembership);
+      setFormCustPoints(existing.points || customerPoints);
+      setFormCustTaxCode(existing.taxCode || '');
+      setFormCustBirthday(existing.birthday || '');
+      setFormCustCity(existing.city || 'TP. Hồ Chí Minh');
+      setFormCustNotes(existing.notes || '');
+    } else {
+      setFormCustName(customerName !== 'Khách Mua Tại Quầy' ? customerName : '');
+      setFormCustPhone(customerPhone);
+      setFormCustEmail('');
+      setFormCustAddress(customerAddress);
+      setFormCustType(customerType);
+      setFormCustTier(customerMembership);
+      setFormCustPoints(customerPoints);
+      setFormCustTaxCode('');
+      setFormCustBirthday('');
+      setFormCustCity('TP. Hồ Chí Minh');
+      setFormCustNotes('');
+    }
+    setIsEditCustomerOpen(true);
+  };
+
+  const handleUpdateCustomer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formCustName.trim() || !formCustPhone.trim()) {
+      alert('Vui lòng nhập Tên và Số điện thoại khách hàng!');
+      return;
+    }
+
+    const targetId = selectedCustomerId || 'cust-' + Date.now();
+    const updatedData: Partial<Customer> = {
+      name: formCustName.trim(),
+      phone: formCustPhone.trim(),
+      email: formCustEmail.trim() || undefined,
+      address: formCustAddress.trim() || undefined,
+      customerType: formCustType,
+      membershipTier: formCustTier,
+      points: Number(formCustPoints) || 0,
+      taxCode: formCustTaxCode.trim() || undefined,
+      birthday: formCustBirthday || undefined,
+      city: formCustCity.trim() || undefined,
+      notes: formCustNotes.trim() || undefined,
+    };
+
+    if (selectedCustomerId) {
+      IShopStore.updateCustomer(selectedCustomerId, updatedData);
+    } else {
+      IShopStore.addCustomer({
+        id: targetId,
+        name: formCustName.trim(),
+        phone: formCustPhone.trim(),
+        email: formCustEmail.trim() || undefined,
+        address: formCustAddress.trim() || undefined,
+        customerType: formCustType,
+        membershipTier: formCustTier,
+        points: Number(formCustPoints) || 0,
+        taxCode: formCustTaxCode.trim() || undefined,
+        birthday: formCustBirthday || undefined,
+        city: formCustCity.trim() || undefined,
+        notes: formCustNotes.trim() || undefined,
+        totalSpent: 0,
+        createdAt: new Date().toISOString().substring(0, 10),
+        purchaseCount: 1,
+        repairCount: 0,
+      });
+      setSelectedCustomerId(targetId);
+    }
+
+    setCustomersList(IShopStore.getCustomers());
+
+    setCustomerName(formCustName.trim());
+    setCustomerPhone(formCustPhone.trim());
+    setCustomerAddress(formCustAddress.trim());
+    setCustomerMembership(formCustTier);
+    setCustomerPoints(Number(formCustPoints) || 0);
+    setCustomerType(formCustType);
+
+    try {
+      await fetch('/Api/KhachHang', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formCustName.trim(),
+          phone: formCustPhone.trim(),
+          email: formCustEmail.trim(),
+          address: formCustAddress.trim(),
+          points: Number(formCustPoints) || 0,
+        }),
+      });
+    } catch (err) {
+      console.warn('API update customer notice:', err);
+    }
+
+    setIsEditCustomerOpen(false);
+    setCustomerFeedback(`✓ Đã cập nhật thông tin khách hàng: ${formCustName.trim()}!`);
+    setTimeout(() => setCustomerFeedback(null), 3000);
+  };
+
+  useEffect(() => {
+    loadStock();
+    const listener = () => loadStock();
+    window.addEventListener('ishop_data_changed', listener);
+    return () => window.removeEventListener('ishop_data_changed', listener);
+  }, []);
+
+  // Unique options for POS smart selectors
+  const posUniqueModels = Array.from(new Set(availablePhones.map((p) => p.phoneName).filter(Boolean)));
+  const posUniqueCapacities = Array.from(new Set(availablePhones.map((p) => p.capacity).filter(Boolean)));
+  const posUniqueAccCategories = Array.from(
+    new Map(accessories.map((a) => [a.category, a.categoryName || a.category])).entries()
+  );
+
+  // Filtered lists
+  const filteredPhones = availablePhones
+    .filter((p) => (posPhoneModelFilter === 'all' ? true : p.phoneName === posPhoneModelFilter))
+    .filter((p) => (posPhoneCapacityFilter === 'all' ? true : p.capacity === posPhoneCapacityFilter))
+    .filter(
+      (p) =>
+        p.imei.includes(phoneSearch.trim()) ||
+        p.phoneName.toLowerCase().includes(phoneSearch.toLowerCase()) ||
+        p.color.toLowerCase().includes(phoneSearch.toLowerCase())
+    );
+
+  const filteredAccessories = accessories
+    .filter((a) => (posAccCategoryFilter === 'all' ? true : a.category === posAccCategoryFilter))
+    .filter(
+      (a) =>
+        a.barcode.includes(accessorySearch.trim()) ||
+        a.name.toLowerCase().includes(accessorySearch.toLowerCase())
+    );
+
+  // Add phone by specific IMEI
+  const addPhoneToOrder = (stockItem: PhoneStockItem) => {
+    const isAlreadyIn = posItems.some((i) => i.imei === stockItem.imei);
+    if (isAlreadyIn) {
+      alert('Máy có số IMEI này đã được thêm vào đơn hàng!');
+      return;
+    }
+
+    const rewardPoints = calculateProductRewardPoints({
+      type: 'phone',
+      sellingPrice: stockItem.sellingPrice,
+      rewardPoints: stockItem.rewardPoints,
+    });
+
+    const newItem: InvoiceItem = {
+      type: 'phone',
+      id: stockItem.phoneId,
+      name: stockItem.phoneName,
+      variant: `${stockItem.color} - ${stockItem.capacity}`,
+      imei: stockItem.imei,
+      quantity: 1,
+      unitPrice: stockItem.sellingPrice,
+      costPrice: stockItem.costPrice,
+      discount: 0,
+      total: stockItem.sellingPrice,
+      rewardPoints,
+    };
+
+    setPosItems([...posItems, newItem]);
+  };
+
+  // Add accessory
+  const addAccessoryToOrder = (acc: AccessoryProduct) => {
+    const rewardPoints = calculateProductRewardPoints({
+      type: 'accessory',
+      sellingPrice: acc.sellingPrice,
+      rewardPoints: acc.rewardPoints,
+    });
+
+    const existing = posItems.find((i) => i.type === 'accessory' && i.id === acc.id);
+    if (existing) {
+      setPosItems(
+        posItems.map((i) =>
+          i.type === 'accessory' && i.id === acc.id
+            ? { ...i, quantity: i.quantity + 1, total: (i.quantity + 1) * i.unitPrice }
+            : i
+        )
+      );
+    } else {
+      const newItem: InvoiceItem = {
+        type: 'accessory',
+        id: acc.id,
+        name: acc.name,
+        barcode: acc.barcode,
+        quantity: 1,
+        unitPrice: acc.sellingPrice,
+        costPrice: acc.costPrice,
+        discount: 0,
+        total: acc.sellingPrice,
+        rewardPoints,
+      };
+      setPosItems([...posItems, newItem]);
+    }
+  };
+
+  const updateQuantity = (index: number, newQty: number) => {
+    if (newQty <= 0) {
+      setPosItems(posItems.filter((_, idx) => idx !== index));
+    } else {
+      setPosItems(
+        posItems.map((item, idx) =>
+          idx === index ? { ...item, quantity: newQty, total: newQty * item.unitPrice } : item
+        )
+      );
+    }
+  };
+
+  const subtotal = posItems.reduce((sum, i) => sum + i.total, 0);
+
+  // Điểm tích lũy đơn hàng hiện tại (tính tự động theo từng sản phẩm)
+  const totalOrderRewardPoints = posItems.reduce(
+    (sum, i) => sum + (i.rewardPoints || 0) * i.quantity,
+    0
+  );
+
+  // Cấu hình thẻ thành viên theo điểm tích lũy hiện tại
+  const currentTierConfig = getTierByPoints(customerPoints);
+
+  // Phân quyền chỉnh sửa chiết khấu: Chủ shop (admin) hoặc Nhân viên có quyền pos_discount, hoặc được duyệt mã PIN tại quầy
+  const canEditDiscount =
+    role === 'admin' ||
+    IShopStore.hasPermission(role, 'pos_discount') ||
+    isDiscountOverrideUnlocked;
+
+  // Tính chiết khấu
+  const isWalkInGuest =
+    !customerPhone ||
+    customerPhone === '0900000000' ||
+    customerName === 'Khách Lẻ Cửa Hàng';
+  const autoDiscountPercent =
+    isWalkInGuest && customerPoints === 0 ? 0 : currentTierConfig.discountPercent;
+  const autoDiscountAmount = Math.round(subtotal * (autoDiscountPercent / 100));
+
+  const effectiveDiscount =
+    discountMode === 'auto'
+      ? autoDiscountAmount
+      : customDiscountType === 'percent'
+      ? Math.round(subtotal * (Math.min(100, Math.max(0, customDiscountPercent)) / 100))
+      : Math.min(subtotal, Math.max(0, customDiscountFixed));
+
+  const totalAmount = Math.max(0, subtotal - effectiveDiscount);
+  const changeAmount = Math.max(0, cashGiven - totalAmount);
+
+  // Process payment & create invoice
+  const handleCheckout = async () => {
+    if (posItems.length === 0) {
+      alert('Vui lòng chọn sản phẩm trước khi thanh toán!');
+      return;
+    }
+
+    const cashierName =
+      role === 'admin' ? 'Chủ shop Huy Hoàng' : role === 'cashier' ? 'Thu ngân quầy' : 'KTV quầy';
+
+    // 1. Post to live MySQL Database
+    try {
+      await fetch('/Api/DonHang', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerName: customerName.trim() || 'Khách Mua Tại Quầy',
+          customerPhone: customerPhone.trim() || '0900000000',
+          items: posItems,
+          subtotal,
+          discount: effectiveDiscount,
+          totalAmount,
+          earnedPoints: totalOrderRewardPoints,
+          paymentMethod,
+          cashReceived: paymentMethod === 'cash' ? cashGiven : undefined,
+          cashChange: paymentMethod === 'cash' ? changeAmount : undefined,
+          cashierName,
+        }),
+      });
+    } catch (err) {
+      console.warn('API order checkout notice:', err);
+    }
+
+    // 2. Also save to client store for immediate reactivity and printing
+    const invoice = IShopStore.createInvoice({
+      customerName: customerName.trim() || 'Khách Mua Tại Quầy',
+      customerPhone: customerPhone.trim() || '0900000000',
+      customerTier: currentTierConfig.tier,
+      items: posItems,
+      subtotal,
+      discount: effectiveDiscount,
+      totalAmount,
+      pointsEarned: totalOrderRewardPoints,
+      paymentMethod,
+      cashReceived: paymentMethod === 'cash' ? cashGiven : undefined,
+      cashChange: paymentMethod === 'cash' ? changeAmount : undefined,
+      cashierName,
+      warrantyNote: 'Bảo hành 12 tháng máy mới / 12 tháng phụ kiện 1 đổi 1.',
+    });
+
+    setCompletedInvoice(invoice);
+    setPosItems([]);
+    setDiscountMode('auto');
+    setCustomDiscountPercent(0);
+    setCustomDiscountFixed(0);
+    setCashGiven(0);
+    setIsDiscountOverrideUnlocked(false);
+    await IShopStore.hydrateFromDatabase(true);
+    loadStock();
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  return (
+    <div className="space-y-6 text-slate-800">
+      {/* Header bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Bán Hàng POS Siêu Tốc</span>
+            <span className="text-slate-300">•</span>
+            <span className="text-xs text-slate-500 font-medium">Flagship POS &amp; CRM 2026</span>
+          </div>
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2.5 mt-1">
+            <ShoppingCart className="w-6 h-6 text-emerald-600" />
+            <span>Màn Hình Bán Hàng POS Siêu Tốc 2026</span>
+          </h1>
+          <p className="text-xs text-slate-600 mt-0.5">
+            Bán máy theo số IMEI cụ thể (tự động kích hoạt bảo hành) &amp; Quét mã vạch phụ kiện.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setActiveTab('phones')}
+            className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+              activeTab === 'phones'
+                ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+            }`}
+          >
+            <Smartphone className="w-4 h-4" />
+            <span>Kho Máy Mới IMEI ({availablePhones.length})</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('accessories')}
+            className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+              activeTab === 'accessories'
+                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
+                : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+            }`}
+          >
+            <Headphones className="w-4 h-4" />
+            <span>Kho Phụ Kiện Barcode ({accessories.length})</span>
+          </button>
+        </div>
+      </div>
+
+      {/* POS Two-Column Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Left Column: Product Selection */}
+        <div className="lg:col-span-7 space-y-4">
+          {/* Tab 1: Phones by IMEI */}
+          {activeTab === 'phones' ? (
+            <div className="bg-white rounded-3xl p-6 border border-slate-200 space-y-4 shadow-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+                <div className="sm:col-span-6 relative">
+                  <Search className="w-4 h-4 text-amber-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input autoComplete="off"
+                    type="text"
+                    value={phoneSearch}
+                    onChange={(e) => setPhoneSearch(e.target.value)}
+                    placeholder=""
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-amber-500 focus:bg-white font-mono transition-colors"
+                    autoFocus
+                  />
+                </div>
+                <select
+                  value={posPhoneModelFilter}
+                  onChange={(e) => setPosPhoneModelFilter(e.target.value)}
+                  className="sm:col-span-4 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 focus:outline-none focus:border-amber-500 cursor-pointer"
+                >
+                  <option value="all">📱 Tất cả dòng máy ({availablePhones.length})</option>
+                  {posUniqueModels.map((m) => (
+                    <option key={m} value={m}>
+                      {m} ({availablePhones.filter((p) => p.phoneName === m).length})
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={posPhoneCapacityFilter}
+                  onChange={(e) => setPosPhoneCapacityFilter(e.target.value)}
+                  className="sm:col-span-2 px-2.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 focus:outline-none focus:border-amber-500 cursor-pointer"
+                >
+                  <option value="all">Bộ nhớ</option>
+                  {posUniqueCapacities.map((cap) => (
+                    <option key={cap} value={cap}>
+                      {cap}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2.5 max-h-[550px] overflow-y-auto pr-1">
+                {filteredPhones.map((unit) => {
+                  const isInOrder = posItems.some((i) => i.imei === unit.imei);
+
+                  return (
+                    <div
+                      key={unit.imei}
+                      onClick={() => !isInOrder && addPhoneToOrder(unit)}
+                      className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 cursor-pointer transition-all ${
+                        isInOrder
+                          ? 'border-amber-300 bg-amber-50/60 opacity-70 cursor-not-allowed'
+                          : 'border-slate-200 bg-white hover:bg-slate-50 hover:border-amber-400 shadow-2xs hover:scale-[1.005]'
+                      }`}
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-900 text-xs sm:text-sm">
+                            {unit.phoneName}
+                          </span>
+                          <span className="px-2 py-0.5 rounded-md text-[10px] bg-amber-50 text-amber-800 border border-amber-200 font-bold">
+                            {unit.color} • {unit.capacity}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 text-[11px] text-slate-500">
+                          <span className="font-mono text-amber-800 font-bold">
+                            IMEI: {unit.imei}
+                          </span>
+                          <span>• Nhập: {unit.importDate}</span>
+                          <span>• NCC: {unit.supplierName.split(' ')[0]}</span>
+                        </div>
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        <span className="text-sm font-black text-slate-900 font-mono block">
+                          {formatVND(unit.sellingPrice)}
+                        </span>
+                        <span
+                          className={`text-[10px] font-bold ${
+                            isInOrder ? 'text-amber-700' : 'text-emerald-700'
+                          }`}
+                        >
+                          {isInOrder ? '✓ Đã trong đơn' : '+ Chọn bán'}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {filteredPhones.length === 0 && (
+                  <div className="text-center py-12 text-slate-500 text-xs font-mono">
+                    Không tìm thấy máy nào khớp với &quot;{phoneSearch}&quot;
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            /* Tab 2: Accessories by Barcode */
+            <div className="bg-white rounded-3xl p-6 border border-slate-200 space-y-4 shadow-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+                <div className="sm:col-span-7 relative">
+                  <Barcode className="w-4 h-4 text-emerald-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input autoComplete="off"
+                    type="text"
+                    value={accessorySearch}
+                    onChange={(e) => setAccessorySearch(e.target.value)}
+                    placeholder=""
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white font-mono transition-colors"
+                    autoFocus
+                  />
+                </div>
+                <select
+                  value={posAccCategoryFilter}
+                  onChange={(e) => setPosAccCategoryFilter(e.target.value)}
+                  className="sm:col-span-5 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-500 cursor-pointer"
+                >
+                  <option value="all">🎧 Tất cả danh mục ({accessories.length})</option>
+                  {posUniqueAccCategories.map(([code, name]) => (
+                    <option key={code} value={code}>
+                      {name} ({accessories.filter((a) => a.category === code).length})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2.5 max-h-[550px] overflow-y-auto pr-1">
+                {filteredAccessories.map((acc) => (
+                  <div
+                    key={acc.id}
+                    onClick={() => addAccessoryToOrder(acc)}
+                    className="p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 hover:border-emerald-400 cursor-pointer transition-all flex items-center justify-between gap-3 shadow-2xs hover:scale-[1.005]"
+                  >
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={acc.imageUrl}
+                        alt={acc.name}
+                        className="w-11 h-11 object-contain rounded-xl bg-slate-50 border border-slate-200 p-1 shrink-0"
+                      />
+                      <div>
+                        <h4 className="text-xs sm:text-sm font-bold text-slate-900 line-clamp-1">
+                          {acc.name}
+                        </h4>
+                        <div className="text-[11px] text-slate-500 flex items-center gap-2 mt-0.5">
+                          <span className="font-mono text-emerald-700 font-bold">{acc.barcode}</span>
+                          <span>• Tồn: <strong className="text-slate-800">{acc.stock} cái</strong></span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="text-right shrink-0">
+                      <span className="text-sm font-black text-emerald-700 font-mono block">
+                        {formatVND(acc.sellingPrice)}
+                      </span>
+                      <span className="text-[10px] text-blue-700 font-bold">+ Thêm giỏ</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Right Column: POS Cashier Terminal */}
+        <div className="lg:col-span-5 space-y-4">
+          <div className="bg-white rounded-3xl p-6 border border-slate-200 space-y-4 shadow-sm text-slate-800">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <h2 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                <ShoppingCart className="w-4 h-4 text-emerald-600" />
+                <span>Đơn Hàng Hiện Tại ({posItems.length} món)</span>
+              </h2>
+              {posItems.length > 0 && (
+                <button
+                  onClick={() => setPosItems([])}
+                  className="text-xs text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
+                >
+                  Xóa hết
+                </button>
+              )}
+            </div>
+
+            {/* Customer Information Panel (Mẫu ERP IncomSoft: Chọn, Xóa, Thêm, Sửa) */}
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3 shadow-2xs">
+              <div className="flex items-center justify-between pb-1.5 border-b border-slate-200">
+                <div className="flex items-center gap-2">
+                  <User className="w-4 h-4 text-emerald-600" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-900">Khách Hàng</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setIsTiersModalOpen(true)}
+                    className="text-[10px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 font-bold border border-amber-200 flex items-center gap-1 hover:bg-amber-100 transition-all cursor-pointer shadow-2xs"
+                    title="Xem bảng tích điểm sản phẩm và mức chiết khấu từng hạng thẻ"
+                  >
+                    <Gift className="w-3 h-3 text-amber-600" />
+                    <span>Bảng Điểm &amp; Thẻ</span>
+                  </button>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${currentTierConfig.badgeClass}`}>
+                    {currentTierConfig.tier}
+                  </span>
+                </div>
+              </div>
+
+              {/* Customer Name Display / Quick Edit */}
+              <div>
+                <input autoComplete="off"
+                  type="text"
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  placeholder=""
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-slate-900 font-bold text-xs sm:text-sm focus:outline-none focus:border-amber-500 shadow-2xs"
+                />
+              </div>
+
+              {/* The 4 Action Buttons: Chọn - Xóa - Thêm - Sửa (Chuẩn Mẫu incomSoft) */}
+              <div className="grid grid-cols-4 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsSelectCustomerOpen(true)}
+                  className="py-1.5 px-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold text-xs flex items-center justify-center gap-1 transition-all cursor-pointer shadow-2xs hover:scale-[1.02]"
+                  title="Tìm và chọn khách hàng từ danh bạ cửa hàng"
+                >
+                  <Search className="w-3.5 h-3.5" />
+                  <span>Chọn</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleClearCustomer}
+                  className="py-1.5 px-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs flex items-center justify-center gap-1 transition-all cursor-pointer hover:scale-[1.02]"
+                  title="Xóa/Bỏ chọn khách hàng, quay về khách lẻ"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Xóa</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleOpenAddCustomer}
+                  className="py-1.5 px-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 font-bold text-xs flex items-center justify-center gap-1 transition-all cursor-pointer shadow-2xs hover:scale-[1.02]"
+                  title="Thêm mới khách hàng trực tiếp tại quầy"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Thêm</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleOpenEditCustomer}
+                  className="py-1.5 px-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 font-bold text-xs flex items-center justify-center gap-1 transition-all cursor-pointer shadow-2xs hover:scale-[1.02]"
+                  title="Sửa thông tin khách hàng đang chọn"
+                >
+                  <Edit className="w-3.5 h-3.5" />
+                  <span>Sửa</span>
+                </button>
+              </div>
+
+              {/* Toast Feedback */}
+              {customerFeedback && (
+                <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-semibold flex items-center gap-1.5 animate-in fade-in">
+                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-emerald-600" />
+                  <span>{customerFeedback}</span>
+                </div>
+              )}
+
+              {/* Detail Fields (Mẫu incomSoft): Thẻ thành viên, Điểm hiện tại, Địa chỉ, Điện thoại */}
+              <div className="space-y-2 text-xs pt-1 border-t border-slate-200">
+                {/* Thẻ thành viên */}
+                <div className="grid grid-cols-12 gap-2 items-center">
+                  <span className="col-span-4 text-slate-500 font-semibold text-[11px]">Thẻ thành viên:</span>
+                  <div className="col-span-8">
+                    <span className={`w-full block px-2.5 py-1 rounded-lg font-bold text-xs font-mono border ${currentTierConfig.badgeClass}`}>
+                      {currentTierConfig.tier} (Chiết khấu {currentTierConfig.discountPercent}%)
+                    </span>
+                  </div>
+                </div>
+
+                {/* Điểm hiện tại */}
+                <div className="grid grid-cols-12 gap-2 items-center">
+                  <span className="col-span-4 text-slate-500 font-semibold text-[11px]">Điểm hiện tại:</span>
+                  <div className="col-span-8">
+                    <div className="flex items-center justify-between px-2.5 py-1 bg-amber-50 border border-amber-200 rounded-lg">
+                      <span className="text-amber-800 font-black text-xs font-mono">
+                        {customerPoints.toLocaleString('vi-VN')} điểm
+                      </span>
+                      {totalOrderRewardPoints > 0 && (
+                        <span className="text-[10px] text-emerald-700 font-bold font-mono">
+                          (+{totalOrderRewardPoints.toLocaleString('vi-VN')} đơn này)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Địa chỉ */}
+                <div className="grid grid-cols-12 gap-2 items-start">
+                  <span className="col-span-4 text-slate-500 font-semibold text-[11px] pt-1">Địa chỉ:</span>
+                  <div className="col-span-8">
+                    <textarea
+                      rows={2}
+                      value={customerAddress}
+                      onChange={(e) => setCustomerAddress(e.target.value)}
+                      placeholder=""
+                      className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-900 text-xs focus:outline-none focus:border-amber-500 leading-tight"
+                    />
+                  </div>
+                </div>
+
+                {/* Điện thoại */}
+                <div className="grid grid-cols-12 gap-2 items-center">
+                  <span className="col-span-4 text-slate-500 font-semibold text-[11px]">Điện thoại:</span>
+                  <div className="col-span-8">
+                    <input autoComplete="off"
+                      type="tel"
+                      value={customerPhone}
+                      onChange={(e) => setCustomerPhone(e.target.value)}
+                      placeholder=""
+                      className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-blue-700 font-mono font-bold text-xs focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Items Table in POS Bill */}
+            <div className="space-y-2 max-h-56 overflow-y-auto pr-1 border-t border-b border-slate-200 py-3">
+              {posItems.length === 0 ? (
+                <div className="text-center py-10 text-slate-400 text-xs font-mono">
+                  Chưa có sản phẩm nào. Chọn máy theo IMEI hoặc phụ kiện bên trái.
+                </div>
+              ) : (
+                posItems.map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="p-3 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-2 text-xs"
+                  >
+                    <div className="truncate">
+                      <div className="flex items-center gap-1.5">
+                        <h4 className="font-bold text-slate-900 truncate">{item.name}</h4>
+                        {item.rewardPoints && item.rewardPoints > 0 ? (
+                          <span className="px-1.5 py-0.2 rounded-md bg-amber-100 border border-amber-300 text-amber-800 text-[10px] font-mono font-bold shrink-0">
+                            +{item.rewardPoints * item.quantity} pts
+                          </span>
+                        ) : null}
+                      </div>
+                      {item.imei && (
+                        <span className="text-[10px] font-mono text-amber-800 font-bold block">
+                          IMEI: {item.imei}
+                        </span>
+                      )}
+                      {item.barcode && (
+                        <span className="text-[10px] font-mono text-slate-500 block">
+                          Barcode: {item.barcode}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      {item.type === 'accessory' ? (
+                        <div className="flex items-center gap-1 bg-white px-2 py-0.5 rounded-lg border border-slate-200">
+                          <button
+                            onClick={() => updateQuantity(idx, item.quantity - 1)}
+                            className="text-slate-500 hover:text-slate-900 cursor-pointer"
+                          >
+                            <Minus className="w-3 h-3" />
+                          </button>
+                          <span className="font-bold text-slate-900 px-1 text-xs font-mono">
+                            {item.quantity}
+                          </span>
+                          <button
+                            onClick={() => updateQuantity(idx, item.quantity + 1)}
+                            className="text-slate-500 hover:text-slate-900 cursor-pointer"
+                          >
+                            <Plus className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-lg bg-amber-50 text-amber-800 text-[10px] font-bold border border-amber-200">
+                          1 Máy
+                        </span>
+                      )}
+
+                      <span className="font-black text-slate-900 text-xs font-mono">
+                        {formatVND(item.total)}
+                      </span>
+
+                      <button
+                        onClick={() => setPosItems(posItems.filter((_, i) => i !== idx))}
+                        className="text-slate-400 hover:text-rose-600 p-1 cursor-pointer"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Total Reward Points for this Order */}
+            {posItems.length > 0 && (
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-xs">
+                <div className="flex items-center gap-1.5 text-amber-800 font-bold">
+                  <Gift className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                  <span>Điểm thưởng tích lũy đơn này:</span>
+                </div>
+                <div className="text-right">
+                  <span className="font-mono font-black text-amber-800">
+                    +{totalOrderRewardPoints.toLocaleString('vi-VN')} điểm
+                  </span>
+                  {customerPhone && customerPhone !== '0900000000' && (
+                    <span className="block text-[10px] text-slate-500 font-mono">
+                      (Sau mua: {(customerPoints + totalOrderRewardPoints).toLocaleString('vi-VN')} pts)
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Calculations & Discounts with Permission & Tiers */}
+            <div className="space-y-2.5 text-xs text-slate-700">
+              <div className="flex justify-between">
+                <span className="text-slate-500">Tổng tiền hàng:</span>
+                <span className="font-bold text-slate-900 font-mono">{formatVND(subtotal)}</span>
+              </div>
+
+              {/* Chiết khấu / Giảm giá Container */}
+              <div className="p-2.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Percent className="w-3.5 h-3.5 text-amber-600" />
+                    <span className="font-bold text-slate-900 text-xs">Chiết khấu / Giảm giá:</span>
+                  </div>
+                  {/* Mode switcher tabs */}
+                  <div className="flex items-center gap-1 bg-white p-0.5 rounded-xl border border-slate-200 text-[11px]">
+                    <button
+                      type="button"
+                      onClick={() => setDiscountMode('auto')}
+                      className={`px-2 py-0.5 rounded-lg font-bold transition-all cursor-pointer ${
+                        discountMode === 'auto'
+                          ? 'bg-amber-500 text-slate-950 shadow-2xs font-black'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      Theo thẻ ({autoDiscountPercent}%)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRequestCustomDiscount}
+                      className={`px-2 py-0.5 rounded-lg font-bold flex items-center gap-1 transition-all cursor-pointer ${
+                        discountMode === 'custom'
+                          ? 'bg-blue-600 text-white shadow-2xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                      title={
+                        canEditDiscount
+                          ? 'Tự nhập % hoặc số tiền chiết khấu'
+                          : 'Cần quyền Chủ shop / Quản lý duyệt'
+                      }
+                    >
+                      {!canEditDiscount && <Lock className="w-2.5 h-2.5 text-amber-600" />}
+                      <span>Tùy chỉnh</span>
+                    </button>
+                  </div>
+                </div>
+
+                {discountMode === 'auto' ? (
+                  <div className="flex items-center justify-between text-xs pt-1">
+                    <div className="text-[11px] text-slate-500 flex items-center gap-1.5">
+                      <span className={`px-1.5 py-0.5 rounded font-bold text-[10px] ${currentTierConfig.badgeClass}`}>
+                        {currentTierConfig.tier}
+                      </span>
+                      <span>({autoDiscountPercent}% tổng đơn)</span>
+                    </div>
+                    <span className="font-bold text-amber-700 font-mono text-sm">
+                      {effectiveDiscount > 0 ? `-${formatVND(effectiveDiscount)}` : '0 đ'}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="space-y-2 pt-1 border-t border-slate-200 animate-in fade-in">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1 bg-white p-0.5 rounded-lg border border-slate-200">
+                        <button
+                          type="button"
+                          onClick={() => setCustomDiscountType('percent')}
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold cursor-pointer ${
+                            customDiscountType === 'percent'
+                              ? 'bg-blue-600 text-white'
+                              : 'text-slate-600 hover:text-slate-900'
+                          }`}
+                        >
+                          Theo %
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCustomDiscountType('fixed')}
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold cursor-pointer ${
+                            customDiscountType === 'fixed'
+                              ? 'bg-blue-600 text-white'
+                              : 'text-slate-600 hover:text-slate-900'
+                          }`}
+                        >
+                          Số tiền (đ)
+                        </button>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 w-36">
+                        {customDiscountType === 'percent' ? (
+                          <>
+                            <input autoComplete="off"
+                              type="number"
+                              min="0"
+                              max="100"
+                              value={customDiscountPercent || ''}
+                              onChange={(e) =>
+                                setCustomDiscountPercent(
+                                  Math.max(0, Math.min(100, Number(e.target.value) || 0))
+                                )
+                              }
+                              placeholder=""
+                              className="w-full text-right p-1.5 bg-white border border-blue-300 rounded-lg text-slate-900 font-mono font-bold text-xs focus:outline-none focus:border-blue-500"
+                            />
+                            <span className="text-slate-500 font-bold">%</span>
+                          </>
+                        ) : (
+                          <>
+                            <input autoComplete="off"
+                              type="number"
+                              min="0"
+                              value={customDiscountFixed || ''}
+                              onChange={(e) =>
+                                setCustomDiscountFixed(Math.max(0, Number(e.target.value) || 0))
+                              }
+                              placeholder=""
+                              className="w-full text-right p-1.5 bg-white border border-blue-300 rounded-lg text-slate-900 font-mono font-bold text-xs focus:outline-none focus:border-blue-500"
+                            />
+                            <span className="text-slate-500 font-bold">đ</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11px] text-slate-500">
+                      <span className="text-blue-700 font-medium flex items-center gap-1">
+                        <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                        {role === 'admin'
+                          ? 'Chủ shop duyệt'
+                          : isDiscountOverrideUnlocked
+                          ? 'Quản lý mở khóa tại quầy'
+                          : 'Nhân viên được cấp quyền'}
+                      </span>
+                      <span className="font-bold text-amber-700 font-mono text-sm">
+                        -{formatVND(effectiveDiscount)}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-between text-sm font-black border-t border-slate-200 pt-2 text-slate-900">
+                <span>Khách phải trả:</span>
+                <span className="text-2xl font-black text-emerald-700 font-mono">
+                  {formatVND(totalAmount)}
+                </span>
+              </div>
+            </div>
+
+            {/* Payment Method Selector */}
+            <div className="space-y-2.5 pt-1 text-xs">
+              <label className="text-slate-600 font-bold block">Phương thức thanh toán:</label>
+              <div className="grid grid-cols-2 gap-2.5">
+                <button
+                  onClick={() => setPaymentMethod('cash')}
+                  className={`p-3 rounded-2xl border flex items-center justify-center gap-2 font-black transition-all cursor-pointer ${
+                    paymentMethod === 'cash'
+                      ? 'bg-emerald-600 text-white border-emerald-500 shadow-md shadow-emerald-600/20'
+                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  <span>💵 Tiền Mặt</span>
+                </button>
+                <button
+                  onClick={() => setPaymentMethod('vietqr')}
+                  className={`p-3 rounded-2xl border flex items-center justify-center gap-2 font-black transition-all cursor-pointer ${
+                    paymentMethod === 'vietqr'
+                      ? 'bg-blue-600 text-white border-blue-500 shadow-md shadow-blue-600/20'
+                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  <span>📱 VietQR Napas</span>
+                </button>
+              </div>
+
+              {/* Cash given calculation */}
+              {paymentMethod === 'cash' ? (
+                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-600 font-semibold">Tiền khách đưa:</span>
+                    <input autoComplete="off"
+                      type="number"
+                      value={cashGiven || ''}
+                      onChange={(e) => setCashGiven(Number(e.target.value) || 0)}
+                      placeholder=""
+                      className="w-40 text-right p-2 bg-white border border-slate-200 rounded-xl text-slate-900 font-mono font-bold text-sm focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                  <div className="flex justify-between font-black text-xs pt-1.5 border-t border-slate-200">
+                    <span className="text-slate-600">Tiền thừa trả khách:</span>
+                    <span className="text-emerald-700 font-mono text-sm">{formatVND(changeAmount)}</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3.5 rounded-2xl bg-blue-50 border border-blue-200 text-center">
+                  <span className="text-blue-800 font-bold block mb-1">
+                    Mã QR tự động sinh sau khi bấm thanh toán
+                  </span>
+                  <span className="text-[10px] text-slate-500">
+                    Khách quét app ngân hàng MB, VCB, Techcombank, VPBank...
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Big Action Button */}
+            <button
+              onClick={handleCheckout}
+              disabled={posItems.length === 0}
+              className="w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-black text-sm shadow-md transition-transform hover:scale-[1.01] flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Printer className="w-5 h-5 text-white" />
+              <span>THANH TOÁN &amp; IN HÓA ĐƠN K80</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Printable Receipt Modal (K80 & A5) */}
+      {completedInvoice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto text-slate-800">
+            {/* Modal Controls */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 no-print">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-800">Khổ in:</span>
+                <button
+                  onClick={() => setPrintFormat('k80')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+                    printFormat === 'k80' ? 'bg-amber-500 text-slate-950 shadow-sm' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                  }`}
+                >
+                  Nhiệt K80 (80mm)
+                </button>
+                <button
+                  onClick={() => setPrintFormat('a5')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+                    printFormat === 'a5' ? 'bg-amber-500 text-slate-950 shadow-sm' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                  }`}
+                >
+                  Khổ A5
+                </button>
+              </div>
+
+              <button
+                onClick={() => setCompletedInvoice(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-xl bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Printable Receipt Canvas */}
+            <div
+              id="printable-receipt"
+              className={`bg-white text-slate-950 p-5 rounded-2xl mx-auto font-mono text-xs border border-slate-200 shadow-sm ${
+                printFormat === 'k80' ? 'max-w-[320px] text-[11px]' : 'max-w-md text-xs'
+              }`}
+            >
+              <div className="text-center space-y-1 pb-3 border-b border-dashed border-slate-300">
+                <h2 className="font-bold text-base tracking-wider uppercase text-slate-900">iShop Huy Hoàng</h2>
+                <p className="text-[10px] text-slate-600">Đ/C: 168 Đường 3/2, Q.10 & 45 Lê Văn Việt, TP. Thủ Đức</p>
+                <p className="text-[10px] text-slate-600">Hotline: 0988.888.999</p>
+                <h3 className="font-bold text-sm mt-2 uppercase text-slate-900">HÓA ĐƠN BÁN HÀNG</h3>
+                <p className="text-[10px] text-slate-500">Số HĐ: {completedInvoice.invoiceCode}</p>
+                <p className="text-[10px] text-slate-500">Ngày: {completedInvoice.createdAt}</p>
+              </div>
+
+              <div className="py-2 space-y-1 border-b border-dashed border-slate-300 text-[11px] text-slate-700">
+                <p>Khách hàng: <strong className="text-slate-900">{completedInvoice.customerName}</strong></p>
+                <p>SĐT: <strong className="text-slate-900">{completedInvoice.customerPhone}</strong></p>
+                <p>Thu ngân: <span className="text-slate-800">{completedInvoice.cashierName}</span></p>
+              </div>
+
+              {/* Items List */}
+              <div className="py-2 border-b border-dashed border-slate-300 space-y-2">
+                {completedInvoice.items.map((item, i) => (
+                  <div key={i} className="space-y-0.5">
+                    <div className="flex justify-between font-bold text-slate-900">
+                      <span>{item.name}</span>
+                      <span>{formatVND(item.total)}</span>
+                    </div>
+                    <div className="flex justify-between text-[10px] text-slate-500">
+                      <span>SL: {item.quantity} x {formatVND(item.unitPrice)}</span>
+                    </div>
+                    {item.imei && (
+                      <div className="text-[10px] font-bold text-rose-600">
+                        * IMEI: {item.imei}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Summary Totals */}
+              <div className="py-2 space-y-1 border-b border-dashed border-slate-300 text-[11px] text-slate-700">
+                <div className="flex justify-between">
+                  <span>Tạm tính:</span>
+                  <span className="font-semibold text-slate-900">{formatVND(completedInvoice.subtotal)}</span>
+                </div>
+                {completedInvoice.discount > 0 && (
+                  <div className="flex justify-between text-rose-600 font-semibold">
+                    <span>Chiết khấu:</span>
+                    <span>-{formatVND(completedInvoice.discount)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between font-black text-sm pt-1 text-slate-900">
+                  <span>TỔNG CỘNG:</span>
+                  <span className="text-emerald-600">{formatVND(completedInvoice.totalAmount)}</span>
+                </div>
+                <div className="flex justify-between text-[10px] pt-1">
+                  <span>Phương thức:</span>
+                  <span className="uppercase font-bold text-slate-800">{completedInvoice.paymentMethod}</span>
+                </div>
+                {completedInvoice.customerTier && (
+                  <div className="flex justify-between text-[10px] text-slate-600">
+                    <span>Hạng thẻ:</span>
+                    <span className="font-bold text-amber-700">{completedInvoice.customerTier}</span>
+                  </div>
+                )}
+                {typeof completedInvoice.pointsEarned === 'number' && completedInvoice.pointsEarned > 0 && (
+                  <div className="flex justify-between text-[10px] text-emerald-700 font-bold border-t border-dashed border-slate-200 pt-0.5">
+                    <span>Điểm tích lũy đơn này:</span>
+                    <span>+{completedInvoice.pointsEarned} điểm</span>
+                  </div>
+                )}
+              </div>
+
+              {/* QR Code in receipt for payment or warranty lookup */}
+              <div className="py-3 text-center space-y-1">
+                {completedInvoice.paymentMethod === 'vietqr' ? (
+                  <>
+                    <img
+                      src={generateVietQRUrl(completedInvoice.totalAmount, completedInvoice.invoiceCode)}
+                      alt="VietQR"
+                      className="w-32 h-32 mx-auto rounded-lg border border-slate-200 p-1"
+                    />
+                    <p className="text-[9px] text-slate-600 font-medium">Quét mã VietQR Napas 247 để chuyển khoản</p>
+                  </>
+                ) : (
+                  <p className="text-[10px] font-semibold text-slate-700">
+                    Đã thanh toán tiền mặt đủ.
+                  </p>
+                )}
+                <p className="text-[9px] italic mt-2 text-slate-500">
+                  {completedInvoice.warrantyNote}
+                </p>
+                <p className="text-[9px] font-bold mt-1 text-slate-800">Xin cảm ơn và hẹn gặp lại quý khách!</p>
+              </div>
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex items-center gap-3 pt-2 no-print">
+              <button
+                onClick={handlePrint}
+                className="flex-1 py-3.5 rounded-2xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer"
+              >
+                <Printer className="w-4 h-4 text-slate-950" />
+                <span>In Hóa Đơn Ngay (Ctrl + P)</span>
+              </button>
+              <button
+                onClick={() => setCompletedInvoice(null)}
+                className="px-5 py-3.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors cursor-pointer"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* MODAL 1: CHỌN KHÁCH HÀNG (Select Customer Modal) */}
+      {/* ============================================================== */}
+      {isSelectCustomerOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 max-w-2xl w-full shadow-2xl space-y-4 max-h-[90vh] flex flex-col text-slate-800">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 shrink-0">
+              <div className="flex items-center gap-2">
+                <UserCheck className="w-5 h-5 text-emerald-600" />
+                <h3 className="font-bold text-slate-900 text-base">Chọn Khách Hàng Thân Thiết (CRM POS)</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsSelectCustomerOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-xl bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Search & Filter Toolbar */}
+            <div className="space-y-2 shrink-0">
+              <div className="relative">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input autoComplete="off"
+                  type="text"
+                  placeholder=""
+                  value={customerSearch}
+                  onChange={(e) => setCustomerSearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-xs sm:text-sm focus:outline-none focus:bg-white focus:border-emerald-500 transition-colors"
+                  autoFocus
+                />
+              </div>
+
+              {/* Tier Filter Pills */}
+              <div className="flex items-center gap-1.5 overflow-x-auto text-[11px] pb-1">
+                <span className="text-slate-500 font-bold shrink-0">Lọc theo:</span>
+                {[
+                  { key: 'all', label: 'Tất cả' },
+                  { key: 'Thẻ Bạch Kim', label: 'Bạch Kim' },
+                  { key: 'Thẻ Vàng', label: 'Thẻ Vàng' },
+                  { key: 'Thẻ Bạc', label: 'Thẻ Bạc' },
+                  { key: 'Khách lẻ', label: 'Khách lẻ' },
+                ].map((tier) => (
+                  <button
+                    key={tier.key}
+                    type="button"
+                    onClick={() => setCustomerTierFilter(tier.key)}
+                    className={`px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer shrink-0 ${
+                      customerTierFilter === tier.key
+                        ? 'bg-emerald-600 text-white shadow-sm'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {tier.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Customer List */}
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1 min-h-[250px] max-h-[400px]">
+              {customersList
+                .filter((c) => {
+                  const query = customerSearch.toLowerCase().trim();
+                  const matchQuery =
+                    !query ||
+                    c.name.toLowerCase().includes(query) ||
+                    c.phone.includes(query) ||
+                    (c.address && c.address.toLowerCase().includes(query));
+                  const matchTier =
+                    customerTierFilter === 'all' ||
+                    c.membershipTier === customerTierFilter ||
+                    c.customerType === customerTierFilter;
+                  return matchQuery && matchTier;
+                })
+                .map((cust) => {
+                  const isCurrent = selectedCustomerId === cust.id || customerPhone === cust.phone;
+                  return (
+                    <div
+                      key={cust.id}
+                      className={`p-3 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
+                        isCurrent
+                          ? 'bg-emerald-50/80 border-emerald-300 shadow-sm'
+                          : 'bg-white border-slate-200 hover:bg-slate-50/80 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-slate-900 text-xs sm:text-sm">{cust.name}</span>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                            {cust.membershipTier || 'Thành viên mới'}
+                          </span>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 font-mono">
+                            {cust.points?.toLocaleString('vi-VN') || 0} điểm
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 text-[11px] text-slate-500 flex-wrap">
+                          <span className="font-mono text-amber-700 font-bold flex items-center gap-1">
+                            <Phone className="w-3 h-3" />
+                            <span>{cust.phone}</span>
+                          </span>
+                          {cust.address && (
+                            <span className="flex items-center gap-1 truncate max-w-xs text-slate-600">
+                              <MapPin className="w-3 h-3 shrink-0" />
+                              <span className="truncate">{cust.address}</span>
+                            </span>
+                          )}
+                          <span>• {cust.purchaseCount || 0} lần mua</span>
+                        </div>
+                      </div>
+
+                      <div className="shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleSelectCustomer(cust)}
+                          className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                            isCurrent
+                              ? 'bg-emerald-600 text-white shadow-sm'
+                              : 'bg-slate-100 hover:bg-emerald-600 hover:text-white text-slate-700'
+                          }`}
+                        >
+                          {isCurrent ? '✓ Đang chọn' : 'Chọn khách này'}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+
+              {customersList.filter((c) => {
+                const query = customerSearch.toLowerCase().trim();
+                return (
+                  !query ||
+                  c.name.toLowerCase().includes(query) ||
+                  c.phone.includes(query) ||
+                  (c.address && c.address.toLowerCase().includes(query))
+                );
+              }).length === 0 && (
+                <div className="text-center py-10 text-slate-400 text-xs">
+                  Không tìm thấy khách hàng khớp với &quot;{customerSearch}&quot;.
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="pt-3 border-t border-slate-200 flex items-center justify-between shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSelectCustomerOpen(false);
+                  handleOpenAddCustomer();
+                }}
+                className="px-4 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>+ Thêm khách hàng mới</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsSelectCustomerOpen(false)}
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* MODAL 2: THÊM KHÁCH HÀNG MỚI (Mẫu Chuẩn Hình 3 incomSoft) */}
+      {/* ============================================================== */}
+      {isAddCustomerOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 max-w-xl w-full shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto text-slate-800">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <div className="flex items-center gap-2">
+                <UserPlus className="w-5 h-5 text-amber-600" />
+                <h3 className="font-bold text-slate-900 text-base">Thêm Khách Hàng Mới Tại Quầy</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAddCustomerOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-xl bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form autoComplete="off" onSubmit={handleSaveNewCustomer} className="space-y-3.5 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-slate-700 font-bold mb-1 block">Loại khách hàng: *</label>
+                  <select
+                    value={formCustType}
+                    onChange={(e) => setFormCustType(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:outline-none focus:border-amber-500 font-medium"
+                  >
+                    <option value="Khách lẻ">Khách lẻ (mua trực tiếp)</option>
+                    <option value="Khách thợ">Khách thợ / Cửa hàng bạn</option>
+                    <option value="Khách buôn">Khách buôn / Đại lý</option>
+                    <option value="Doanh nghiệp">Doanh nghiệp / Công ty</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-slate-700 font-bold mb-1 block">Thẻ thành viên:</label>
+                  <select
+                    value={formCustTier}
+                    onChange={(e) => setFormCustTier(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:outline-none focus:border-amber-500 font-medium"
+                  >
+                    <option value="Thành viên mới">Thành viên mới</option>
+                    <option value="Thẻ Đồng">Thẻ Đồng</option>
+                    <option value="Thẻ Bạc">Thẻ Bạc</option>
+                    <option value="Thẻ Vàng">Thẻ Vàng</option>
+                    <option value="Thẻ Bạch Kim">Thẻ Bạch Kim</option>
+                    <option value="VIP Diamond">VIP Diamond</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-slate-700 font-bold mb-1 block">Tên Khách Hàng: *</label>
+                  <input autoComplete="off"
+                    type="text"
+                    required
+                    placeholder=""
+                    value={formCustName}
+                    onChange={(e) => setFormCustName(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:outline-none focus:border-amber-500 font-medium"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-slate-700 font-bold mb-1 block">Điện thoại (kích hoạt BH): *</label>
+                  <input autoComplete="off"
+                    type="tel"
+                    required
+                    placeholder=""
+                    value={formCustPhone}
+                    onChange={(e) => setFormCustPhone(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-amber-700 font-mono font-bold focus:bg-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-slate-700 font-bold mb-1 block">Thư điện tử (Email):</label>
+                  <input autoComplete="off"
+                    type="email"
+                    placeholder=""
+                    value={formCustEmail}
+                    onChange={(e) => setFormCustEmail(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:outline-none focus:border-amber-500 font-medium"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-slate-700 font-bold mb-1 block">Điểm tích lũy ban đầu:</label>
+                  <input autoComplete="off"
+                    type="number"
+                    value={formCustPoints}
+                    onChange={(e) => setFormCustPoints(Number(e.target.value))}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono focus:bg-white focus:outline-none focus:border-amber-500 font-medium"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-slate-700 font-bold mb-1 block">Địa chỉ:</label>
+                <textarea
+                  rows={2}
+                  placeholder=""
+                  value={formCustAddress}
+                  onChange={(e) => setFormCustAddress(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:outline-none focus:border-amber-500 font-medium"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="text-slate-700 font-bold mb-1 block">Tỉnh/Thành phố:</label>
+                  <input autoComplete="off"
+                    type="text"
+                    value={formCustCity}
+                    onChange={(e) => setFormCustCity(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:outline-none focus:border-amber-500 font-medium"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-slate-700 font-bold mb-1 block">Mã số thuế (nếu có):</label>
+                  <input autoComplete="off"
+                    type="text"
+                    placeholder=""
+                    value={formCustTaxCode}
+                    onChange={(e) => setFormCustTaxCode(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:outline-none focus:border-amber-500 font-mono font-medium"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-slate-700 font-bold mb-1 block">Sinh nhật:</label>
+                  <input autoComplete="off"
+                    type="date"
+                    value={formCustBirthday}
+                    onChange={(e) => setFormCustBirthday(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:outline-none focus:border-amber-500 font-medium"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-slate-700 font-bold mb-1 block">Ghi chú thêm:</label>
+                <textarea
+                  rows={2}
+                  placeholder=""
+                  value={formCustNotes}
+                  onChange={(e) => setFormCustNotes(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:outline-none focus:border-amber-500 font-medium"
+                />
+              </div>
+
+              {/* Form Buttons */}
+              <div className="pt-2 flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setIsAddCustomerOpen(false)}
+                  className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold transition-colors cursor-pointer"
+                >
+                  Đóng
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black shadow-md transition-all cursor-pointer"
+                >
+                  Lưu &amp; Gán Vào Đơn Hàng
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* MODAL 3: SỬA THÔNG TIN KHÁCH HÀNG (Edit Customer Modal) */}
+      {/* ============================================================== */}
+      {isEditCustomerOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 max-w-xl w-full shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto text-slate-800">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <div className="flex items-center gap-2">
+                <Edit className="w-5 h-5 text-blue-600" />
+                <h3 className="font-bold text-slate-900 text-base">Chỉnh Sửa Thông Tin Khách Hàng</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsEditCustomerOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-xl bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Edit Form */}
+            <form autoComplete="off" onSubmit={handleUpdateCustomer} className="space-y-3.5 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-slate-700 font-bold mb-1 block">Loại khách hàng:</label>
+                  <select
+                    value={formCustType}
+                    onChange={(e) => setFormCustType(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:outline-none focus:border-blue-500 font-medium"
+                  >
+                    <option value="Khách lẻ">Khách lẻ (mua trực tiếp)</option>
+                    <option value="Khách thợ">Khách thợ / Cửa hàng bạn</option>
+                    <option value="Khách buôn">Khách buôn / Đại lý</option>
+                    <option value="Doanh nghiệp">Doanh nghiệp / Công ty</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-slate-700 font-bold mb-1 block">Thẻ thành viên:</label>
+                  <select
+                    value={formCustTier}
+                    onChange={(e) => setFormCustTier(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:outline-none focus:border-blue-500 font-medium"
+                  >
+                    <option value="Thành viên mới">Thành viên mới</option>
+                    <option value="Thẻ Đồng">Thẻ Đồng</option>
+                    <option value="Thẻ Bạc">Thẻ Bạc</option>
+                    <option value="Thẻ Vàng">Thẻ Vàng</option>
+                    <option value="Thẻ Bạch Kim">Thẻ Bạch Kim</option>
+                    <option value="VIP Diamond">VIP Diamond</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-slate-700 font-bold mb-1 block">Tên Khách Hàng: *</label>
+                  <input autoComplete="off"
+                    type="text"
+                    required
+                    value={formCustName}
+                    onChange={(e) => setFormCustName(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:outline-none focus:border-blue-500 font-medium"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-slate-700 font-bold mb-1 block">Điện thoại (kích hoạt BH): *</label>
+                  <input autoComplete="off"
+                    type="tel"
+                    required
+                    value={formCustPhone}
+                    onChange={(e) => setFormCustPhone(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-amber-700 font-mono font-bold focus:bg-white focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-slate-700 font-bold mb-1 block">Thư điện tử (Email):</label>
+                  <input autoComplete="off"
+                    type="email"
+                    value={formCustEmail}
+                    onChange={(e) => setFormCustEmail(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:outline-none focus:border-blue-500 font-medium"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-slate-700 font-bold mb-1 block">Điểm tích lũy:</label>
+                  <input autoComplete="off"
+                    type="number"
+                    value={formCustPoints}
+                    onChange={(e) => setFormCustPoints(Number(e.target.value))}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono focus:bg-white focus:outline-none focus:border-blue-500 font-medium"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-slate-700 font-bold mb-1 block">Địa chỉ:</label>
+                <textarea
+                  rows={2}
+                  value={formCustAddress}
+                  onChange={(e) => setFormCustAddress(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:outline-none focus:border-blue-500 font-medium"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="text-slate-700 font-bold mb-1 block">Tỉnh/Thành phố:</label>
+                  <input autoComplete="off"
+                    type="text"
+                    value={formCustCity}
+                    onChange={(e) => setFormCustCity(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:outline-none focus:border-blue-500 font-medium"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-slate-700 font-bold mb-1 block">Mã số thuế:</label>
+                  <input autoComplete="off"
+                    type="text"
+                    value={formCustTaxCode}
+                    onChange={(e) => setFormCustTaxCode(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:outline-none focus:border-blue-500 font-mono font-medium"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-slate-700 font-bold mb-1 block">Sinh nhật:</label>
+                  <input autoComplete="off"
+                    type="date"
+                    value={formCustBirthday}
+                    onChange={(e) => setFormCustBirthday(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:outline-none focus:border-blue-500 font-medium"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-slate-700 font-bold mb-1 block">Ghi chú thêm:</label>
+                <textarea
+                  rows={2}
+                  value={formCustNotes}
+                  onChange={(e) => setFormCustNotes(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:outline-none focus:border-blue-500 font-medium"
+                />
+              </div>
+
+              {/* Form Buttons */}
+              <div className="pt-2 flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setIsEditCustomerOpen(false)}
+                  className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold transition-colors cursor-pointer"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black shadow-md transition-all cursor-pointer"
+                >
+                  Cập Nhật Thông Tin
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* MODAL 4: TRA CỨU BẢNG ĐIỂM & CHÍNH SÁCH HẠNG THẺ (Tiers Policy) */}
+      {/* ============================================================== */}
+      {isTiersModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 max-w-2xl w-full shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto text-slate-800">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <div className="flex items-center gap-2">
+                <Gift className="w-5 h-5 text-amber-600" />
+                <div>
+                  <h3 className="font-bold text-slate-900 text-base">
+                    Bảng Điểm Tích Lũy &amp; Chính Sách Chiết Khấu Hạng Thẻ 2026
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Cộng điểm tự động theo từng món hàng &amp; chiết khấu theo thứ hạng thành viên.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsTiersModalOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-xl bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Content Body */}
+            <div className="space-y-4 text-xs">
+              {/* Section 1: Bảng điểm tích lũy theo từng loại sản phẩm */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2.5">
+                <div className="flex items-center gap-2 text-amber-800 font-bold text-xs uppercase tracking-wide">
+                  <Sparkles className="w-4 h-4 text-amber-600" />
+                  <span>1. Bảng Điểm Tích Lũy Mặc Định Theo Sản Phẩm</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                  <div className="p-2.5 rounded-xl bg-white border border-slate-200 shadow-sm space-y-1">
+                    <span className="font-bold text-amber-800 block">📱 Máy Flagship (≥ 25 triệu):</span>
+                    <p className="text-slate-600">iPhone 18 Pro Max, iPhone Duo... → <strong className="text-emerald-700 font-mono">+500 điểm</strong>/máy</p>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-white border border-slate-200 shadow-sm space-y-1">
+                    <span className="font-bold text-amber-800 block">📱 Cận Cao Cấp (15tr - 24.99tr):</span>
+                    <p className="text-slate-600">iPhone 15, Xiaomi 14 Ultra... → <strong className="text-emerald-700 font-mono">+350 điểm</strong>/máy</p>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-white border border-slate-200 shadow-sm space-y-1">
+                    <span className="font-bold text-amber-800 block">📱 Tầm Trung (7tr - 14.99tr):</span>
+                    <p className="text-slate-600">Samsung A55, Redmi Note Pro... → <strong className="text-emerald-700 font-mono">+200 điểm</strong>/máy</p>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-white border border-slate-200 shadow-sm space-y-1">
+                    <span className="font-bold text-amber-800 block">📱 Phổ Thông (&lt; 7 triệu):</span>
+                    <p className="text-slate-600">Các dòng máy phổ thông → <strong className="text-emerald-700 font-mono">+100 điểm</strong>/máy</p>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-white border border-slate-200 shadow-sm space-y-1">
+                    <span className="font-bold text-blue-700 block">🎧 Phụ Kiện Cao Cấp (≥ 1 triệu):</span>
+                    <p className="text-slate-600">AirPods, Củ sạc đa cổng GaN... → <strong className="text-emerald-700 font-mono">+80 điểm</strong>/món</p>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-white border border-slate-200 shadow-sm space-y-1">
+                    <span className="font-bold text-blue-700 block">🔌 Phụ Kiện Tiêu Chuẩn (300k - 999k):</span>
+                    <p className="text-slate-600">Cáp sạc xịn, Sạc dự phòng... → <strong className="text-emerald-700 font-mono">+30 điểm</strong>/món</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 2: Bảng Hạng Thẻ & Tỷ Lệ Chiết Khấu */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2.5">
+                <div className="flex items-center gap-2 text-blue-800 font-bold text-xs uppercase tracking-wide">
+                  <Award className="w-4 h-4 text-blue-600" />
+                  <span>2. Bảng Phân Hạng Thẻ &amp; Mức Chiết Khấu Tự Động</span>
+                </div>
+                <div className="overflow-x-auto bg-white rounded-xl border border-slate-200">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-200 bg-slate-100 text-slate-700 font-bold text-[11px]">
+                        <th className="py-2.5 px-3">Hạng Thẻ</th>
+                        <th className="py-2.5 px-3">Điểm Tích Lũy</th>
+                        <th className="py-2.5 px-3 text-center">Chiết Khấu Mặc Định</th>
+                        <th className="py-2.5 px-3">Quyền Lợi</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-[11px]">
+                      {MEMBERSHIP_TIERS.map((tier, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50/70">
+                          <td className="py-2 px-3">
+                            <span className={`px-2 py-0.5 rounded-md font-bold text-[10px] border ${tier.badgeClass}`}>
+                              {tier.tier}
+                            </span>
+                          </td>
+                          <td className="py-2 px-3 font-mono text-slate-700">
+                            {tier.minPoints === 0 ? '< 1.000 điểm' : `≥ ${tier.minPoints.toLocaleString('vi-VN')} điểm`}
+                          </td>
+                          <td className="py-2 px-3 text-center font-bold text-amber-700 font-mono text-xs">
+                            {tier.discountPercent}%
+                          </td>
+                          <td className="py-2 px-3 text-slate-600">
+                            {tier.description}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Section 3: Quy Định Phân Quyền Chiết Khấu */}
+              <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 flex items-start gap-2.5 text-[11px] text-amber-900">
+                <ShieldAlert className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="font-bold text-amber-800">Quy định phân quyền chỉnh sửa % Chiết khấu:</p>
+                  <p className="text-slate-700 leading-relaxed">
+                    - Chiết khấu được tự động tính theo tỷ lệ của Hạng thẻ khách hàng đang sở hữu.<br />
+                    - <strong>Chỉ Chủ shop (Admin)</strong> và <strong>Nhân viên bán hàng được cấp quyền (pos_discount)</strong> trong Bảng Ma Trận Phân Quyền mới được quyền sửa % chiết khấu thủ công.<br />
+                    - Trường hợp nhân viên chưa có quyền, Quản lý / Chủ shop có thể nhập mã PIN tại quầy (mặc định: <strong>1807</strong>) để mở khóa duyệt chiết khấu nhanh cho đơn hàng.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="pt-2 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setIsTiersModalOpen(false)}
+                className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs cursor-pointer shadow-md transition-all"
+              >
+                Đã Hiểu &amp; Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* MODAL 5: XÁC THỰC MÃ PIN QUẢN LÝ ĐỂ SỬA CHIẾT KHẤU (Manager Auth) */}
+      {/* ============================================================== */}
+      {isManagerAuthModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 text-slate-800">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <div className="flex items-center gap-2">
+                <Lock className="w-5 h-5 text-amber-600" />
+                <h3 className="font-bold text-slate-900 text-base">Xác Thực Phê Duyệt Chiết Khấu</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsManagerAuthModalOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-xl bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form autoComplete="off" onSubmit={handleVerifyManagerPin} className="space-y-4 text-xs">
+              <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-[11px] leading-relaxed">
+                Tài khoản nhân viên hiện tại chưa được cấp quyền chỉnh sửa % chiết khấu tự do. Vui lòng nhờ <strong>Chủ shop hoặc Quản lý</strong> nhập mã PIN để phê duyệt tại quầy.
+              </div>
+
+              <div>
+                <label className="text-slate-700 font-bold mb-1 block">
+                  Mã PIN / Mật khẩu Quản lý phê duyệt: *
+                </label>
+                <input autoComplete="off"
+                  type="password"
+                  required
+                  autoFocus
+                  value={managerPinInput}
+                  onChange={(e) => {
+                    setManagerPinInput(e.target.value);
+                    setManagerPinError(null);
+                  }}
+                  placeholder=""
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono font-bold text-center tracking-widest text-base focus:bg-white focus:outline-none focus:border-amber-500"
+                />
+                {managerPinError && (
+                  <p className="text-rose-600 text-[11px] mt-1.5 font-bold">
+                    ✕ {managerPinError}
+                  </p>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="pt-2 flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setIsManagerAuthModalOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold transition-colors cursor-pointer"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black shadow-md transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  <Unlock className="w-3.5 h-3.5" />
+                  <span>Xác Nhận Mở Khóa</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

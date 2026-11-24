@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { isValidAmount } from '@/lib/validation';
+import { db } from '@/ThuVien/CoSoDuLieu';
+import { isValidAmount } from '@/ThuVien/KiemTraHopLe';
 
 /**
  * Endpoint tiếp nhận Webhook ngân hàng tự động (Casso / SePay / Napas 247)
- * POST /api/webhook/vietqr
+ * POST /Api/Webhook/VietQR
  */
 export async function POST(request: NextRequest) {
   try {
@@ -34,7 +34,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Đối soát mã đơn hàng HD-xxxx hoặc phiếu sửa SC-xxxx trực tiếp trong MySQL
     const upperContent = content.toUpperCase();
     const invoiceMatch = upperContent.match(/HD[-_]?\d+[-_]?\d+/i);
     const repairMatch = upperContent.match(/SC[-_]?\d+[-_]?\d+/i);
@@ -45,7 +44,7 @@ export async function POST(request: NextRequest) {
 
     if (invoiceMatch) {
       const code = invoiceMatch[0].replace(/_/g, '-');
-      const inv = await db.queryOne('SELECT invoiceCode FROM invoice WHERE UPPER(invoiceCode) = ?', [code]);
+      const inv = await db.queryOne('SELECT SoHoaDon AS invoiceCode FROM HoaDon WHERE UPPER(SoHoaDon) = ?', [code]);
       if (inv) {
         matched = true;
         type = 'invoice';
@@ -53,7 +52,10 @@ export async function POST(request: NextRequest) {
       }
     } else if (repairMatch) {
       const code = repairMatch[0].replace(/_/g, '-');
-      const rep = await db.queryOne('SELECT ticketCode FROM repairticket WHERE UPPER(ticketCode) = ?', [code]);
+      const rep = await db.queryOne(
+        'SELECT SoPhieuSuaChua AS ticketCode FROM PhieuSuaChua WHERE UPPER(SoPhieuSuaChua) = ?',
+        [code]
+      );
       if (rep) {
         matched = true;
         type = 'repair';
@@ -63,14 +65,14 @@ export async function POST(request: NextRequest) {
 
     const now = new Date();
     const dateStr = now.toISOString().split('T')[0];
-    const countRow = await db.queryOne('SELECT COUNT(*) as cnt FROM cashbookentry');
+    const countRow = await db.queryOne('SELECT COUNT(*) as cnt FROM SoQuy');
     const cashCount = countRow?.cnt || 0;
     const cashbookCode = `PT-NAPAS-${dateStr.replace(/-/g, '').slice(2)}-${String(cashCount + 1).padStart(3, '0')}`;
     const cbId = 'cb-webhook-' + Date.now();
 
     await db.execute(
-      `INSERT INTO cashbookentry
-       (id, code, date, type, category, amount, paymentMethod, referenceCode, description, creator, createdAt, updatedAt)
+      `INSERT INTO SoQuy
+       (MaPhieu, MaCodePhieu, NgayGiaoDich, LoaiPhieu, HangMuc, SoTien, PhuongThucThanhToan, MaThamChieu, MoTa, NguoiTao, NgayTao, NgayCapNhat)
        VALUES (?, ?, ?, 'receipt', ?, ?, 'transfer', ?, ?, 'Hệ Thống Webhook Tự Động', NOW(), NOW())`,
       [
         cbId,
