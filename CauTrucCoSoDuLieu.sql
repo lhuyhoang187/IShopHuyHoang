@@ -1,6 +1,6 @@
 -- iShop Huy Hoàng - MySQL Database Schema & DDL
 -- Cơ sở dữ liệu chuẩn hóa Dạng chuẩn 3 (3NF) cho WampServer
--- Ngày xuất: 2026-11-24T06:28:44.949Z
+-- Ngày xuất: 2026-11-24T07:16:41.912Z
 
 CREATE DATABASE IF NOT EXISTS `ishop_huyhoang` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE `ishop_huyhoang`;

@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "db:check": "node KichBan/KiemTraDuLieu.js"
+    "db:check": "node KichBan/KiemTraDuLieu.js",
+    "db:dump": "node KichBan/XuatCauTrucCSDL.js",
+    "db:erd": "node KichBan/XuatSoDoER.js"
   },
   "dependencies": {
     "canvas-confetti": "^1.9.4",
